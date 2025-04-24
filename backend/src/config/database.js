@@ -11,8 +11,8 @@ const sequelize = new Sequelize(
   dbConfig.username,
   dbConfig.password,
   {
-    host: dbConfig.host,
-    dialect: dbConfig.dialect
+    host: process.env.DB_HOST,
+    dialect: process.env.DB_DIALECT || 'postgres', // ← BU SATIR EKLENMELİ
   }
 );
 
