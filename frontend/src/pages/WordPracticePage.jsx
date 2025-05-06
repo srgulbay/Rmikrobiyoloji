@@ -1,23 +1,33 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
-import DOMPurify from 'dompurify';
+// DOMPurify artık kullanılmıyor gibi, kaldırılabilir
+// import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
-import { useColorMode } from '@chakra-ui/react'; // Tema için
-import { useLocation, Link } from 'react-router-dom';
-import { fetchWordleQuestions } from '../services/quizService';
-import { FaInfoCircle, FaExclamationTriangle, FaRedo, FaArrowRight, FaLightbulb } from 'react-icons/fa';
+import { useColorMode, useColorModeValue } from '@chakra-ui/react'; // useColorModeValue eklendi
+import { useLocation, Link as RouterLink } from 'react-router-dom'; // RouterLink eklendi
+import { fetchWordleQuestions } from '../services/quizService'; // Servis importu
+import {
+  Box, Container, Flex, Heading, Text, Button, IconButton, Input, FormControl,
+  Alert, AlertIcon, AlertTitle, AlertDescription, Spinner, Card, CardBody, HStack, Center,
+  Tag, SimpleGrid, VStack, Skeleton, SkeletonText, useToast, // useToast eklendi (opsiyonel)
+  Stat, StatLabel, StatNumber, StatGroup, // Bitiş ekranı için
+  List, ListItem // Bitiş ekranı için
+} from '@chakra-ui/react';
+import { FaInfoCircle, FaExclamationTriangle, FaRedo, FaArrowRight, FaLightbulb, FaTrophy } from 'react-icons/fa';
 import { FiClock, FiCheckCircle, FiXCircle } from "react-icons/fi";
-import Leaderboard from '../components/Leaderboard';
+import Leaderboard from '../components/Leaderboard'; // Leaderboard importu
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// formatTime helper (aynı kalabilir)
 const formatTime = totalSeconds => {
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-// Kelime oyunu component'i
 function WordPracticePage() {
+    // State'ler ve hook'lar aynı kalabilir
     const [leaderboard, setLeaderboard] = useState([]);
     const [leaderboardLoading, setLeaderboardLoading] = useState(true);
     const [leaderboardError, setLeaderboardError] = useState('');
@@ -25,9 +35,8 @@ function WordPracticePage() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [correctAnswer, setCorrectAnswer] = useState('');
-    // revealedAnswer artık kullanılmıyor, kutuları cevap uzunluğuna göre oluşturacağız
     const [userGuess, setUserGuess] = useState('');
-    const [feedback, setFeedback] = useState({ message: '', type: '' });
+    const [feedback, setFeedback] = useState({ message: '', type: 'info' }); // type için varsayılan 'info'
     const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(30);
@@ -35,105 +44,113 @@ function WordPracticePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const { token } = useAuth();
-    const { colorMode } = useColorMode(); // Gerekirse kullan
+    const { colorMode } = useColorMode();
     const timerRef = useRef(null);
     const inputRef = useRef(null);
+    const toast = useToast(); // Bildirimler için
+
+    // fetchLeaderboard (aynı kalabilir, hata durumunda toast eklenebilir)
     const fetchLeaderboard = useCallback(async () => {
-    setLeaderboardLoading(true);
-    setLeaderboardError('');
-    try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}; // ✅ sadece token varsa ekle
-        const response = await axios.get(`${API_BASE_URL}/api/stats/wordle-leaderboard`, {
-            headers
-        });
-        setLeaderboard(response.data || []);
-    } catch (err) {
-        console.error("Lider tablosu çekilirken hata:", err);
-        setLeaderboardError("Lider tablosu yüklenemedi.");
-        setLeaderboard([]);
-    } finally {
-        setLeaderboardLoading(false);
-    }
-}, [token]);
+        setLeaderboardLoading(true); setLeaderboardError('');
+        try {
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const response = await axios.get(`${API_BASE_URL}/api/stats/wordle-leaderboard`, { headers });
+            setLeaderboard(response.data || []);
+        } catch (err) {
+            console.error("Lider tablosu çekilirken hata:", err);
+            const errorMsg = "Lider tablosu yüklenemedi.";
+            setLeaderboardError(errorMsg);
+            setLeaderboard([]);
+            // toast({ title: "Hata", description: errorMsg, status: "error", duration: 3000, isClosable: true });
+        } finally {
+            setLeaderboardLoading(false);
+        }
+    }, [token, toast]); // toast bağımlılığı eklendi
 
-
-    // Soruları çekme
+    // loadQuestions (aynı kalabilir, hata durumunda toast eklenebilir)
     const loadQuestions = useCallback(async () => {
         setLoading(true); setError(''); setWordQuestions([]); setCurrentQuestion(null); setIsGameOver(false); setScore(0); setCurrentIndex(0);
-        clearTimer(); // Timer'ı temizle
-
+        clearTimer();
         if (!token) { setError("Oyunu oynamak için giriş yapmalısınız."); setLoading(false); return; }
         try {
             const questions = await fetchWordleQuestions(token);
             if (questions && questions.length > 0) {
                 const shuffledQuestions = [...questions].sort(() => Math.random() - 0.5);
                 setWordQuestions(shuffledQuestions);
-                setupQuestion(shuffledQuestions[0]); // İlk soruyu kur
+                setupQuestion(shuffledQuestions[0]);
             } else {
                 setError("Bu formatta uygun soru bulunamadı.");
             }
         } catch (err) {
-            setError(err.message || "Sorular yüklenirken bir hata oluştu.");
+             const errorMsg = err.message || "Sorular yüklenirken bir hata oluştu.";
+             setError(errorMsg);
+             // toast({ title: "Hata", description: errorMsg, status: "error", duration: 5000, isClosable: true });
         } finally {
             setLoading(false);
         }
-    }, [token]); // Bağımlılık doğru
+    }, [token, toast]); // setupQuestion kaldırıldı, aşağıda tanımlı
 
-    // Yeni soruyu kurma fonksiyonu
-    const setupQuestion = (question) => {
-        if (!question || !question.answerWord) {
-            console.error("Geçersiz soru verisi:", question);
-            setIsGameOver(true);
-            return;
-        };
-        setCurrentQuestion(question);
-        const answer = question.answerWord.toUpperCase();
-        setCorrectAnswer(answer);
-        setUserGuess(''); // Tahmini temizle
-        setFeedback({ message: '', type: '' });
-        setIsAnswerSubmitted(false);
-        setTimeLeft(30); // Zamanlayıcıyı resetle
-        if (inputRef.current) inputRef.current.focus();
-        startTimer();
-    };
-
-    // Zamanlayıcı yönetimi
-    const clearTimer = useCallback(() => {
+     // setupQuestion, clearTimer, startTimer, handleTimeUp mantığı aynı kalabilir
+      const clearTimer = useCallback(() => {
         clearInterval(timerRef.current);
         timerRef.current = null;
-    }, []);
+      }, []);
 
-    const startTimer = useCallback(() => {
+      const startTimer = useCallback(() => {
         clearTimer();
         timerRef.current = setInterval(() => {
             setTimeLeft(prevTime => {
                 if (prevTime <= 1) {
                     clearTimer();
-                    handleTimeUp();
+                    // handleTimeUp çağrılacak ama state güncellemeleri batch olabilir,
+                    // doğrudan burada state güncellemek daha garanti olabilir.
+                     if (!isAnswerSubmitted) { // Henüz cevap gönderilmediyse süre bitti mesajı ver
+                         setIsAnswerSubmitted(true); // Cevap gönderilmiş kabul et
+                         setFeedback({ message: `Süre doldu! Doğru cevap: ${correctAnswer}`, type: 'warning' });
+                     }
                     return 0;
                 }
                 return prevTime - 1;
             });
         }, 1000);
-    }, [clearTimer]); // handleTimeUp bağımlılığı kaldırıldı
+      // isAnswerSubmitted ve correctAnswer bağımlılıkları sorun yaratabilir, dikkat!
+      // Bu nedenle handleTimeUp'ı burada doğrudan çağırmak yerine state'i burada güncelledik.
+    }, [clearTimer, correctAnswer]); // isAnswerSubmitted bağımlılığı kaldırıldı, correctAnswer eklendi
 
-    const handleTimeUp = useCallback(() => {
-        if (isAnswerSubmitted) return;
-        setIsAnswerSubmitted(true);
-        setFeedback({ message: `Süre doldu! Cevap: ${correctAnswer}`, type: 'warning' });
-    }, [correctAnswer, isAnswerSubmitted]);
+
+     const setupQuestion = useCallback((question) => {
+        if (!question || !question.answerWord) {
+            console.error("Geçersiz soru verisi:", question);
+            setError("Oyun verisi yüklenirken sorun oluştu."); // Hata mesajı ayarla
+            setIsGameOver(true); // Oyunu bitir
+            clearTimer();
+            return;
+        };
+        setCurrentQuestion(question);
+        const answer = question.answerWord.toUpperCase();
+        setCorrectAnswer(answer);
+        setUserGuess('');
+        setFeedback({ message: '', type: 'info' });
+        setIsAnswerSubmitted(false);
+        setTimeLeft(30);
+        if (inputRef.current) inputRef.current.focus();
+        startTimer(); // startTimer burada çağrılıyor
+    }, [startTimer, clearTimer]); // Bağımlılıklar düzeltildi
+
 
     useEffect(() => {
         loadQuestions();
         return () => clearTimer();
     }, [loadQuestions, clearTimer]);
-    useEffect(() => {
-    if (isGameOver) {
-        fetchLeaderboard();
-    }
-    }, [isGameOver, fetchLeaderboard]); // Oyun bitince leaderboard'u çek
-    // Tahmini kontrol et
-    const handleGuessSubmit = useCallback((e) => {
+
+     useEffect(() => {
+        if (isGameOver) {
+            fetchLeaderboard();
+        }
+    }, [isGameOver, fetchLeaderboard]);
+
+    // handleGuessSubmit mantığı aynı, sadece toast eklenebilir
+     const handleGuessSubmit = useCallback((e) => {
         if(e) e.preventDefault();
         if (!userGuess || isAnswerSubmitted || !correctAnswer) return;
         clearTimer();
@@ -143,23 +160,24 @@ function WordPracticePage() {
             const points = Math.max(10, timeLeft * 10);
             setFeedback({ message: `Tebrikler! +${points} puan!`, type: 'success'});
             setScore(prev => prev + points);
+             // Opsiyonel: Başarı Toast'ı
+             // toast({ title: "Doğru!", description: `+${points} puan kazandınız!`, status: "success", duration: 2000 });
         } else {
             setFeedback({ message: `Yanlış! Doğru cevap: ${correctAnswer}`, type: 'error'});
+             // Opsiyonel: Hata Toast'ı
+             // toast({ title: "Yanlış!", description: `Doğru cevap: ${correctAnswer}`, status: "error", duration: 3000 });
         }
-        // Input'u temizlemeye gerek yok, cevap gösterilecek
-    }, [userGuess, isAnswerSubmitted, correctAnswer, timeLeft, clearTimer]);
+    }, [userGuess, isAnswerSubmitted, correctAnswer, timeLeft, clearTimer, toast]);
 
-    // Input değişikliği - Rakamlara izin ver, uzunluğu kontrol et
+    // handleInputChange mantığı aynı kalabilir
     const handleInputChange = useCallback((event) => {
-         // Sadece harf ve rakamları al, boşlukları kaldır, büyük harfe çevir
         const newValue = event.target.value.replace(/[^a-zA-Z0-9ÇĞİÖŞÜçğüöşİ]/g, '').toUpperCase();
-        // Cevap uzunluğunu geçmemesini sağla
-        if (newValue.length <= correctAnswer.length) {
+        if (correctAnswer && newValue.length <= correctAnswer.length) {
              setUserGuess(newValue);
         }
-    }, [correctAnswer]); // correctAnswer değişince güncellenmeli
+    }, [correctAnswer]);
 
-    // Sonraki soruya geçiş
+     // goToNextQuestion mantığı aynı kalabilir
     const goToNextQuestion = useCallback(() => {
         if (!isAnswerSubmitted) return;
         const nextIndex = currentIndex + 1;
@@ -169,111 +187,201 @@ function WordPracticePage() {
         } else {
             setIsGameOver(true);
         }
-    }, [currentIndex, wordQuestions, isAnswerSubmitted, setupQuestion]); // setupQuestion eklendi
+    }, [currentIndex, wordQuestions, isAnswerSubmitted, setupQuestion]);
 
-    // --- Render Bölümü ---
+    // --- Render Bölümü (Chakra UI ile) ---
+
     if (loading) {
-         return ( <div className="container py-8 animate-pulse"> <div className="h-8 bg-[var(--bg-tertiary)] rounded w-1/3 mx-auto mb-8"></div> <div className="h-12 bg-[var(--bg-secondary)] rounded mb-6"></div> <div className="card max-w-2xl mx-auto p-8"> <div className="h-6 bg-[var(--bg-tertiary)] rounded w-3/4 mx-auto mb-6"></div> <div className="flex justify-center gap-2 mb-6"> {[...Array(7)].map((_, i)=><div key={i} className="h-12 w-10 bg-[var(--bg-tertiary)] rounded"></div>)} </div> <div className="h-10 bg-[var(--bg-tertiary)] rounded w-full"></div> </div> </div> );
-    }
-    if (error) {
-        return ( <div className="container mt-6"> <div className="card card-accented-error text-center py-8"> <FaExclamationTriangle className='mb-4 text-4xl text-[var(--feedback-error)] mx-auto' /> <h3 className='h4 mb-3 text-[var(--text-primary)]'>Bir Hata Oluştu</h3> <p className="text-muted mb-5">{error}</p> <button onClick={loadQuestions} className="btn btn-danger"><FaRedo className='btn-icon'/> Tekrar Dene</button> </div> </div> );
-    }
-    if (isGameOver || (!loading && !currentQuestion)) { // Hata durumu zaten yukarıda handle edildi
-        const gameFinished = isGameOver && wordQuestions.length > 0 && currentIndex >= wordQuestions.length -1; // Oyun bitti mi kontrolü
-        const noQuestionsFound = !loading && wordQuestions.length === 0; // Hiç soru bulunamadı mı?
-
+        // Chakra UI Skeleton
         return (
-            <div className="container py-8"> {/* Flex kaldırıldı */}
-                 {/* Kartı yatayda ortala ve yukarıdan boşluk ver */}
-                <div className={`card quiz-finished-card text-center mx-auto mt-10 ${gameFinished ? 'card-accented-success' : 'card-accented-warning'}`} style={{ maxWidth: '550px' }}> {/* Max genişlik artırıldı */}
-                    <h2 className="h1 mb-4">{gameFinished ? 'Oyun Bitti!' : 'Soru Bulunamadı'}</h2>
-                    {gameFinished && (
-                        <>
-                            <p className="text-lg mb-4">Tebrikler, tüm soruları tamamladınız!</p>
-                            {/* ... skor dl ... */}
-                             <dl className="my-6 text-left border-t border-b border-[var(--border-secondary)] py-5">
-                                 <div className="flex justify-between mb-3"> <dt className="text-secondary">Toplam Skor:</dt> <dd className="font-semibold text-xl text-[var(--accent-primary)]">{score}</dd> </div>
-                             </dl>
-                        </>
-                    )}
-                     {/* Soru bulunamama veya yüklenememe durumu için mesaj */}
-                     {(noQuestionsFound || (!gameFinished && !loading && !currentQuestion)) && (
-                        <p className="text-muted mb-6">Oyun için uygun soru bulunamadı veya yüklenirken bir hata oluştu.</p>
-                    )}
-
-                    <Leaderboard data={leaderboard} loading={leaderboardLoading} error={leaderboardError} />
-
-                    <button className="btn btn-primary btn-lg btn-restart mt-8" onClick={loadQuestions}>
-                         <FaRedo className="btn-icon" /> {gameFinished ? 'Tekrar Oyna' : 'Yeni Oyun Başlat'}
-                    </button>
-                 </div>
-            </div>
+            <Container maxW="container.md" py={8}>
+                <VStack spacing={6}>
+                    <Skeleton height="40px" width="50%" />
+                    <Skeleton height="50px" width="70%" borderRadius="md" />
+                    <Card variant="outline" w="full" p={8}>
+                        <SkeletonText mt="4" noOfLines={1} spacing="4" width="80%" mx="auto" />
+                        <HStack justify="center" spacing={2} my={6}>
+                            {[...Array(7)].map((_, i) => <Skeleton key={i} height="4rem" width="3rem" borderRadius="md" />)}
+                        </HStack>
+                        <Skeleton height="40px" borderRadius="md" />
+                    </Card>
+                </VStack>
+            </Container>
         );
     }
 
-    // --- Aktif Oyun Arayüzü ---
-    return (
-        <div className="container py-6 word-practice-page">
-            <h1 className="h2 text-center mb-4">Kelime Çalışması</h1>
-            <div className="flex justify-between items-center mb-6 p-3 px-4 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] max-w-md mx-auto text-sm">
-                <div className='flex items-center gap-2'> <span className='text-muted'>Skor:</span> <span className='font-bold text-lg text-[var(--accent-primary)]'>{score}</span> </div>
-                <div className='flex items-center gap-2'> <FiClock className="text-muted" /> <span className='font-semibold text-lg'>{formatTime(timeLeft)}</span> </div>
-            </div>
+    if (error) {
+        // Chakra UI Hata Ekranı
+        return (
+            <Container maxW="container.md" mt={10}>
+                <Alert status="error" variant="left-accent" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
+                    <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
+                    <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle>
+                    <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription>
+                    <Button colorScheme="red" onClick={loadQuestions} leftIcon={<Icon as={FaRedo} />}>
+                        Tekrar Dene
+                    </Button>
+                </Alert>
+            </Container>
+        );
+    }
 
-            <div className="card max-w-2xl mx-auto p-6 md:p-8 shadow-lg">
-                <div className='card-body text-center'> {/* Kart içeriğini ortala */}
-                    {/* SORU METNİ ALANI EKLENDİ */}
-                    <p className="question-text text-xl text-primary mb-8">
+    if (isGameOver || (!loading && !currentQuestion)) {
+        const gameFinished = isGameOver && wordQuestions.length > 0 && currentIndex >= wordQuestions.length -1;
+        const noQuestionsFound = !loading && wordQuestions.length === 0;
+
+        // Chakra UI Oyun Bitiş / Soru Yok Ekranı
+        return (
+            <Container maxW="container.md" py={8}>
+                <Card variant="outline" textAlign="center" p={{base: 6, md: 10}} mt={10}>
+                    <CardBody>
+                        <Heading as="h2" size="2xl" mb={4} color={gameFinished ? 'green.500' : 'orange.500'}>
+                            {gameFinished ? 'Oyun Bitti!' : 'Soru Bulunamadı'}
+                        </Heading>
+
+                        {gameFinished && (
+                            <>
+                                <Text fontSize="lg" mb={4}>Tebrikler, tüm soruları tamamladınız!</Text>
+                                <StatGroup justifyContent="center" mb={6}>
+                                    <Stat>
+                                        <StatLabel>Toplam Skor</StatLabel>
+                                        <StatNumber fontSize="3xl" color="brand.500">{score}</StatNumber>
+                                    </Stat>
+                                </StatGroup>
+                            </>
+                        )}
+                        {(noQuestionsFound || (!gameFinished && !loading && !currentQuestion)) && (
+                            <Text color="textMuted" mb={6}>Oyun için uygun soru bulunamadı veya yüklenirken bir hata oluştu.</Text>
+                        )}
+
+                        {/* Leaderboard (Henüz güncellenmedi) */}
+                        <Leaderboard data={leaderboard} loading={leaderboardLoading} error={leaderboardError} />
+
+                        <Button colorScheme="brand" size="lg" onClick={loadQuestions} leftIcon={<Icon as={FaRedo} />} mt={8}>
+                            {gameFinished ? 'Tekrar Oyna' : 'Yeni Oyun Başlat'}
+                        </Button>
+                    </CardBody>
+                </Card>
+            </Container>
+        );
+    }
+
+    // --- Aktif Oyun Arayüzü (Chakra UI ile) ---
+    // Tema renkleri
+    const boxBorderColor = useColorModeValue('gray.300', 'gray.600');
+    const revealedBoxBorderColor = useColorModeValue('gray.500', 'gray.400');
+    const finalRevealBorderColor = useColorModeValue('blue.500', 'blue.300');
+    const boxBg = useColorModeValue('gray.100', 'gray.700');
+
+    return (
+        <Container maxW="container.md" py={6} className="word-practice-page">
+            <Heading as="h1" size="lg" textAlign="center" mb={4}>Kelime Çalışması</Heading>
+            {/* Skor ve Zamanlayıcı */}
+            <Flex justify="space-between" align="center" mb={6} p={3} px={4} borderRadius="md" bg="bgSecondary" borderWidth="1px" borderColor="borderPrimary" maxW="sm" mx="auto">
+                <HStack>
+                    <Text fontSize="sm" color="textMuted">Skor:</Text>
+                    <Text fontWeight="bold" fontSize="lg" color="brand.500">{score}</Text>
+                </HStack>
+                <HStack>
+                    <Icon as={FiClock} color="textMuted" />
+                    <Text fontWeight="semibold" fontSize="lg">{formatTime(timeLeft)}</Text>
+                </HStack>
+            </Flex>
+
+            {/* Oyun Alanı Kartı */}
+            <Card variant="outline" maxW="2xl" mx="auto" p={{base: 4, md: 8}} boxShadow="lg">
+                <CardBody textAlign="center">
+                    {/* Soru Metni */}
+                    <Text fontSize={{base:"lg", md:"xl"}} color="textPrimary" mb={8} minH="3em"> {/* Minimum yükseklik */}
                          {currentQuestion.text}
-                    </p>
+                    </Text>
 
                     {/* Cevap Kutucukları */}
-                    <div className="word-display flex flex-wrap justify-center gap-2 mb-6">
-                         {/* Doğru cevap uzunluğu kadar kutu oluştur */}
+                    <HStack spacing={{base: 1, sm: 2}} justify="center" mb={6} flexWrap="wrap">
                          {Array.from({ length: correctAnswer.length }).map((_, index) => {
                              const char = correctAnswer[index];
-                             const isRevealed = index === 0 || isAnswerSubmitted; // İlk harf veya cevap gönderildiyse
+                             const isRevealed = index === 0 || isAnswerSubmitted;
                              return (
-                                 <span key={index} className={`word-letter-box ${isRevealed ? 'revealed-final' : ''} ${index === 0 ? 'revealed-initial' : ''}`}>
-                                     {/* Sadece ilk harfi veya cevap gönderildiyse göster */}
+                                 <Center
+                                     key={index}
+                                     as="span"
+                                     w={{base:"2.5rem", md:"3rem"}} // Responsive boyut
+                                     h={{base:"2.5rem", md:"3rem"}}
+                                     borderWidth="2px"
+                                     borderColor={isRevealed ? finalRevealBorderColor : (index === 0 ? revealedBoxBorderColor : boxBorderColor)}
+                                     borderRadius="sm"
+                                     fontFamily="mono"
+                                     fontSize={{base:"lg", md:"xl"}}
+                                     fontWeight="bold"
+                                     textTransform="uppercase"
+                                     color="textPrimary"
+                                     bg={boxBg}
+                                     transition="all 0.2s ease"
+                                     userSelect="none" // Seçimi engelle
+                                 >
                                      {isRevealed ? char : ''}
-                                 </span>
+                                 </Center>
                              );
                          })}
-                    </div>
+                    </HStack>
 
                      {/* Geri Bildirim */}
-                     {feedback.message && ( <div className={`alert text-sm mb-4 ${feedback.type === 'success' ? 'alert-success' : feedback.type === 'error' ? 'alert-danger' : 'alert-warning'}`}> {feedback.type === 'success' && <FiCheckCircle className='alert-icon'/>} {feedback.type === 'error' && <FiXCircle className='alert-icon'/>} {feedback.type === 'warning' && <FaExclamationTriangle className='alert-icon'/>} <span className='alert-content'>{feedback.message}</span> </div> )}
+                     <ScaleFade initialScale={0.9} in={!!feedback.message} unmountOnExit>
+                         {feedback.message && (
+                            <Alert status={feedback.type === 'info' ? 'info' : feedback.type} borderRadius="md" mb={4} variant="subtle" justifyContent="center">
+                                <AlertIcon />
+                                <AlertDescription fontSize="sm">{feedback.message}</AlertDescription>
+                            </Alert>
+                         )}
+                    </ScaleFade>
 
-                    {/* Tahmin Girişi veya Sonraki Soru */}
+                    {/* Tahmin Girişi veya Sonraki Soru Butonu */}
                     {!isAnswerSubmitted ? (
-                         <form onSubmit={handleGuessSubmit} className='flex flex-col sm:flex-row gap-3 justify-center items-center mt-4 max-w-sm mx-auto'>
-                             <input
-                                 ref={inputRef}
-                                 type="text"
-                                 className="form-input flex-grow text-center uppercase text-xl tracking-wider font-semibold font-mono word-guess-input"
-                                 value={userGuess}
-                                 onChange={handleInputChange}
-                                 maxLength={correctAnswer.length}
-                                 placeholder={"_ ".repeat(correctAnswer.length)}
-                                 autoFocus
-                                 disabled={isAnswerSubmitted}
-                                 aria-label="Tahmininizi girin"
-                                 autoComplete='off'
-                             />
-                             <button type="submit" className="btn btn-primary w-full sm:w-auto px-6" disabled={!userGuess || userGuess.length !== correctAnswer.length}>
+                         <Flex as="form" onSubmit={handleGuessSubmit} direction={{base:"column", sm:"row"}} gap={3} justify="center" align="center" mt={4} maxW="sm" mx="auto">
+                             <FormControl isDisabled={isAnswerSubmitted}>
+                                 <Input
+                                     ref={inputRef}
+                                     type="text"
+                                     textAlign="center"
+                                     textTransform="uppercase"
+                                     fontSize="xl"
+                                     letterSpacing="wider"
+                                     fontWeight="semibold"
+                                     fontFamily="mono"
+                                     value={userGuess}
+                                     onChange={handleInputChange}
+                                     maxLength={correctAnswer.length}
+                                     placeholder={"_ ".repeat(correctAnswer.length)}
+                                     autoFocus
+                                     autoComplete='off'
+                                     aria-label="Tahmininizi girin"
+                                     bg={useColorModeValue('white', 'gray.800')}
+                                     borderColor={useColorModeValue('gray.300', 'gray.600')}
+                                     _focus={{borderColor: "brand.500", boxShadow: `0 0 0 1px var(--chakra-colors-brand-500)`}}
+                                 />
+                              </FormControl>
+                             <Button
+                                type="submit"
+                                colorScheme="brand"
+                                w={{base:"full", sm:"auto"}}
+                                px={6}
+                                isDisabled={!userGuess || userGuess.length !== correctAnswer.length || isAnswerSubmitted}
+                            >
                                  Tahmin Et
-                             </button>
-                         </form>
+                             </Button>
+                         </Flex>
                     ) : (
-                        <button onClick={goToNextQuestion} className='btn btn-secondary mt-4'>
-                            Sonraki Soru <FaArrowRight className='ml-2'/>
-                        </button>
+                        <Button onClick={goToNextQuestion} colorScheme="gray" variant="outline" mt={4} rightIcon={<Icon as={FaArrowRight}/>}>
+                            Sonraki Soru
+                        </Button>
                     )}
-                </div>
-            </div>
-             <p className='text-center text-muted text-sm mt-6'> Kelimeyi tahmin etmek için kutucuklara yazın ve "Tahmin Et" butonuna tıklayın veya Enter'a basın. </p>
-        </div>
+                </CardBody>
+            </Card>
+            {/* Yardımcı Metin */}
+            <Text textAlign="center" color="textMuted" fontSize="sm" mt={6}>
+                Kelimeyi tahmin etmek için kutucuklara yazın ve "Tahmin Et" butonuna tıklayın veya Enter'a basın.
+            </Text>
+        </Container>
     );
 }
 
