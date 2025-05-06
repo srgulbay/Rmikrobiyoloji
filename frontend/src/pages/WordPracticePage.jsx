@@ -8,7 +8,7 @@ import { useLocation, Link as RouterLink } from 'react-router-dom'; // RouterLin
 import { fetchWordleQuestions } from '../services/quizService'; // Servis importu
 import {
   Box, Icon, Container, Flex, Heading, Text, Button, IconButton, Input, FormControl,
-  Alert, AlertIcon, AlertTitle, AlertDescription, Spinner, Card, CardBody, HStack, Center,
+  Alert, AlertIcon, AlertTitle, AlertDescription, Spinner, Card, CardBody, HStack, Center, ScaleFade,
   Tag, SimpleGrid, VStack, Skeleton, SkeletonText, useToast, // useToast eklendi (opsiyonel)
   Stat, StatLabel, StatNumber, StatGroup, // Bitiş ekranı için
   List, ListItem // Bitiş ekranı için
