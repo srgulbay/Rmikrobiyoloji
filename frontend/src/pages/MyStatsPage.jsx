@@ -230,7 +230,7 @@ function MyStatsPage() {
                                         </Tr>
                                     );
                                 })}
-                            </tbody>
+                            </Tbody>
                         </Table>
                     </TableContainer>
                 )}
