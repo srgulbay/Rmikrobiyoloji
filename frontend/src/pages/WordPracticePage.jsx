@@ -7,7 +7,7 @@ import { useColorMode, useColorModeValue } from '@chakra-ui/react'; // useColorM
 import { useLocation, Link as RouterLink } from 'react-router-dom'; // RouterLink eklendi
 import { fetchWordleQuestions } from '../services/quizService'; // Servis importu
 import {
-  Box, Container, Flex, Heading, Text, Button, IconButton, Input, FormControl,
+  Box, Icon, Container, Flex, Heading, Text, Button, IconButton, Input, FormControl,
   Alert, AlertIcon, AlertTitle, AlertDescription, Spinner, Card, CardBody, HStack, Center,
   Tag, SimpleGrid, VStack, Skeleton, SkeletonText, useToast, // useToast eklendi (opsiyonel)
   Stat, StatLabel, StatNumber, StatGroup, // Bitiş ekranı için
