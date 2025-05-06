@@ -1,37 +1,42 @@
-import React, { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import TopicCard from '../components/TopicCard'; // Güncellenmiş TopicCard'ı kullan
+import TopicCard from '../components/TopicCard'; // Chakra ile güncellenmiş hali kullanılıyor varsayılıyor
 import {
   Box,
   Container,
   Flex,
   Button,
   IconButton,
-  Link,
+  Link as ChakraLink,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
-  SimpleGrid, // Grid için
+  SimpleGrid,
   Heading,
   Text,
-  Spinner, // Yükleme göstergesi
+  Spinner,
   Alert,
   AlertIcon,
   AlertTitle,
   AlertDescription,
   Icon,
-  Skeleton, // İskelet yükleme için
+  Skeleton,
   SkeletonText,
-  SkeletonCircle,
-  HStack // Yatay dizilim için
+  SkeletonCircle, // Gerekirse
+  HStack,
+  VStack,
+  Center, // Ortalama için
+  Fade // Geçiş efekti için
 } from '@chakra-ui/react';
 import { FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle, FaInfoCircle, FaFolder, FaListAlt, FaRedo } from 'react-icons/fa';
+// motion eklemeye gerek yok, Fade yeterli olabilir
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Helper Fonksiyonlar (Aynen kalabilir)
+// ... (findTopicAndPathById ve getTopicFromPath fonksiyonları burada)
 const findTopicAndPathById = (id, nodes, currentPath = []) => {
   for (const node of nodes) {
     const newPath = [...currentPath, { id: node.id, name: node.name }];
@@ -56,21 +61,27 @@ const getTopicFromPath = (pathIds, tree) => {
   }
   return topic;
 };
-// --- Helper Fonksiyonlar Sonu ---
+
 
 function TopicBrowserPage() {
+    // State'ler ve hook'lar aynı kalabilir
     const [topicTree, setTopicTree] = useState([]);
     const [currentPathIds, setCurrentPathIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const { token } = useAuth();
     const navigate = useNavigate();
-    // const location = useLocation(); // Şu an kullanılmıyor gibi
 
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
 
+    // fetchData, useEffect, useMemo, handleTopicSelect, handleGoBack,
+    // breadcrumbItems, navigateToPath, handleContentNavigation
+    // fonksiyonları aynı kalabilir.
+
     const fetchTopics = useCallback(async () => {
         setLoading(true); setError('');
+        // Yapay gecikme (Test için, gerçekte kaldırın)
+        // await new Promise(resolve => setTimeout(resolve, 1000));
         if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return;}
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -87,7 +98,6 @@ function TopicBrowserPage() {
 
     useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
-    // Bu kısım aynı kalabilir
     const { activeTopic, currentTopics } = useMemo(() => {
         const topic = getTopicFromPath(currentPathIds, topicTree);
         const children = currentPathIds.length === 0 ? topicTree : topic?.children || [];
@@ -104,25 +114,23 @@ function TopicBrowserPage() {
         setCurrentPathIds(prevPath => prevPath.slice(0, -1));
     }, []);
 
-    // Bu kısım aynı kalabilir
-    const breadcrumbItems = useMemo(() => {
-      const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0 }];
-      let currentLevel = topicTree;
-      currentPathIds.forEach((pathId, index) => {
-        const found = currentLevel?.find(t => t.id === pathId);
-        if (found) {
-          items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
-          currentLevel = found.children;
-        }
-      });
-      return items;
+     const breadcrumbItems = useMemo(() => {
+        const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0 }];
+        let currentLevel = topicTree;
+        currentPathIds.forEach((pathId, index) => {
+            const found = currentLevel?.find(t => t.id === pathId);
+            if (found) {
+                items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
+                currentLevel = found.children;
+            }
+        });
+        return items;
     }, [currentPathIds, topicTree]);
 
     const navigateToPath = useCallback((index) => {
         setCurrentPathIds(currentPathIds.slice(0, index));
     }, [currentPathIds]);
 
-    // Bu kısım aynı kalabilir
     const handleContentNavigation = (type, topicId) => {
         if (!topicId) return;
         if (type === 'lecture') {
@@ -131,25 +139,25 @@ function TopicBrowserPage() {
             navigate(`/solve?topicId=${topicId}`);
         }
     };
-    // --- Helper ve Logic Fonksiyonları Sonu ---
 
-
-    // --- Render Bölümü (Chakra UI ile) ---
+    // --- Render Bölümü (Daha İyileştirilmiş) ---
 
     if (loading) {
-        // Chakra UI İskelet Yükleme Ekranı
+        // Daha Detaylı İskelet Yükleme Ekranı
         return (
             <Container maxW="container.xl" py={8}>
-                 {/* Breadcrumb Skeleton */}
-                <Skeleton height="20px" width="50%" mb={6} />
-                 {/* Back Button Skeleton */}
-                <Skeleton height="32px" width="120px" mb={6} />
-                 {/* Active Topic Skeleton */}
+                {/* Breadcrumb & Back Button Skeleton */}
+                <Flex wrap="wrap" align="center" justify="space-between" gap={4} mb={6}>
+                     <Skeleton height="20px" width="50%" />
+                     <Skeleton height="32px" width="120px" />
+                </Flex>
+                 {/* Active Topic Skeleton (Varsa) */}
+                 {/* currentPathIds boş değilse activeTopic iskeleti gösterilebilir ama şimdilik basit tutalım */}
                 <Skeleton height="100px" borderRadius="lg" mb={8} />
                  {/* Card Grid Skeleton */}
                 <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6}>
-                    {[...Array(6)].map((_, i) => (
-                        <Skeleton key={i} height="80px" borderRadius="md" />
+                    {[...Array(8)].map((_, i) => ( // Daha fazla iskelet kartı
+                        <Skeleton key={i} height="90px" borderRadius="md" /> // Kart yüksekliğine yakın
                     ))}
                 </SimpleGrid>
             </Container>
@@ -157,56 +165,37 @@ function TopicBrowserPage() {
     }
 
     if (error) {
-        // Chakra UI Hata Ekranı
+        // Hata Ekranı (Aynı kalabilir veya geliştirilebilir)
         return (
-            <Container maxW="container.xl" mt={6}>
-                 <Alert
-                    status="error"
-                    variant="subtle" // Veya 'solid', 'left-accent'
-                    flexDirection="column"
-                    alignItems="center"
-                    justifyContent="center"
-                    textAlign="center"
-                    height="auto" // İçeriğe göre yükseklik
-                    py={10} // Dikey padding
-                    borderRadius="lg" // Kenar yuvarlaklığı
-                >
-                    <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
-                    <AlertTitle mt={4} mb={1} fontSize="xl">
-                        Bir Hata Oluştu
-                    </AlertTitle>
-                    <AlertDescription maxWidth="sm" mb={5}>
-                        {error}
-                    </AlertDescription>
-                    <Button colorScheme="red" onClick={fetchTopics} leftIcon={<Icon as={FaRedo} />}>
-                        Tekrar Dene
-                    </Button>
-                </Alert>
-            </Container>
+             <Container maxW="container.xl" mt={6}>
+                 <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
+                     <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
+                     <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle>
+                     <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription>
+                     <Button colorScheme="red" onClick={fetchTopics} leftIcon={<Icon as={FaRedo} />}>Tekrar Dene</Button>
+                 </Alert>
+             </Container>
         );
     }
 
     // Ana İçerik Render
     return (
-        // Eski main.topic-browser-page.container.py-8 yerine Chakra Container
         <Container maxW="container.xl" py={8}>
 
             {/* Navigasyon Alanı */}
-            {/* Eski flex div yerine Chakra Flex */}
             <Flex wrap="wrap" align="center" justify="space-between" gap={4} mb={6}>
-                 {/* Eski nav > ol.breadcrumb yerine Chakra Breadcrumb */}
                 <Breadcrumb separator="/" spacing={2} fontSize="sm">
                     {breadcrumbItems.map((item, index) => {
                         const isLast = index === breadcrumbItems.length - 1;
                         return (
                             <BreadcrumbItem key={item.id || 'home'} isCurrentPage={isLast}>
                                 <BreadcrumbLink
-                                    as={!isLast && item.id !== null ? 'a' : 'span'} // Link veya span
+                                    as={!isLast && item.id !== null ? 'a' : 'span'}
                                     href={!isLast && item.id !== null ? '#' : undefined}
                                     onClick={!isLast && item.id !== null ? (e) => { e.preventDefault(); navigateToPath(index); } : undefined}
-                                    fontWeight={isLast ? 'medium' : 'normal'}
-                                    color={isLast ? 'textMuted' : 'textSecondary'} // Semantic token
-                                    _hover={!isLast && item.id !== null ? { color: 'accent' } : {}} // Semantic token
+                                    fontWeight={isLast ? 'semibold' : 'normal'} // Aktif olanı kalın yap
+                                    color={isLast ? 'textPrimary' : 'textSecondary'} // Aktif olanı daha belirgin yap
+                                    _hover={!isLast && item.id !== null ? { color: 'accent', textDecor: 'underline' } : {}} // Hover efekti
                                     aria-current={isLast ? 'page' : undefined}
                                 >
                                     {item.name}
@@ -215,87 +204,88 @@ function TopicBrowserPage() {
                         );
                     })}
                 </Breadcrumb>
-                {/* Eski Geri Butonu yerine Chakra Button */}
                 {currentPathIds.length > 0 && (
-                    <Button onClick={handleGoBack} variant="ghost" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0}>
+                    <Button onClick={handleGoBack} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0}>
                          Geri ({breadcrumbItems[breadcrumbItems.length - 2]?.name || 'Konular'})
                     </Button>
                 )}
             </Flex>
 
-             {/* Aktif Konu Başlığı ve Aksiyonları */}
-             {activeTopic && (
-                 // Eski active-topic-section yerine Box
-                 <Box mb={8} p={6} borderRadius="lg" bg="bgSecondary" borderWidth="1px" borderColor="borderPrimary" boxShadow="sm">
-                      {/* Eski flex div yerine Chakra Flex */}
-                      <Flex wrap="wrap" justify="space-between" align="center" gap={4}>
-                          <Box flex="1" minW="0"> {/* Taşan metinler için */}
-                               {/* Eski h2 yerine Chakra Heading */}
-                               <Heading as="h2" size="lg" mb={1} noOfLines={2}> {/* Uzun başlıklar için */}
-                                   {activeTopic.name}
-                               </Heading>
-                               {/* Eski p yerine Chakra Text */}
-                               {activeTopic.description && <Text color="textMuted" fontSize="sm" mb={0} noOfLines={3}>{activeTopic.description}</Text>}
-                          </Box>
-                           {/* Eski action-buttons yerine Chakra HStack */}
-                           <HStack spacing={3} flexShrink={0}>
-                               {/* Eski button yerine Chakra Button */}
-                               <Button
-                                   onClick={() => handleContentNavigation('lecture', activeTopic.id)}
-                                   variant="secondary" // Tema'dan gelen varyant
-                                   leftIcon={<Icon as={FaBookOpen} />}
-                                   title={`${activeTopic.name} Konu Anlatımı (Alt konular dahil)`}
-                               >
-                                   Konu Anlatımı
-                               </Button>
-                               <Button
-                                    onClick={() => handleContentNavigation('quiz', activeTopic.id)}
-                                    colorScheme="brand" // Tema'dan gelen ana renk
-                                    leftIcon={<Icon as={FaPencilAlt} />}
-                                    title={`${activeTopic.name} ve Alt Konuları İçin Soru Çöz`}
+             {/* Aktif Konu Başlığı ve Aksiyonları (Daha belirgin arkaplan/gölge ve geçiş efekti) */}
+             <Fade in={!!activeTopic} unmountOnExit> {/* Sadece activeTopic varsa göster ve geçiş ekle */}
+                {activeTopic && (
+                    <Box
+                        mb={8} p={6} borderRadius="xl" // Daha yuvarlak köşe
+                        bg="bgTertiary" // Daha belirgin arka plan
+                        borderWidth="1px" borderColor="borderSecondary" // Hafif border
+                        boxShadow="lg" // Daha belirgin gölge
+                    >
+                        <Flex wrap="wrap" justify="space-between" align="center" gap={4}>
+                            <Box flex="1" minW="0">
+                                <Heading as="h2" size="lg" mb={1} noOfLines={2} color="textPrimary">
+                                    {activeTopic.name}
+                                </Heading>
+                                {activeTopic.description && <Text color="textSecondary" fontSize="sm" mb={0} noOfLines={3}>{activeTopic.description}</Text>}
+                            </Box>
+                            <HStack spacing={3} flexShrink={0}>
+                                <Button
+                                    onClick={() => handleContentNavigation('lecture', activeTopic.id)}
+                                    variant="solid" // Daha belirgin olabilir
+                                    colorScheme="blue" // Farklı renk
+                                    leftIcon={<Icon as={FaBookOpen} />}
+                                    title={`${activeTopic.name} Konu Anlatımı`}
+                                    size="sm" // Butonları biraz küçültebiliriz
                                 >
-                                   Soruları Çöz
-                               </Button>
-                           </HStack>
-                      </Flex>
-                 </Box>
-             )}
+                                    Konu Anlatımı
+                                </Button>
+                                <Button
+                                    onClick={() => handleContentNavigation('quiz', activeTopic.id)}
+                                    colorScheme="brand"
+                                    leftIcon={<Icon as={FaPencilAlt} />}
+                                    title={`${activeTopic.name} Soruları Çöz`}
+                                    size="sm"
+                                >
+                                    Soruları Çöz
+                                </Button>
+                            </HStack>
+                        </Flex>
+                    </Box>
+                )}
+            </Fade>
 
-            {/* Alt Konular veya Boş Durum Mesajı */}
-            {currentTopics.length > 0 ? (
-                <>
-                     {activeTopic && <Heading as="h3" size="md" mb={4} color="textSecondary">Alt Konular</Heading>}
-                     {/* Eski card-grid yerine Chakra SimpleGrid */}
-                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6}>
-                         {currentTopics.map(topic => (
-                             // Chakra ile güncellenmiş TopicCard'ı kullan
-                             <TopicCard
-                                 key={topic.id}
-                                 topic={topic}
-                                 onSelectTopic={handleTopicSelect}
-                             />
-                         ))}
-                     </SimpleGrid>
-                 </>
-            ) : (
-                 !loading && ( // Sadece yükleme bittiyse göster
-                    currentPathIds.length > 0 ? (
-                         // Eski div yerine Chakra Text
-                        <Text textAlign="center" color="textMuted" py={5} fontStyle="italic">
-                            Bu konuda başka alt başlık bulunmuyor.
-                        </Text>
-                    ) : (
-                         // Eski card yerine Chakra Box veya Card
-                        <Box textAlign="center" py={8} bg="bgSecondary" borderRadius="lg" borderWidth="1px" borderColor="borderPrimary">
-                            <Icon as={FaFolder} boxSize="40px" color="textMuted" mb={4} />
-                            <Heading as="h3" size="md" mb={3}>Henüz Konu Eklenmemiş</Heading>
-                            <Text color="textMuted">İçeriklere göz atmak için lütfen Yönetim Panelinden konuları ekleyin.</Text>
-                       </Box>
-                   )
-                 )
-            )}
+            {/* Alt Konular veya Boş Durum Mesajı (Geçiş efekti ile) */}
+            <Fade in={!loading} key={currentPathIds.join('-') || 'root'}> {/* Path değiştiğinde fade olsun */}
+                {currentTopics.length > 0 ? (
+                    <>
+                        {activeTopic && <Heading as="h3" size="md" mb={4} color="textSecondary" fontWeight="medium">Alt Konular</Heading>}
+                        <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={5}> {/* Spacing ayarlandı */}
+                            {currentTopics.map(topic => (
+                                <TopicCard
+                                    key={topic.id}
+                                    topic={topic}
+                                    onSelectTopic={handleTopicSelect}
+                                    // TopicCard'a hover/active efektleri eklenmişti
+                                />
+                            ))}
+                        </SimpleGrid>
+                    </>
+                ) : (
+                    !loading && ( // Sadece yükleme bittiğinde göster
+                        <Center py={10}>
+                            <VStack spacing={3}>
+                                <Icon as={currentPathIds.length > 0 ? FaInfoCircle : FaFolder} boxSize="40px" color="textMuted" />
+                                <Text color="textMuted" fontStyle={currentPathIds.length > 0 ? 'italic' : 'normal'}>
+                                    {currentPathIds.length > 0
+                                        ? "Bu konuda başka alt başlık bulunmuyor."
+                                        : "Henüz konu eklenmemiş. Yönetim panelinden ekleyebilirsiniz."}
+                                </Text>
+                            </VStack>
+                        </Center>
+                    )
+                )}
+            </Fade>
         </Container>
     );
-} // TopicBrowserPage Sonu
+}
 
 export default TopicBrowserPage;
