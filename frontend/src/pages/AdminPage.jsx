@@ -13,6 +13,7 @@ import {
   Container,
   Center,
   Heading,
+  Flex,
   Tabs, // Sekmeli yapı için
   TabList,
   TabPanels,
