@@ -11,6 +11,7 @@ import DOMPurify from 'dompurify';
 import {
   Box,
   Container,
+  Center,
   Heading,
   Tabs, // Sekmeli yapı için
   TabList,
