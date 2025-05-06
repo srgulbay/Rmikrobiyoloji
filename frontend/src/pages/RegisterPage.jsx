@@ -1,162 +1,176 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-// İkonları import edelim
-import { FaUserPlus, FaExclamationTriangle } from 'react-icons/fa';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import {
+  Box,
+  Flex,
+  Container,
+  Heading,
+  FormControl,
+  FormLabel,
+  Input,
+  Button,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  Link as ChakraLink,
+  Select, // Select bileşeni eklendi
+  Icon,
+  VStack,
+  Text,
+  FormErrorMessage // Hata mesajı için
+} from '@chakra-ui/react';
+// İkonlar
+import { FaUserPlus } from 'react-icons/fa'; // FaExclamationTriangle AlertIcon tarafından sağlanır
+
+// Uzmanlık Alanları (bileşen içinde veya dışarıda tanımlanabilir)
+const specializations = [
+    "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
+];
 
 function RegisterPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [specialization, setSpecialization] = useState('');
-    // register fonksiyonunu, error state'ini ve setter'ını, loading ve isAuthenticated durumlarını context'ten al
+    // Context'ten gerekli fonksiyon ve state'leri al
     const { register, error, setError, loading, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
-    // Eğer zaten giriş yapmışsa anasayfaya (/browse) yönlendir
+    // Yönlendirme ve hata temizleme (aynı kalabilir)
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/browse', { replace: true }); // Ana sayfa /browse
+            navigate('/browse', { replace: true });
         }
-        // Component unmount olurken hata mesajını temizle
         return () => setError(null);
     }, [isAuthenticated, navigate, setError]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null); // Önceki hatayı temizle
+        setError(null);
 
-        // Şifre eşleşme kontrolü
         if (password !== confirmPassword) {
             setError('Girilen şifreler eşleşmiyor!');
             return;
         }
-        // Zorunlu alan kontrolü
         if (!username || !password) {
             setError('Kullanıcı adı ve şifre alanları zorunludur.');
             return;
         }
-        // Şifre uzunluğu kontrolü (örnek)
         if (password.length < 6) {
              setError('Şifre en az 6 karakter olmalıdır.');
              return;
         }
 
-        // Specialization boşsa null gönder
         const specToSend = specialization.trim() === '' ? null : specialization;
         await register(username, password, specToSend);
-        // Başarılı kayıt sonrası yönlendirme AuthContext içinde yapılıyor (genellikle login'e)
     };
 
+    // Şifre eşleşmeme durumunu kontrol etmek için state
+    const isPasswordMismatch = password !== confirmPassword && confirmPassword !== '';
+
     return (
-        // Sayfayı ortalamak için auth-page sınıfı
-        <div className="auth-page">
-            {/* Formu kart içinde göstermek için auth-form-container */}
-            <div className="auth-form-container">
-                {/* Başlık */}
-                <h2 className="text-center mb-6">Kayıt Ol</h2>
+        // Sayfayı ortala
+        <Flex className="auth-page" minH="80vh" py={8} align="center" justify="center">
+            {/* Form container */}
+            <Container
+                maxW="md"
+                py={8}
+                px={6}
+                bg="bgSecondary"
+                borderWidth="1px"
+                borderColor="borderPrimary"
+                borderRadius="lg"
+                boxShadow="lg"
+            >
+                <Heading as="h2" size="xl" textAlign="center" mb={6}>
+                    Kayıt Ol
+                </Heading>
 
-                {/* Kayıt Formu */}
-                <form onSubmit={handleSubmit}>
-                    {/* Hata Mesajı Alanı */}
-                    {error && (
-                        <div className="alert alert-danger mb-4" role="alert">
-                            <FaExclamationTriangle className='alert-icon mr-2' /> {/* Hata ikonu */}
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Kullanıcı Adı Alanı */}
-                    <div className="form-group">
-                        <label htmlFor="usernameReg" className='form-label'>Kullanıcı Adı:</label> {/* id'yi değiştirdik (LoginPage ile çakışmasın) */}
-                        <input
-                            type="text"
-                            id="usernameReg"
-                            className='form-input' // Stil sınıfı
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            disabled={loading}
-                            placeholder='Bir kullanıcı adı belirleyin'
-                        />
-                    </div>
-
-                    {/* Şifre Alanı */}
-                    <div className="form-group">
-                        <label htmlFor="passwordReg" className='form-label'>Şifre:</label> {/* id'yi değiştirdik */}
-                        <input
-                            type="password"
-                            id="passwordReg"
-                            className='form-input' // Stil sınıfı
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={loading}
-                            placeholder='En az 6 karakter'
-                            aria-describedby="passwordHelp" // Şifre gereksinimleri için açıklama (opsiyonel)
-                        />
-                         {/* Opsiyonel: Şifre gereksinimleri için yardımcı metin */}
-                         {/* <p id="passwordHelp" className="form-text">Şifreniz en az 6 karakter olmalıdır.</p> */}
-                    </div>
-
-                     {/* Şifre Tekrar Alanı */}
-                    <div className="form-group">
-                        <label htmlFor="confirmPasswordReg" className='form-label'>Şifre Tekrar:</label> {/* id'yi değiştirdik */}
-                        <input
-                            type="password"
-                            id="confirmPasswordReg"
-                            className='form-input' // Stil sınıfı
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={loading}
-                            placeholder='Şifrenizi tekrar girin'
-                            // Şifreler eşleşmiyorsa invalid stili uygula (opsiyonel)
-                            aria-invalid={password !== confirmPassword && confirmPassword !== ''}
-                         />
-                         {password !== confirmPassword && confirmPassword !== '' && (
-                              <p className="invalid-feedback">Şifreler eşleşmiyor!</p>
-                          )}
-                    </div>
-
-                     {/* Uzmanlık Alanı */}
-                    <div className="form-group">
-                        <label htmlFor="specialization" className='form-label'>Uzmanlık Alanı (İsteğe Bağlı):</label>
-                        <select
-                            id="specialization"
-                            className='form-select' // Stil sınıfı
-                            value={specialization}
-                            onChange={(e) => setSpecialization(e.target.value)}
-                            disabled={loading}
-                        >
-                            <option value="">-- Alan Seçiniz --</option>
-                            <option value="YDUS">YDUS</option>
-                            <option value="TUS">TUS</option>
-                            <option value="DUS">DUS</option>
-                            <option value="Tıp Fakültesi Dersleri">Tıp Fakültesi Dersleri</option>
-                            <option value="Diş Hekimliği Fakültesi Dersleri">Diş Hekimliği Fakültesi Dersleri</option>
-                            <option value="Diğer">Diğer</option>
-                        </select>
-                    </div>
-
-                    {/* Gönderme Butonu */}
-                    <button type="submit" className='btn btn-primary btn-lg w-full mt-6' disabled={loading}>
-                        {loading ? (
-                            <div className='spinner spinner-sm' role="status" aria-hidden="true"></div>
-                        ) : (
-                            <>
-                                <FaUserPlus className='btn-icon' /> Kayıt Ol
-                            </>
+                <Box as="form" onSubmit={handleSubmit}>
+                    <VStack spacing={4}> {/* Boşluğu 4'e düşürdük */}
+                        {error && (
+                            <Alert status="error" borderRadius="md">
+                                <AlertIcon />
+                                <AlertDescription fontSize="sm">{error}</AlertDescription>
+                            </Alert>
                         )}
-                    </button>
-                </form>
 
-                {/* Giriş Sayfasına Link */}
-                <p className="auth-switch-link mt-6">
-                    Zaten hesabınız var mı? <Link to="/login" className='font-semibold'>Giriş Yapın</Link>
-                </p>
-            </div>
-        </div>
+                        <FormControl id="usernameReg" isRequired isDisabled={loading} isInvalid={!!error && error.toLowerCase().includes('kullanıcı adı')}>
+                            <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı:</FormLabel>
+                            <Input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder='Bir kullanıcı adı belirleyin'
+                            />
+                            {/* İsteğe bağlı: Spesifik alan hatası */}
+                            {/* {error && error.toLowerCase().includes('kullanıcı adı') && <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>} */}
+                        </FormControl>
+
+                        <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={!!error && error.toLowerCase().includes('şifre')}>
+                            <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre:</FormLabel>
+                            <Input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder='En az 6 karakter'
+                            />
+                             {/* İsteğe bağlı: Şifre uzunluğu hatası */}
+                             {error && error.toLowerCase().includes('şifre') && !error.toLowerCase().includes('eşleşmiyor') && <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>}
+                        </FormControl>
+
+                        <FormControl id="confirmPasswordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch}>
+                            <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre Tekrar:</FormLabel>
+                            <Input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder='Şifrenizi tekrar girin'
+                            />
+                            {/* Şifre eşleşme hatası için FormErrorMessage */}
+                            {isPasswordMismatch && (
+                                <FormErrorMessage fontSize="xs">Girilen şifreler eşleşmiyor!</FormErrorMessage>
+                            )}
+                        </FormControl>
+
+                        <FormControl id="specialization" isDisabled={loading}>
+                             <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Uzmanlık Alanı (İsteğe Bağlı):</FormLabel>
+                             {/* Eski select yerine Chakra Select */}
+                             <Select
+                                placeholder="-- Alan Seçiniz --"
+                                value={specialization}
+                                onChange={(e) => setSpecialization(e.target.value)}
+                                // Stil temadan gelir
+                             >
+                                {specializations.map(spec => (
+                                    <option key={spec} value={spec}>{spec}</option>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <Button
+                            type="submit"
+                            colorScheme="brand"
+                            size="lg"
+                            width="full"
+                            mt={4} // Boşluğu VStack yönettiği için biraz azalttık
+                            isLoading={loading}
+                            leftIcon={<Icon as={FaUserPlus} />}
+                        >
+                            Kayıt Ol
+                        </Button>
+                    </VStack>
+                </Box>
+
+                <Text textAlign="center" mt={6} fontSize="sm">
+                    Zaten hesabınız var mı?{' '}
+                    <ChakraLink as={RouterLink} to="/login" fontWeight="medium" color="accent">
+                        Giriş Yapın
+                    </ChakraLink>
+                </Text>
+            </Container>
+        </Flex>
     );
 }
 
