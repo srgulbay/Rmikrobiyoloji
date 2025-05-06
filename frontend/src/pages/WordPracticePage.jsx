@@ -1,277 +1,441 @@
-import React, { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import TopicCard from '../components/TopicCard'; // Güncellenmiş TopicCard'ı kullan
+import { useColorMode, useColorModeValue } from '@chakra-ui/react';
+import { useLocation, Link as RouterLink } from 'react-router-dom';
+import { fetchWordleQuestions } from '../services/quizService';
 import {
-  Box,
-  Container,
-  Flex,
-  Button,
-  IconButton,
-  Link, // Chakra Link
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  SimpleGrid,
-  Heading,
-  Text,
-  Spinner,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Icon,
-  Skeleton,
-  SkeletonText,
-  SkeletonCircle, // Skeleton için
-  HStack,
-  VStack,
-  Center,
-  useColorModeValue // Renkler için
+  Box, Container, Flex, Heading, Text, Button, IconButton, Input, FormControl,
+  Alert, AlertIcon, AlertTitle, AlertDescription, Spinner, Card, CardBody, HStack, Center,
+  Tag, SimpleGrid, VStack, Skeleton, SkeletonText, useToast,
+  Stat, StatLabel, StatNumber, StatGroup, List, ListItem // Bitiş ekranı için
 } from '@chakra-ui/react';
-import { FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle, FaInfoCircle, FaFolder, FaFolderOpen, FaListAlt, FaRedo } from 'react-icons/fa';
+import { FaInfoCircle, FaExclamationTriangle, FaRedo, FaArrowRight, FaLightbulb, FaTrophy } from 'react-icons/fa';
+import { FiClock, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import Leaderboard from '../components/Leaderboard';
+// Yeni Bileşenler (İskelet)
+// import GuessGrid from '../components/GuessGrid';
+// import Keyboard from '../components/Keyboard';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-// Helper Fonksiyonlar (Aynı kalabilir)
-const findTopicAndPathById = (id, nodes, currentPath = []) => {
-  for (const node of nodes) {
-    const newPath = [...currentPath, { id: node.id, name: node.name }];
-    if (node.id === id) { return { topic: node, path: newPath }; }
-    if (node.children) {
-      const found = findTopicAndPathById(id, node.children, newPath);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-const getTopicFromPath = (pathIds, tree) => {
-  if (!pathIds || pathIds.length === 0) return null;
-  let currentLevel = tree; let topic = null;
-  for (const id of pathIds) {
-    topic = currentLevel?.find(t => t.id === id);
-    if (!topic) return null;
-    currentLevel = topic.children;
-  }
-  return topic;
-};
-// --- Helper Fonksiyonlar Sonu ---
+const formatTime = totalSeconds => { /* ... (aynı) ... */ };
 
-function TopicBrowserPage() {
-    const [topicTree, setTopicTree] = useState([]);
-    const [currentPathIds, setCurrentPathIds] = useState([]);
+const MAX_GUESSES = 6; // Wordle standardı
+
+function WordPracticePage() {
+    // --- State Değişiklikleri ---
+    const [wordQuestions, setWordQuestions] = useState([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [correctAnswer, setCorrectAnswer] = useState('');
+    const [wordLength, setWordLength] = useState(5); // Varsayılan veya ilk kelimeye göre ayarla
+    const [guesses, setGuesses] = useState(Array(MAX_GUESSES).fill('')); // Tahminleri tut
+    const [currentAttempt, setCurrentAttempt] = useState(0); // Kaçıncı deneme
+    const [letterStatuses, setLetterStatuses] = useState({}); // { A: 'absent', B: 'present', C: 'correct' } gibi
+    // Grid durumu için daha detaylı state gerekebilir: const [gridStatuses, setGridStatuses] = useState(Array(MAX_GUESSES).fill(null).map(() => Array(wordLength).fill('idle')));
+
+    const [feedback, setFeedback] = useState({ message: '', type: 'info' });
+    const [score, setScore] = useState(0); // Skorlama mantığı değişebilir
+    const [timeLeft, setTimeLeft] = useState(90); // Süre biraz daha uzun olabilir
+    const [isGameOver, setIsGameOver] = useState(false);
+    const [gameStatus, setGameStatus] = useState('playing'); // 'playing', 'won', 'lost'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // Leaderboard state'leri
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+    const [leaderboardError, setLeaderboardError] = useState('');
+
     const { token } = useAuth();
-    const navigate = useNavigate();
+    const { colorMode } = useColorMode();
+    const timerRef = useRef(null);
+    const toast = useToast();
 
-    const backendTopicUrl = `${API_BASE_URL}/api/topics`;
+    // --- Fonksiyonlar (fetchLeaderboard, loadQuestions, setupQuestion, timer vb. güncellenmeli) ---
 
-    // fetchTopics, handleTopicSelect, handleGoBack, breadcrumbItems, navigateToPath, handleContentNavigation aynı kalabilir
-     const fetchTopics = useCallback(async () => {
-        setLoading(true); setError('');
-        if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return;}
+    const clearTimer = useCallback(() => { /* ... (aynı) ... */ }, []);
+
+    const startTimer = useCallback(() => {
+        clearTimer();
+        // Zamanlayıcı mantığı burada... (süre bitince ne olacağı güncellenmeli, belki oyunu bitirir?)
+         timerRef.current = setInterval(() => {
+             setTimeLeft(prevTime => {
+                 if (prevTime <= 1) {
+                     clearTimer();
+                     // Oyunu bitir veya başka bir işlem yap
+                     // setIsGameOver(true);
+                     // setGameStatus('lost');
+                     return 0;
+                 }
+                 return prevTime - 1;
+             });
+         }, 1000);
+    }, [clearTimer]);
+
+
+     const setupQuestion = useCallback((question) => {
+        if (!question || !question.answerWord) {
+            setError("Oyun verisi yüklenirken sorun oluştu.");
+            setIsGameOver(true); setGameStatus('error'); clearTimer(); return;
+        };
+        setCurrentQuestion(question);
+        const answer = question.answerWord.toUpperCase();
+        setCorrectAnswer(answer);
+        setWordLength(answer.length); // Kelime uzunluğunu ayarla
+        setGuesses(Array(MAX_GUESSES).fill('')); // Tahminleri sıfırla
+        setCurrentAttempt(0); // Denemeyi sıfırla
+        setLetterStatuses({}); // Harf durumlarını sıfırla
+        // setGridStatuses(Array(MAX_GUESSES).fill(null).map(() => Array(answer.length).fill('idle'))); // Izgara durumunu sıfırla
+        setFeedback({ message: '', type: 'info' });
+        setIsGameOver(false);
+        setGameStatus('playing');
+        setTimeLeft(90); // Zamanlayıcıyı resetle
+        startTimer();
+    }, [startTimer, clearTimer]);
+
+    const loadQuestions = useCallback(async () => {
+        setLoading(true); setError(''); setWordQuestions([]); setCurrentQuestion(null); setIsGameOver(false); setGameStatus('playing'); setScore(0); setCurrentIndex(0);
+        clearTimer();
+        if (!token) { setError("Oyunu oynamak için giriş yapmalısınız."); setLoading(false); return; }
         try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            const response = await axios.get(backendTopicUrl, config);
-            setTopicTree(response.data || []);
+            const questions = await fetchWordleQuestions(token);
+            if (questions?.length > 0) {
+                const shuffledQuestions = [...questions].sort(() => Math.random() - 0.5);
+                setWordQuestions(shuffledQuestions);
+                setupQuestion(shuffledQuestions[0]);
+            } else {
+                setError("Bu formatta uygun soru bulunamadı.");
+                 setIsGameOver(true); setGameStatus('no_questions'); // Özel durum
+            }
         } catch (err) {
-            console.error("Konu ağacı çekilirken hata:", err);
-            const errorMsg = err.response?.data?.message || 'Konular yüklenirken bir sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
-            setError(errorMsg);
+             setError(err.message || "Sorular yüklenirken bir hata oluştu.");
+             setIsGameOver(true); setGameStatus('error');
         } finally {
             setLoading(false);
         }
-    }, [token, backendTopicUrl]);
+    }, [token, setupQuestion, clearTimer]);
 
-    useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
-    const { activeTopic, currentTopics } = useMemo(() => {
-        const topic = getTopicFromPath(currentPathIds, topicTree);
-        const children = currentPathIds.length === 0 ? topicTree : topic?.children || [];
-        return { activeTopic: topic, currentTopics: children };
-    }, [currentPathIds, topicTree]);
+    useEffect(() => {
+        loadQuestions();
+        return () => clearTimer();
+    }, [loadQuestions]); // loadQuestions bağımlılığı düzeltildi
 
-    const handleTopicSelect = useCallback((selectedTopic) => {
-        setError('');
-        setCurrentPathIds(prevPath => [...prevPath, selectedTopic.id]);
-    }, []);
-
-    const handleGoBack = useCallback(() => {
-        setError('');
-        setCurrentPathIds(prevPath => prevPath.slice(0, -1));
-    }, []);
-
-    const breadcrumbItems = useMemo(() => {
-      const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0 }];
-      let currentLevel = topicTree;
-      currentPathIds.forEach((pathId, index) => {
-        const found = currentLevel?.find(t => t.id === pathId);
-        if (found) {
-          items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
-          currentLevel = found.children;
+     useEffect(() => {
+        if (gameStatus === 'won' || gameStatus === 'lost') {
+            fetchLeaderboard();
+            // TODO: Skoru backend'e kaydetme isteği burada yapılabilir
+            // recordWordleScore(score);
         }
-      });
-      return items;
-    }, [currentPathIds, topicTree]);
+    }, [gameStatus, fetchLeaderboard]); // score eklenebilir
 
-    const navigateToPath = useCallback((index) => {
-        setCurrentPathIds(currentPathIds.slice(0, index));
-    }, [currentPathIds]);
 
-    const handleContentNavigation = (type, topicId) => {
-        if (!topicId) return;
-        if (type === 'lecture') {
-            navigate(`/lectures/topic/${topicId}`);
-        } else if (type === 'quiz') {
-            navigate(`/solve?topicId=${topicId}`);
+    // --- Klavye / Tahmin İşleme Mantığı (Taslak) ---
+    const handleKeyPress = useCallback((key) => {
+        if (gameStatus !== 'playing' || currentAttempt >= MAX_GUESSES) return;
+
+        const currentGuess = guesses[currentAttempt];
+
+        if (key === 'ENTER') {
+            if (currentGuess.length === wordLength) {
+                handleSubmitGuess(currentGuess);
+            } else {
+                toast({ title: "Uyarı", description: `${wordLength} harf girmelisiniz.`, status: "warning", duration: 1500, isClosable: true, position: "top" });
+            }
+        } else if (key === 'BACKSPACE') {
+            setGuesses(prev => {
+                const newGuesses = [...prev];
+                newGuesses[currentAttempt] = currentGuess.slice(0, -1);
+                return newGuesses;
+            });
+        } else if (currentGuess.length < wordLength && /^[a-zA-ZÇĞİÖŞÜ]$/i.test(key)) {
+             setGuesses(prev => {
+                const newGuesses = [...prev];
+                newGuesses[currentAttempt] += key.toUpperCase();
+                return newGuesses;
+            });
         }
-    };
-    // --- Logic Sonu ---
+    }, [gameStatus, currentAttempt, guesses, wordLength, toast]); // handleSubmitGuess eklenecek
 
+    const handleSubmitGuess = useCallback((guess) => {
+        // TODO: Kelime listesinde kontrol (opsiyonel)
 
-    // --- Render Bölümü (Chakra UI ile Mükemmelleştirilmiş) ---
+        // Harf durumlarını hesapla
+        const newLetterStatuses = { ...letterStatuses };
+        const statuses = Array(wordLength).fill('absent');
+        const answerLetters = correctAnswer.split('');
+        const guessLetters = guess.split('');
 
-    if (loading) {
-        // İskelet Ekranı
+        // 1. Pass: Doğru yerdekileri (correct) bul
+        for (let i = 0; i < wordLength; i++) {
+            if (guessLetters[i] === answerLetters[i]) {
+                statuses[i] = 'correct';
+                newLetterStatuses[guessLetters[i]] = 'correct';
+                answerLetters[i] = null; // Bu harfi tekrar eşleştirme
+            }
+        }
+
+        // 2. Pass: Yanlış yerdekileri (present) bul
+        for (let i = 0; i < wordLength; i++) {
+            if (statuses[i] !== 'correct') { // Henüz doğru değilse
+                 const letterIndexInAnswer = answerLetters.indexOf(guessLetters[i]);
+                 if (letterIndexInAnswer !== -1) {
+                     statuses[i] = 'present';
+                     if (newLetterStatuses[guessLetters[i]] !== 'correct') { // Daha önce doğru bulunmadıysa 'present' yap
+                        newLetterStatuses[guessLetters[i]] = 'present';
+                     }
+                     answerLetters[letterIndexInAnswer] = null; // Bu harfi tekrar eşleştirme
+                 }
+            }
+        }
+
+         // 3. Pass: Geriye kalanları (absent) işaretle
+         for (let i = 0; i < wordLength; i++) {
+             if (statuses[i] === 'absent') {
+                 if (!newLetterStatuses[guessLetters[i]]) { // Henüz durumu belirlenmediyse 'absent' yap
+                     newLetterStatuses[guessLetters[i]] = 'absent';
+                 }
+             }
+         }
+
+        // TODO: Izgara state'ini (gridStatuses) güncelle
+
+        setLetterStatuses(newLetterStatuses); // Klavye için harf durumlarını güncelle
+
+        if (guess === correctAnswer) {
+            // Kazandı!
+            setIsGameOver(true);
+            setGameStatus('won');
+            clearTimer();
+            const points = Math.max(10, timeLeft * 10); // Örnek skorlama
+            setScore(prev => prev + points);
+            toast({ title: "Tebrikler!", description: `Kelimeyi ${currentAttempt + 1}. denemede buldunuz! +${points} puan!`, status: "success", duration: 5000, isClosable: true, position: "top" });
+        } else if (currentAttempt + 1 >= MAX_GUESSES) {
+            // Kaybetti!
+            setIsGameOver(true);
+            setGameStatus('lost');
+            clearTimer();
+            toast({ title: "Oyun Bitti!", description: `Deneme hakkınız kalmadı. Doğru kelime: ${correctAnswer}`, status: "error", duration: null, isClosable: true, position: "top" });
+        } else {
+            // Sonraki denemeye geç
+            setCurrentAttempt(prev => prev + 1);
+        }
+
+    }, [correctAnswer, wordLength, currentAttempt, letterStatuses, toast, clearTimer, timeLeft]);
+
+     // Fiziksel klavye dinleyicisi
+     useEffect(() => {
+         const handleKeyDown = (event) => {
+             if (isGameOver) return; // Oyun bittiyse dinleme
+             const key = event.key;
+             if (key === 'Enter') {
+                 handleKeyPress('ENTER');
+             } else if (key === 'Backspace') {
+                 handleKeyPress('BACKSPACE');
+             } else if (key.length === 1 && key.match(/[a-zçğüöşöi]/i)) {
+                 handleKeyPress(key);
+             }
+         };
+
+         window.addEventListener('keydown', handleKeyDown);
+         return () => {
+             window.removeEventListener('keydown', handleKeyDown);
+         };
+     }, [handleKeyPress, isGameOver]); // isGameOver eklendi
+
+    // --- İskelet Komponentler (Ayrı dosyalara taşınabilir) ---
+
+    const GuessGrid = ({ guesses, currentAttempt, wordLength, statuses }) => {
+        // TODO: Izgarayı oluştur (SimpleGrid veya VStack/HStack ile)
+        // Her hücre için GridCell çağır
         return (
-            <Container maxW="container.xl" py={8}>
-                <HStack mb={6} spacing={4}>
-                     <Skeleton height="20px" width="20%" />
-                     <Skeleton height="20px" width="20%" />
-                     <Skeleton height="32px" width="120px" ml="auto" />
-                </HStack>
-                <Skeleton height="120px" borderRadius="lg" mb={8} />
-                <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6}>
-                    {[...Array(8)].map((_, i) => ( <Skeleton key={i} height="100px" borderRadius="lg" /> ))}
-                </SimpleGrid>
+            <VStack spacing={1.5} mb={8}>
+                {guesses.map((guess, rowIndex) => (
+                    <HStack key={rowIndex} spacing={1.5}>
+                        {Array.from({ length: wordLength }).map((_, colIndex) => (
+                            <GridCell
+                                key={colIndex}
+                                letter={guess[colIndex] || ''}
+                                // status={statuses[rowIndex]?.[colIndex] || 'idle'} // TODO: gridStatuses state'i lazım
+                                status={'idle'} // Şimdilik idle
+                                isCurrentRow={rowIndex === currentAttempt}
+                            />
+                        ))}
+                    </HStack>
+                ))}
+            </VStack>
+        );
+    };
+
+    const GridCell = ({ letter, status, isCurrentRow }) => {
+        // TODO: Harf durumuna göre (correct, present, absent, idle) arka plan rengi belirle
+        const bg = status === 'correct' ? 'green.500'
+                 : status === 'present' ? 'yellow.500'
+                 : status === 'absent' ? 'gray.500'
+                 : useColorModeValue('white', 'gray.700');
+        const color = status === 'correct' || status === 'present' || status === 'absent' ? 'white' : 'inherit';
+        const borderColor = status === 'idle' ? useColorModeValue('gray.300','gray.600') : 'transparent';
+
+        return (
+            <Center
+                w={{base:"3rem", md:"3.5rem"}}
+                h={{base:"3rem", md:"3.5rem"}}
+                bg={bg}
+                color={color}
+                borderWidth="2px"
+                borderColor={borderColor}
+                borderRadius="md"
+                fontSize={{base:"xl", md:"2xl"}}
+                fontWeight="bold"
+                textTransform="uppercase"
+                transition="all 0.2s ease-in-out"
+                // Animasyonlar eklenebilir
+            >
+                {letter}
+            </Center>
+        );
+    };
+
+    const Keyboard = ({ onKeyPress, letterStatuses }) => {
+        // TODO: Sanal klavyeyi oluştur (QWERTY düzeni)
+        // Her tuş için Button kullan, tıklandığında onKeyPress'i çağır
+        // letterStatuses'a göre tuş renklerini ayarla
+        const rows = [
+            "QWERTYUIOPĞÜ",
+            "ASDFGHJKLŞİ",
+            "ZXCVBNMÖÇ",
+        ];
+        return (
+            <VStack spacing={1.5} mt={8} w="full" maxW="600px" mx="auto">
+                {rows.map((row, rowIndex) => (
+                    <HStack key={rowIndex} spacing={1.5} justify="center">
+                         {rowIndex === 2 && <Button onClick={() => onKeyPress('ENTER')} h={12} px={3} minW="4rem">Enter</Button>}
+                         {row.split('').map(key => {
+                             const status = letterStatuses[key];
+                             let colorScheme = 'gray';
+                             if (status === 'correct') colorScheme = 'green';
+                             else if (status === 'present') colorScheme = 'yellow';
+                             else if (status === 'absent') colorScheme = 'blackAlpha'; // Veya dark mode'a uygun
+
+                            return (
+                                <Button
+                                    key={key}
+                                    onClick={() => onKeyPress(key)}
+                                    size="sm"
+                                    h={12} // Yükseklik
+                                    flex={1} // Esnek genişlik
+                                    minW={{base:"1.8rem", sm:"2.2rem"}} // Min genişlik
+                                    px={1} // Yatay padding
+                                    colorScheme={colorScheme}
+                                    variant={status === 'absent' ? 'outline' : 'solid'}
+                                >
+                                    {key}
+                                </Button>
+                             );
+                         })}
+                         {rowIndex === 2 && <Button onClick={() => onKeyPress('BACKSPACE')} h={12} px={3} minW="4rem">Sil</Button>}
+                    </HStack>
+                 ))}
+            </VStack>
+        );
+    };
+
+
+    // --- Render Bölümü (Chakra UI ile) ---
+
+    // Yükleme ve Hata durumları aynı kalabilir
+
+    if (loading) return (<Container centerContent py={10}><Spinner size="xl" color="brand.500"/></Container>);
+    if (error && gameStatus === 'error') return ( <Container maxW="container.md" mt={10}> <Alert status="error" variant="left-accent" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg"> <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} /> <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle> <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription> <Button colorScheme="red" onClick={loadQuestions} leftIcon={<Icon as={FaRedo} />}> Tekrar Dene </Button> </Alert> </Container> );
+
+
+    // Oyun Bitti veya Soru Yok Ekranı
+    if (isGameOver) {
+         const gameWon = gameStatus === 'won';
+         const noQuestionsFound = gameStatus === 'no_questions';
+
+        return (
+            <Container maxW="container.md" py={8}>
+                <Card variant="outline" textAlign="center" p={{base: 6, md: 10}} mt={10}>
+                    <CardBody>
+                        <Heading as="h2" size={gameWon ? "2xl" : "xl"} mb={4} color={gameWon ? 'green.500' : (noQuestionsFound ? 'orange.500' : 'red.500')}>
+                            {gameWon ? 'Oyun Bitti!' : (noQuestionsFound ? 'Soru Bulunamadı' : 'Oyun Bitti!')}
+                        </Heading>
+
+                        {gameWon && (
+                            <>
+                                <Text fontSize="lg" mb={4}>Tebrikler, kelimeyi <Text as="span" fontWeight="bold">{currentAttempt + 1}</Text>. denemede buldunuz!</Text>
+                                 <StatGroup justifyContent="center" mb={6}>
+                                    <Stat>
+                                        <StatLabel>Toplam Skor</StatLabel>
+                                        <StatNumber fontSize="4xl" color="brand.500">{score}</StatNumber>
+                                    </Stat>
+                                </StatGroup>
+                            </>
+                        )}
+                        {!gameWon && !noQuestionsFound && ( // Kaybettiyse
+                             <Text fontSize="lg" mb={4}>Deneme hakkınız kalmadı. Doğru kelime: <Text as="span" fontWeight="bold" letterSpacing="wider">{correctAnswer}</Text></Text>
+                        )}
+                        {noQuestionsFound && (
+                            <Text color="textMuted" mb={6}>Oyun için uygun soru bulunamadı.</Text>
+                        )}
+
+                         {/* Leaderboard */}
+                         <Box mt={8}>
+                             <Leaderboard data={leaderboard} loading={leaderboardLoading} error={leaderboardError} />
+                         </Box>
+
+                        <Button colorScheme="brand" size="lg" onClick={loadQuestions} leftIcon={<Icon as={FaRedo} />} mt={8}>
+                           {gameWon || !noQuestionsFound ? 'Tekrar Oyna' : 'Yeni Oyun Başlat'}
+                        </Button>
+                    </CardBody>
+                </Card>
             </Container>
         );
     }
 
-    if (error) {
-        // Hata Ekranı
-        return ( <Container maxW="container.lg" mt={10}> <Alert status="error" variant="left-accent" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg"> <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} /> <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle> <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription> <Button colorScheme="red" onClick={fetchTopics} leftIcon={<Icon as={FaRedo} />}> Tekrar Dene </Button> </Alert> </Container> );
-    }
 
-    // Ana İçerik Render
+    // --- Aktif Oyun Arayüzü ---
     return (
-        <Container maxW="container.xl" py={8}>
-
-            {/* Navigasyon Alanı */}
-            <Flex wrap="wrap" align="center" justify="space-between" gap={4} mb={8}> {/* Alt boşluk artırıldı */}
-                <Breadcrumb separator="/" spacing={2} fontSize="sm">
-                    {breadcrumbItems.map((item, index) => {
-                        const isLast = index === breadcrumbItems.length - 1;
-                        return (
-                            <BreadcrumbItem key={item.id || 'home'} isCurrentPage={isLast}>
-                                <BreadcrumbLink
-                                    as={!isLast && item.id !== null ? 'a' : 'span'}
-                                    href={!isLast && item.id !== null ? '#' : undefined}
-                                    onClick={!isLast && item.id !== null ? (e) => { e.preventDefault(); navigateToPath(index); } : undefined}
-                                    fontWeight={isLast ? 'semibold' : 'normal'} // Aktif olanı kalın yap
-                                    color={isLast ? 'textPrimary' : 'textSecondary'} // Aktif olanı daha belirgin yap
-                                    _hover={!isLast && item.id !== null ? { color: 'accent', textDecor: 'underline' } : {}}
-                                    aria-current={isLast ? 'page' : undefined}
-                                >
-                                    {item.name}
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                        );
-                    })}
-                </Breadcrumb>
-                {currentPathIds.length > 0 && (
-                    <Button onClick={handleGoBack} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0}>
-                         Geri ({breadcrumbItems[breadcrumbItems.length - 2]?.name || 'Konular'})
-                    </Button>
-                )}
+        <Container maxW="container.lg" py={6} className="word-practice-page">
+            <Heading as="h1" size="lg" textAlign="center" mb={4}>Kelime Çalışması</Heading>
+            {/* Skor ve Zamanlayıcı */}
+            <Flex justify="space-between" align="center" mb={6} p={3} px={4} borderRadius="md" bg="bgSecondary" borderWidth="1px" borderColor="borderPrimary" maxW="lg" mx="auto">
+                 <HStack>
+                    <Text fontSize="sm" color="textMuted">Skor:</Text>
+                    <Text fontWeight="bold" fontSize="lg" color="brand.500">{score}</Text>
+                </HStack>
+                <HStack>
+                    <Text fontSize="sm" color="textMuted">Kalan Deneme:</Text>
+                    <Text fontWeight="bold" fontSize="lg">{MAX_GUESSES - currentAttempt}</Text>
+                </HStack>
+                 <HStack>
+                    <Icon as={FiClock} color="textMuted" />
+                    <Text fontWeight="semibold" fontSize="lg">{formatTime(timeLeft)}</Text>
+                </HStack>
             </Flex>
 
-             {/* Aktif Konu Başlığı ve Aksiyonları (Daha Belirgin) */}
-             {activeTopic && (
-                 <Box mb={10} p={6} borderRadius="xl" bg={useColorModeValue('brand.50', 'brand.900')} borderWidth="1px" borderColor={useColorModeValue('brand.100', 'brand.700')} boxShadow="md">
-                      <Flex wrap="wrap" justify="space-between" align="center" gap={4}>
-                          <HStack spacing={4} flex="1" minW={0}>
-                               <Icon as={FaFolderOpen} boxSize="24px" color="brand.500" _dark={{color:"brand.200"}}/>
-                               <Box>
-                                   <Heading as="h2" size="lg" color="brand.700" _dark={{color:"brand.100"}} noOfLines={2}>
-                                       {activeTopic.name}
-                                   </Heading>
-                                   {activeTopic.description && <Text color="brand.600" _dark={{color:"brand.200"}} fontSize="sm" noOfLines={2}>{activeTopic.description}</Text>}
-                               </Box>
-                          </HStack>
-                           <HStack spacing={3} flexShrink={0} mt={{base: 4, md: 0}}>
-                               <Button
-                                   onClick={() => handleContentNavigation('lecture', activeTopic.id)}
-                                   variant="outline"
-                                   colorScheme="brand" // Ana renkle uyumlu outline
-                                   leftIcon={<Icon as={FaBookOpen} />}
-                                   title={`${activeTopic.name} Konu Anlatımı`}
-                                   _hover={{ bg: useColorModeValue('brand.100', 'brand.800') }}
-                               >
-                                   Konu Anlatımı
-                               </Button>
-                               <Button
-                                    onClick={() => handleContentNavigation('quiz', activeTopic.id)}
-                                    colorScheme="brand" // Ana renk
-                                    leftIcon={<Icon as={FaPencilAlt} />}
-                                    title={`${activeTopic.name} Soru Çöz`}
-                                    _hover={{ bg: useColorModeValue('brand.600', 'brand.400') }} // Hafif koyu/açık hover
-                                >
-                                   Soruları Çöz
-                               </Button>
-                           </HStack>
-                      </Flex>
-                 </Box>
-             )}
+            {/* Soru Metni */}
+             <Text fontSize={{base:"lg", md:"xl"}} color="textPrimary" textAlign="center" mb={6} px={4} minH="3em" fontStyle="italic">
+                 "{currentQuestion?.text}"
+             </Text>
 
+            {/* Tahmin Izgarası */}
+             <GuessGrid
+                 guesses={guesses}
+                 currentAttempt={currentAttempt}
+                 wordLength={wordLength}
+                 // statuses={gridStatuses} // TODO: gridStatuses state'i lazım
+                 statuses={[]} // Şimdilik boş
+             />
 
-            {/* Alt Konular veya Boş Durum Mesajı */}
-            {currentTopics.length > 0 ? (
-                <>
-                     {activeTopic && (
-                         <Heading as="h3" size="md" mb={5} color="textSecondary" fontWeight="semibold">
-                            Alt Konular
-                         </Heading>
-                     )}
-                     {/* Güncellenmiş TopicCard ile SimpleGrid */}
-                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={5}>
-                         {currentTopics.map(topic => (
-                             <TopicCard
-                                 key={topic.id}
-                                 topic={topic}
-                                 onSelectTopic={handleTopicSelect}
-                                 // Ekstra props veya stil gerekirse buraya eklenebilir
-                             />
-                         ))}
-                     </SimpleGrid>
-                 </>
-            ) : (
-                 !loading && ( // Sadece yükleme bittiyse göster
-                    currentPathIds.length > 0 ? (
-                         // Daha bilgilendirici boş durum
-                        <Center py={10}>
-                            <Text color="textMuted" fontStyle="italic">
-                                Bu konuda başka alt başlık bulunmuyor.
-                            </Text>
-                        </Center>
-                    ) : (
-                         // Daha ilgi çekici boş durum kartı
-                        <Card variant="outline" textAlign="center" py={10} mt={8} bg="bgSecondary">
-                             <CardBody>
-                                <Icon as={FaFolder} boxSize="40px" color="textMuted" mb={4} />
-                                <Heading as="h3" size="md" mb={3}>Henüz Konu Eklenmemiş</Heading>
-                                <Text color="textMuted">İçeriklere göz atmak için lütfen Yönetim Panelinden konuları ekleyin.</Text>
-                                {/* Opsiyonel: Yönetim paneline link */}
-                                {/* <Button as={RouterLink} to="/admin" colorScheme="brand" variant="outline" mt={6}>Yönetim Paneline Git</Button> */}
-                            </CardBody>
-                       </Card>
-                   )
-                 )
-            )}
+             {/* Sanal Klavye */}
+             <Keyboard onKeyPress={handleKeyPress} letterStatuses={letterStatuses} />
+
         </Container>
     );
 }
 
-export default TopicBrowserPage;
+export default WordPracticePage;
