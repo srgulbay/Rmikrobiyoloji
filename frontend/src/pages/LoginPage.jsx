@@ -63,6 +63,8 @@ function LoginPage() {
   const cardBgColor = useColorModeValue('white', 'gray.800'); // Kart arka planı
   const inputBgColor = useColorModeValue('gray.100', 'gray.700'); // Input arka planı
 
+  console.log('Login Page Loading State:', loading); // <-- BU SATIRI EKLEYİN
+
   return (
     // Sayfayı tam ekran kaplayacak şekilde ortala
     <Flex
