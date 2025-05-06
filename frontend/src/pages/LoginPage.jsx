@@ -1,3 +1,5 @@
+// src/pages/LoginPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -12,14 +14,14 @@ import {
   Button,
   Alert,
   AlertIcon,
-  AlertDescription, // Açıklama için daha uygun
-  Link as ChakraLink, // Chakra'nın Link'i RouterLink ile kullanılacak
-  Spinner,          // Chakra'nın Spinner'ı (gerekirse)
-  Icon,             // react-icons kullanımı için
-  VStack,           // Dikey yığınlama için
-  Text,             // Metin için
+  AlertDescription,
+  Link as ChakraLink,
+  Icon,
+  VStack,
+  Text,
+  ScaleFade // Hata mesajı geçişi için eklendi
 } from '@chakra-ui/react';
-// İkonları import etmeye devam ediyoruz (FaExclamationTriangle AlertIcon içinde kullanılabilir)
+// İkon
 import { FaSignInAlt } from 'react-icons/fa';
 
 function LoginPage() {
@@ -29,7 +31,7 @@ function LoginPage() {
     const { login, error, setError, loading, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
-    // Yönlendirme ve hata temizleme (aynı kalabilir)
+    // Yönlendirme ve hata temizleme
     useEffect(() => {
         if (isAuthenticated) {
             navigate('/browse', { replace: true });
@@ -47,15 +49,12 @@ function LoginPage() {
         await login(username, password);
     };
 
-    // PublicRoute içindeki loading indicator yeterli olabilir,
-    // ama form bazında da gösterilebilir. Button'un isLoading prop'u daha iyi.
-
     return (
-        // Eski .auth-page yerine Flex ile ortalama
+        // Sayfayı ortala
         <Flex className="auth-page" minH="80vh" py={8} align="center" justify="center">
-            {/* Eski .auth-form-container yerine Container */}
+            {/* Form container */}
             <Container
-                maxW="md" // Orta boyutta bir container
+                maxW="md"
                 py={8}
                 px={6}
                 bg="bgSecondary" // Temadan semantic token
@@ -64,34 +63,31 @@ function LoginPage() {
                 borderRadius="lg" // Temadan radius
                 boxShadow="lg" // Temadan gölge
             >
-                 {/* Eski h2 yerine Heading */}
                 <Heading as="h2" size="xl" textAlign="center" mb={6}>
                     Giriş Yap
                 </Heading>
 
-                {/* Eski form yerine Box ve VStack */}
                 <Box as="form" onSubmit={handleSubmit}>
-                    <VStack spacing={5}> {/* Form elemanları arası boşluk */}
-                        {/* Eski alert div yerine Chakra Alert */}
-                        {error && (
-                            <Alert status="error" borderRadius="md">
-                                <AlertIcon />
-                                <AlertDescription fontSize="sm">{error}</AlertDescription>
-                                {/* Kapatma butonu eklenebilir: <CloseButton position="absolute" right="8px" top="8px" /> */}
-                            </Alert>
-                        )}
+                    <VStack spacing={5}>
+                        {/* Hata Mesajı (ScaleFade ile yumuşak geçiş) */}
+                        <ScaleFade initialScale={0.9} in={!!error} unmountOnExit>
+                           {/* unmountOnExit={true} error yokken DOM'dan kaldırır */}
+                           {error && ( // Hata varsa render et
+                             <Alert status="error" borderRadius="md" width="full">
+                               <AlertIcon />
+                               <AlertDescription fontSize="sm">{error}</AlertDescription>
+                             </Alert>
+                           )}
+                        </ScaleFade>
 
-                        {/* Eski div.form-group yerine FormControl */}
                         <FormControl id="usernameLogin" isRequired isDisabled={loading}>
-                            {/* Eski label yerine FormLabel */}
                             <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı:</FormLabel>
-                            {/* Eski input yerine Input */}
                             <Input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 placeholder='Kullanıcı adınızı girin'
-                                // Chakra varsayılan stillerini kullanır, bg, border vb. temadan gelir
+                                // Chakra stilleri temadan gelir
                             />
                         </FormControl>
 
@@ -103,32 +99,25 @@ function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder='Şifrenizi girin'
                             />
-                            {/* Şifremi unuttum linki (opsiyonel) */}
-                             {/*
-                             <Flex justify="flex-end" mt={1}>
-                                 <ChakraLink as={RouterLink} to="/forgot-password" fontSize="xs" color="accent">
-                                     Şifremi Unuttum?
-                                 </ChakraLink>
-                             </Flex>
-                             */}
                         </FormControl>
 
-                        {/* Eski button yerine Chakra Button */}
+                        {/* Butona loadingText eklendi */}
                         <Button
                             type="submit"
-                            colorScheme="brand" // Temadaki brand rengini kullanır
+                            colorScheme="brand" // Tema'daki brand rengini kullanır
                             size="lg"          // Büyük buton
                             width="full"        // Tam genişlik
                             mt={6}              // Üstten boşluk (space.6)
-                            isLoading={loading} // Yüklenme durumunu yönetir (içine spinner ekler)
-                            leftIcon={<Icon as={FaSignInAlt} />} // react-icons kullanımı
+                            isLoading={loading} // Yüklenme durumunu yönetir
+                            loadingText="Giriş Yapılıyor..." // <-- Yüklenirken gösterilecek metin
+                            // Yüklenirken ikonu gizleyebiliriz (isteğe bağlı)
+                            leftIcon={!loading ? <Icon as={FaSignInAlt} /> : undefined}
                         >
-                            Giriş Yap
+                           Giriş Yap {/* isLoading=true ise bu metin görünmez, loadingText gösterilir */}
                         </Button>
                     </VStack>
                 </Box>
 
-                {/* Eski p.auth-switch-link yerine Text ve ChakraLink */}
                 <Text textAlign="center" mt={6} fontSize="sm">
                     Hesabınız yok mu?{' '}
                     <ChakraLink as={RouterLink} to="/register" fontWeight="medium" color="accent">
