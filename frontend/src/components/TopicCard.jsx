@@ -1,119 +1,123 @@
+// src/components/TopicCard.jsx
+
 import React from 'react';
 import {
-  Button,
+  Box, // Button yerine Box kullanacağız, tıklanabilirlik için as="button"
   Flex,
   Heading,
+  Text, // Açıklama için (opsiyonel)
   Icon,
-  Box, // Box eklendi, Button yerine kullanılabilir
-  useStyleConfig // İsteğe bağlı: Tema tabanlı varyant için
+  Circle, // İkon arka planı için
+  useStyleConfig, // Tema varyantları için (opsiyonel)
+  useColorModeValue, // Açık/Koyu mod renkleri
+  VStack, // Dikey hizalama için
+  Spacer // Boşluk itmek için
 } from '@chakra-ui/react';
-// İkonları import etmeye devam ediyoruz
+// İkonlar
 import {
   FaMicroscope, FaShieldAlt, FaBacteria, FaVirus, FaFlask,
-  FaBug, FaBiohazard, FaFolder, FaChevronRight
-} from 'react-icons/fa'; // Veya fa6
+  FaBug, FaBiohazard, FaFolder, FaChevronRight, FaFolderOpen // Açık klasör ikonu
+} from 'react-icons/fa';
 
-// Konu -> İkon Component Eşleştirmesi (Aynen kalabilir)
+// Konu -> İkon Eşleştirmesi (Aynen kalabilir)
 const topicIconMap = {
   "Genel Mikrobiyoloji": FaMicroscope,
   "İmmünoloji": FaShieldAlt,
   "Bakteriyoloji": FaBacteria,
   "Viroloji": FaVirus,
-  "Mikoloji": FaFlask, // Veya FaMushroom (fa6)
+  "Mikoloji": FaFlask,
   "Parazitoloji": FaBug,
   "Enfeksiyon Hastalıkları": FaBiohazard,
   "Laboratuvar Uygulamaları": FaFlask,
-  "default": FaFolder
+  "default": FaFolder // Alt konusu olmayan için
 };
 
-// TopicCard Component'i (Chakra UI ile yeniden düzenlendi)
-function TopicCard({ topic, onSelectTopic, ...props }) { // className kaldırıldı, diğer props'lar için ...props eklendi
+// TopicCard Component'i (Daha Gelişmiş Tasarım)
+function TopicCard({ topic, onSelectTopic, ...props }) {
 
-  const IconComponent = topicIconMap[topic.name] || topicIconMap["default"];
+  // Alt konu varsa açık klasör, yoksa normal klasör ikonu kullanabiliriz.
   const hasChildren = topic.children && topic.children.length > 0;
+  const IconComponent = topicIconMap[topic.name] || (hasChildren ? FaFolderOpen : topicIconMap["default"]);
 
   const handleClick = () => {
     onSelectTopic(topic);
   };
 
-  // Tema'da özel bir 'outlineInteractive' varyantı tanımlanabilir
-  // veya stil props'ları doğrudan kullanılabilir.
-  // Stil props kullanarak örnek:
+  // Kart için arka plan ve ikon rengi
+  const cardBg = useColorModeValue('white', 'gray.700');
+  const hoverBg = useColorModeValue('gray.50', 'gray.600');
+  const activeBg = useColorModeValue('gray.100', 'gray.500');
+  const iconBg = useColorModeValue('brand.100', 'brand.800');
+  const iconColor = useColorModeValue('brand.600', 'brand.200');
+
   return (
-    <Button
-      variant="outline" // Temel çerçeveli stil
-      w="100%"          // Tam genişlik
-      h="auto"          // İçeriğe göre yükseklik
-      p={4}             // Padding (space.4)
-      textAlign="left"
-      justifyContent="flex-start" // İçeriği sola yasla
-      alignItems="center"       // İçeriği dikeyde ortala
+    <Box
+      as="button" // Erişilebilirlik ve tıklanabilirlik için button
       onClick={handleClick}
-      borderColor="borderSecondary" // Temadan renk
-      bg="bgSecondary"           // Temadan renk
-      color="textPrimary"          // Temadan renk
-      borderRadius="md"          // Temadan yarıçap
-      role="group"               // _groupHover için
-      transition="all 0.2s ease-in-out" // Geçiş efekti
+      p={5} // Padding artırıldı
+      bg={cardBg}
+      borderWidth="1px"
+      borderColor={useColorModeValue('gray.200', 'gray.600')}
+      borderRadius="lg" // Daha yuvarlak köşeler
+      boxShadow="base" // Hafif gölge
+      textAlign="left"
+      w="100%"
+      transition="all 0.2s ease-in-out"
       _hover={{
-        bg: 'bgTertiary',         // Temadan renk
-        borderColor: 'accent',    // Temadan renk
-        transform: 'translateY(-3px)',
-        boxShadow: 'md'           // Temadan gölge
+        transform: 'translateY(-4px)', // Hover'da hafif yukarı kalkma
+        boxShadow: 'lg', // Hover'da daha belirgin gölge
+        borderColor: 'brand.300',
+        bg: hoverBg
       }}
-      _active={{ // Tıklama anı stili
-        transform: 'translateY(-1px) scale(0.99)',
-        boxShadow: 'inner',        // Temadan gölge
-        bg: 'bgQuaternary'       // Temadan renk
+      _active={{
+        transform: 'translateY(-1px)', // Tıklama anında hafifçe aşağı inme
+        boxShadow: 'md',
+        bg: activeBg
       }}
-      {...props} // Diğer Chakra props'larını geçirebilmek için
+      _focusVisible={{ // Klavye ile focus olduğunda belirgin halka
+        borderColor: 'brand.400',
+        boxShadow: `0 0 0 3px var(--chakra-colors-brand-200)`
+      }}
+      {...props}
     >
-      {/* İkon Alanı */}
-      <Flex
-        w="44px" h="44px"
-        borderRadius="full" // Tam yuvarlak
-        // Gradient için tema veya doğrudan stil
-        bgGradient="linear(to-br, blue.50, blue.100)" // Örnek: Chakra renkleri (tema ile değiştirilebilir)
-        _dark={{ bgGradient: "linear(to-br, blue.800, blue.700)"}} // Gece modu gradient'i
-        alignItems="center"
-        justifyContent="center"
-        mr={4} // Sağdan boşluk (space.4)
-        flexShrink={0}
-        transition="transform 0.25s ease"
-        _groupHover={{ transform: 'scale(1.1)' }} // Parent hover olduğunda
-      >
-        <Icon as={IconComponent} boxSize="1.6rem" color="accent" /> {/* Temadan renk */}
-      </Flex>
+      <Flex align="center">
+        {/* İkon Alanı (Renkli Daire İçinde) */}
+        <Circle size="44px" bg={iconBg} color={iconColor} mr={4}>
+          <Icon as={IconComponent} boxSize="20px" />
+        </Circle>
 
-      {/* Konu Başlığı */}
-      <Heading
-        as="h3"
-        size="sm" // Temadan yazı boyutu (lg, md, sm...)
-        fontWeight="medium" // Temadan
-        color="inherit" // Parent'tan rengi al (Button rengi)
-        lineHeight="1.4"
-        flex="1" // Genişlemesini sağla
-        mr={3} // Sağdaki ikon için boşluk (space.3)
-      >
-        {topic.name}
-      </Heading>
+        {/* Başlık ve Açıklama Alanı */}
+        <VStack align="flex-start" spacing={0} flex="1" minW={0}>
+          <Heading
+            as="h3"
+            size="sm" // Biraz daha belirgin başlık
+            fontWeight="semibold" // Daha kalın
+            noOfLines={2} // En fazla 2 satır
+          >
+            {topic.name}
+          </Heading>
+          {/* Opsiyonel: Kısa açıklama eklenebilir */}
+          {/* {topic.description && (
+            <Text fontSize="xs" color="textMuted" noOfLines={1}>
+              {topic.description}
+            </Text>
+          )} */}
+        </VStack>
 
-      {/* Chevron (Alt konu varsa) */}
-      {hasChildren && (
-         <Icon
+        {/* Chevron (Alt konu varsa) */}
+        <Icon
             as={FaChevronRight}
-            color="textMuted" // Temadan renk
-            opacity={0.8}
-            transition="transform 0.15s ease, color 0.15s ease"
-            _groupHover={{ // Parent hover olduğunda
-                transform: 'translateX(4px)',
-                color: 'accent', // Temadan renk
-                opacity: 1
+            color="textMuted"
+            opacity={hasChildren ? 0.8 : 0} // Alt konu yoksa gizle
+            transition="transform 0.2s ease, opacity 0.2s ease"
+            ml={3} // Başlıktan ayırmak için
+            _groupHover={{ // Box'a role="group" eklemeye gerek yok, as="button" yeterli
+              transform: hasChildren ? 'translateX(4px)' : 'none',
             }}
-            aria-hidden="true"
+            aria-hidden={!hasChildren}
           />
-      )}
-    </Button>
+      </Flex>
+    </Box>
   );
 }
 
