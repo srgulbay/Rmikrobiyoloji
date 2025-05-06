@@ -1,16 +1,48 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-// İkonları import edelim
+import { Link as RouterLink } from 'react-router-dom'; // Link için
+import {
+  Box,
+  Container,
+  Heading,
+  Text,
+  Spinner,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Button,
+  Icon,
+  SimpleGrid, // Özet grid için
+  Card,       // Özet kutuları için
+  CardBody,   // Kart içeriği için
+  Table,      // Detay tablosu için
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer, // Tablo sarmalayıcı
+  Link as ChakraLink, // Linkler için
+  List,             // Zayıf konular listesi
+  ListItem,
+  Skeleton,         // Yükleme iskeleti
+  SkeletonText,
+  useColorModeValue, // Açık/Koyu mod renkleri için
+  VStack // Dikey yığınlama için
+} from '@chakra-ui/react';
+// İkonlar
 import { FaChartBar, FaExclamationTriangle, FaInfoCircle, FaListAlt, FaRedo, FaExclamationCircle } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-// Zayıf konu belirleme eşikleri
+// Zayıf konu belirleme eşikleri (aynı kalabilir)
 const WEAK_TOPIC_ACCURACY_THRESHOLD = 65;
 const WEAK_TOPIC_MIN_ATTEMPTS = 5;
 
 function MyStatsPage() {
+    // State'ler ve hook'lar aynı kalabilir
     const [summaryStats, setSummaryStats] = useState(null);
     const [detailedStats, setDetailedStats] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -20,7 +52,7 @@ function MyStatsPage() {
     const backendSummaryUrl  = `${API_BASE_URL}/api/stats/my-summary`;
     const backendDetailedUrl = `${API_BASE_URL}/api/stats/my-detailed`;
 
-    // --- Fonksiyonlar (Değişiklik Yok) ---
+    // fetchMyStats ve weakTopics hesaplamaları aynı kalabilir
     const fetchMyStats = useCallback(async () => {
         setLoading(true); setError('');
         if (!token) { setError("Giriş yapmadığınız için istatistikler getirilemedi."); setLoading(false); return; }
@@ -32,7 +64,14 @@ function MyStatsPage() {
             ]);
             setSummaryStats(summaryRes.data);
             const sortedDetailedStats = Array.isArray(detailedRes.data)
-               ? detailedRes.data.sort((a, b) => a.accuracy - b.accuracy)
+               // Önce Zayıf Konuları Gösterelim, Sonra Başarıya Göre Sıralayalım
+               ? detailedRes.data.sort((a, b) => {
+                   const aIsWeak = a.accuracy < WEAK_TOPIC_ACCURACY_THRESHOLD && a.totalAttempts >= WEAK_TOPIC_MIN_ATTEMPTS;
+                   const bIsWeak = b.accuracy < WEAK_TOPIC_ACCURACY_THRESHOLD && b.totalAttempts >= WEAK_TOPIC_MIN_ATTEMPTS;
+                   if (aIsWeak && !bIsWeak) return -1; // a zayıf, b değil -> a önce
+                   if (!aIsWeak && bIsWeak) return 1;  // b zayıf, a değil -> b önce
+                   return a.accuracy - b.accuracy; // İkisi de zayıf veya değilse başarıya göre sırala
+                 })
                : [];
             setDetailedStats(sortedDetailedStats);
         } catch (err) {
@@ -50,165 +89,183 @@ function MyStatsPage() {
             stat.totalAttempts >= WEAK_TOPIC_MIN_ATTEMPTS
         );
     }, [detailedStats]);
-    // --- Fonksiyonlar Sonu ---
 
-
-    // --- Render Bölümü ---
+    // --- Render Bölümü (Chakra UI ile) ---
     if (loading) {
-        // İstatistik sayfası için skeleton
+        // Chakra UI İskelet Yükleme Ekranı
         return (
-            <div className="container py-8">
-                <div className="skeleton skeleton-title skeleton-animated w-1/3 mx-auto mb-8"></div>
-                {/* Summary Skeleton */}
-                <div className="card skeleton-animated mb-8" style={{ padding: 'var(--space-6)' }}>
-                    <div className="skeleton skeleton-text skeleton-animated mx-auto mb-4" style={{width: '40%', height:'1.2rem'}}></div>
-                    <div className="d-grid gap-4" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'}}>
-                         <div className="skeleton skeleton-animated" style={{height: '60px', borderRadius: 'var(--border-radius-md)'}}></div>
-                         <div className="skeleton skeleton-animated" style={{height: '60px', borderRadius: 'var(--border-radius-md)'}}></div>
-                         <div className="skeleton skeleton-animated" style={{height: '60px', borderRadius: 'var(--border-radius-md)'}}></div>
-                    </div>
-                </div>
-                 {/* Table Skeleton */}
-                 <div className="skeleton skeleton-text skeleton-animated mb-4" style={{width: '50%', height:'1.2rem'}}></div>
-                 <div className="skeleton skeleton-animated" style={{ height: '200px', borderRadius: 'var(--border-radius-md)' }}></div>
-            </div>
+            <Container maxW="container.lg" py={8}>
+                 <Skeleton height="30px" width="40%" mx="auto" mb={8} /> {/* Başlık iskeleti */}
+                 {/* Özet İstatistikler İskeleti */}
+                <Card variant="outline" mb={8} p={6}>
+                    <SkeletonText width="50%" mx="auto" noOfLines={1} mb={6} height="24px"/>
+                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                        <Skeleton height="80px" borderRadius="md" />
+                        <Skeleton height="80px" borderRadius="md" />
+                        <Skeleton height="80px" borderRadius="md" />
+                    </SimpleGrid>
+                </Card>
+                {/* Detaylı Tablo İskeleti */}
+                <SkeletonText width="60%" noOfLines={1} mb={4} height="24px"/>
+                <Skeleton height="200px" borderRadius="md" />
+            </Container>
         );
     }
 
     if (error) {
+        // Chakra UI Hata Ekranı
         return (
-            <div className="container mt-6">
-                <div className="alert alert-danger" role="alert">
-                    <FaExclamationTriangle className='alert-icon' />
-                    <div className="alert-content">{error}</div>
-                </div>
-                <button onClick={fetchMyStats} className="btn btn-secondary mt-4">
-                    <FaRedo className='btn-icon'/> Tekrar Dene
-                 </button>
-            </div>
+            <Container maxW="container.lg" mt={6}>
+                <Alert status="error" variant="left-accent" borderRadius="md" p={6}>
+                    <AlertIcon />
+                    <Box>
+                        <AlertTitle>Hata!</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Box>
+                     <Button colorScheme="red" variant="outline" onClick={fetchMyStats} ml="auto" leftIcon={<Icon as={FaRedo} />}>
+                         Tekrar Dene
+                     </Button>
+                </Alert>
+            </Container>
         );
     }
 
-    // Veri yoksa gösterilecek mesaj
-     if (!summaryStats && detailedStats.length === 0) {
+    // Chakra UI Veri Yok Mesajı
+     if (!loading && !summaryStats && detailedStats.length === 0) {
          return (
-             <div className="container mt-6">
-                 <div className="alert alert-info text-center" role="alert">
-                     <FaInfoCircle className='alert-icon' />
-                     <div className="alert-content">Henüz görüntülenecek istatistik verisi bulunmuyor. Biraz soru çözmeye ne dersin?</div>
-                     {/* Soru çözme sayfasına link */}
-                     {/* <Link to="/solve" className="btn btn-primary mt-4">Soru Çözmeye Başla</Link> */}
-                 </div>
-             </div>
+             <Container maxW="container.lg" mt={6}>
+                 <Alert status="info" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
+                     <AlertIcon boxSize="40px" mr={0} as={FaInfoCircle} />
+                     <AlertTitle mt={4} mb={1} fontSize="lg">Veri Bulunamadı</AlertTitle>
+                     <AlertDescription maxWidth="sm" mb={5}>
+                        Henüz görüntülenecek istatistik verisi bulunmuyor. Biraz soru çözmeye ne dersin?
+                     </AlertDescription>
+                     <Button as={RouterLink} to="/solve" colorScheme="brand" mt={4}>
+                        Soru Çözmeye Başla
+                     </Button>
+                 </Alert>
+             </Container>
          );
      }
 
+    // Ana İçerik Render
     return (
-        // Ana container ve dikey boşluk
-        <div className="my-stats-page container py-8">
-            {/* Sayfa Başlığı */}
-            <h1 className="text-center mb-8">İstatistiklerim ({user?.username})</h1>
+        <Container maxW="container.lg" py={8} className="my-stats-page">
+            <Heading as="h1" size="xl" textAlign="center" mb={8}>
+                İstatistiklerim ({user?.username})
+            </Heading>
 
             {/* Özet İstatistikler */}
             {summaryStats && (
-                // Daha önce admin panelinde kullandığımız yapıya benzer
-                <div className="stats-summary-section card mb-8">
-                    <h3 className='d-flex align-center justify-center gap-3'>
-                        <FaChartBar /> Özet İstatistikler
-                    </h3>
-                    {/* Grid yapısı */}
-                    <div className="stats-summary-grid">
-                        <div className="summary-box">
-                            <strong>Toplam Çözülen Soru</strong>
-                            <span className="stat-value">{summaryStats.totalAttempts}</span>
-                        </div>
-                        <div className="summary-box">
-                            <strong>Doğru Cevap Sayısı</strong>
-                            <span className="stat-value text-success">{summaryStats.correctAttempts}</span>
-                        </div>
-                        <div className="summary-box">
-                             <strong>Genel Başarı Oranı</strong>
-                             {/* Başarı oranına göre renk */}
-                             <span className={`stat-value ${summaryStats.accuracy >= 80 ? 'text-success' : summaryStats.accuracy >= 50 ? 'text-warning' : 'text-danger'}`}>
-                                 %{summaryStats.accuracy}
-                             </span>
-                        </div>
-                    </div>
-                </div>
+                <Card variant="outline" mb={8}>
+                    <CardBody p={6}>
+                        <Heading as="h3" size="lg" display="flex" alignItems="center" justifyContent="center" gap={3} mb={6}>
+                            <Icon as={FaChartBar} /> Özet İstatistikler
+                        </Heading>
+                        {/* Eski stats-summary-grid yerine SimpleGrid */}
+                        <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
+                            {/* Eski summary-box yerine Box */}
+                            <Box bg="bgTertiary" p={4} borderRadius="md" textAlign="center">
+                                <Text fontSize="sm" color="textMuted" mb={1} fontWeight="medium">Toplam Çözülen Soru</Text>
+                                <Text fontSize="3xl" fontWeight="bold">{summaryStats.totalAttempts}</Text>
+                            </Box>
+                            <Box bg="bgTertiary" p={4} borderRadius="md" textAlign="center">
+                                <Text fontSize="sm" color="textMuted" mb={1} fontWeight="medium">Doğru Cevap Sayısı</Text>
+                                <Text fontSize="3xl" fontWeight="bold" color="green.500">{summaryStats.correctAttempts}</Text>
+                            </Box>
+                            <Box bg="bgTertiary" p={4} borderRadius="md" textAlign="center">
+                                <Text fontSize="sm" color="textMuted" mb={1} fontWeight="medium">Genel Başarı Oranı</Text>
+                                <Text
+                                    fontSize="3xl"
+                                    fontWeight="bold"
+                                    color={summaryStats.accuracy >= 80 ? 'green.500' : summaryStats.accuracy >= 50 ? 'yellow.500' : 'red.500'}
+                                >
+                                    %{summaryStats.accuracy}
+                                </Text>
+                            </Box>
+                        </SimpleGrid>
+                    </CardBody>
+                </Card>
             )}
 
-            {/* Ayırıcı yerine boşluk bırakmak yeterli */}
-
             {/* Detaylı İstatistikler */}
-            <div className='detailed-stats-section mb-8'>
-                <h3 className='mb-4 d-flex align-center gap-3'>
-                    <FaListAlt /> Konu Bazlı Başarı
-                </h3>
-                {detailedStats.length === 0 ? (
-                    <div className="alert alert-info">
-                        <FaInfoCircle className='alert-icon'/>
-                        <div className="alert-content">Henüz konu bazlı istatistik oluşturacak kadar soru çözülmedi.</div>
-                    </div>
+            <Box className='detailed-stats-section' mb={8}>
+                <Heading as="h3" size="lg" mb={4} display="flex" alignItems="center" gap={3}>
+                    <Icon as={FaListAlt} /> Konu Bazlı Başarı
+                </Heading>
+                {detailedStats.length === 0 && !loading ? (
+                    <Alert status="info" borderRadius="md">
+                        <AlertIcon />
+                        <AlertDescription>Henüz konu bazlı istatistik oluşturacak kadar soru çözülmedi.</AlertDescription>
+                    </Alert>
                 ) : (
-                    // Stilize edilmiş tabloyu kullan
-                    <div className="table-container">
-                        <table className="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Konu</th>
-                                    <th className='text-center'>Toplam Deneme</th>
-                                    <th className='text-center'>Doğru Sayısı</th>
-                                    <th className='text-center'>Başarı Oranı (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    // Eski table-container yerine Chakra TableContainer
+                    <TableContainer borderWidth="1px" borderColor="borderSecondary" borderRadius="md">
+                        {/* Eski table yerine Chakra Table */}
+                        <Table variant="striped" size="md">
+                            <Thead bg="bgSecondary">
+                                <Tr>
+                                    <Th>Konu</Th>
+                                    <Th textAlign="center">Toplam Deneme</Th>
+                                    <Th textAlign="center">Doğru Sayısı</Th>
+                                    <Th textAlign="center">Başarı Oranı (%)</Th>
+                                </Tr>
+                            </Thead>
+                            <Tbody>
                                 {detailedStats.map(topicStat => {
                                     const isWeak = weakTopics.some(wt => wt.topicId === topicStat.topicId);
-                                    // Satıra .is-weak sınıfını ekle
+                                    const accuracyColor = isWeak ? 'red.600' : topicStat.accuracy >= 80 ? 'green.600' : topicStat.accuracy >= 50 ? 'orange.600' : 'inherit';
+                                    const weakBgColor = useColorModeValue('yellow.100', 'yellow.900'); // Açık/Koyu mod için
+                                    const weakTextColor = useColorModeValue('yellow.800', 'yellow.100'); // Açık/Koyu mod için
+
                                     return (
-                                        <tr key={topicStat.topicId} className={isWeak ? 'is-weak' : ''}>
-                                            <td>{topicStat.topicName}</td>
-                                            <td className='text-center'>{topicStat.totalAttempts}</td>
-                                            <td className='text-center'>{topicStat.correctAttempts}</td>
-                                            {/* Başarı oranını ve isWeak durumunu göster */}
-                                            <td className={`text-center font-semibold ${isWeak ? 'text-danger' : topicStat.accuracy >= 80 ? 'text-success' : topicStat.accuracy >= 50 ? 'text-warning' : ''}`}>
+                                        <Tr key={topicStat.topicId} sx={isWeak ? { bg: weakBgColor, color: weakTextColor, 'td, th': { color: weakTextColor } } : {}}>
+                                            <Td fontWeight={isWeak ? 'semibold' : 'normal'}>{topicStat.topicName}</Td>
+                                            <Td textAlign="center">{topicStat.totalAttempts}</Td>
+                                            <Td textAlign="center">{topicStat.correctAttempts}</Td>
+                                            <Td textAlign="center" fontWeight="semibold" color={accuracyColor}>
                                                  {topicStat.accuracy}%
-                                                 {isWeak && <FaExclamationCircle className="ml-2" title="Zayıf Konu"/>}
-                                             </td>
-                                        </tr>
+                                                 {isWeak && <Icon as={FaExclamationCircle} ml={2} title="Zayıf Konu" verticalAlign="middle"/>}
+                                             </Td>
+                                        </Tr>
                                     );
                                 })}
                             </tbody>
-                        </table>
-                    </div>
+                        </Table>
+                    </TableContainer>
                 )}
-            </div>
+            </Box>
 
             {/* Zayıf Konular Listesi */}
             {weakTopics.length > 0 && (
-                // Özel alert sınıfını kullan veya alert-warning/danger
-                <div className="weak-topics-alert alert alert-warning">
-                    <h4 className='alert-title d-flex align-center gap-2'>
-                        <FaExclamationTriangle /> Tekrar Etmeniz Önerilen Konular
-                    </h4>
-                    <div className="alert-content">
-                         <p className='text-sm text-muted mb-3'>
+                 // Eski alert yerine Chakra Alert
+                <Alert status="warning" variant="left-accent" borderRadius="md" mt={6} flexDirection="column" alignItems="flex-start">
+                     <AlertTitle display="flex" alignItems="center" gap={2} mb={3}>
+                         <AlertIcon /> Tekrar Etmeniz Önerilen Konular
+                    </AlertTitle>
+                    <AlertDescription width="full">
+                         <Text fontSize="sm" color="textMuted" mb={3}>
                               (Başarı %{WEAK_TOPIC_ACCURACY_THRESHOLD} altında ve en az {WEAK_TOPIC_MIN_ATTEMPTS} deneme)
-                         </p>
-                        <ul className='list-disc pl-5'> {/* Madde işaretli liste */}
+                         </Text>
+                         {/* Eski ul yerine Chakra List */}
+                        <List spacing={2} styleType="disc" pl={5}>
                             {weakTopics.map(wt => (
-                                <li key={wt.topicId} className="mb-1">
+                                <ListItem key={wt.topicId}>
                                     {wt.topicName}
-                                    <span className='text-sm text-muted ml-2'>%{wt.accuracy}</span>
-                                    {/* Opsiyonel: Bu konuya ait sorulara gitme linki */}
-                                    {/* <Link to={`/solve?topicId=${wt.topicId}`} className="btn btn-link btn-xs ml-3">Pratik Yap</Link> */}
-                                </li>
+                                    <Text as="span" fontSize="xs" color="textMuted" ml={2}>%{wt.accuracy}</Text>
+                                    {/* Opsiyonel Link */}
+                                     {/*
+                                     <ChakraLink as={RouterLink} to={`/solve?topicId=${wt.topicId}`} color="brand.500" fontSize="xs" ml={3}>
+                                         Pratik Yap
+                                     </ChakraLink>
+                                     */}
+                                </ListItem>
                             ))}
-                        </ul>
-                    </div>
-                </div>
+                        </List>
+                    </AlertDescription>
+                </Alert>
             )}
-        </div>
+        </Container>
     );
 }
 
