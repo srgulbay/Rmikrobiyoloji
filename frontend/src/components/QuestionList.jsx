@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function QuestionList({ selectedTopicId }) {
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { token } = useAuth();
-  const backendUrl = 'http://localhost:3001/api/questions';
-  const backendTopicUrl = 'http://localhost:3001/api/topics'; // Alt konuları filtrelemek için
+const backendUrl      = `${API_BASE_URL}/api/questions`;
+const backendTopicUrl = `${API_BASE_URL}/api/topics`;
 
   // Alt konu ID'lerini bulan recursive fonksiyon
   const getAllDescendantIds = useCallback((topicId, topicsMap, includeSelf = true) => {

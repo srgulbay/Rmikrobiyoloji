@@ -1,161 +1,248 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import TopicCard from '../components/TopicCard'; // TopicCard component'i import edildi
+import TopicCard from '../components/TopicCard';
+import { FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle, FaInfoCircle, FaFolder, FaListAlt, FaRedo } from 'react-icons/fa';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// --- Helper Fonksiyonlar (Component Dışında) ---
+const findTopicAndPathById = (id, nodes, currentPath = []) => {
+    for (const node of nodes) {
+        const newPath = [...currentPath, { id: node.id, name: node.name }];
+        if (node.id === id) {
+            return { topic: node, path: newPath };
+        }
+        if (node.children) {
+            const found = findTopicAndPathById(id, node.children, newPath);
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
+const getTopicFromPath = (pathIds, tree) => {
+    if (!pathIds || pathIds.length === 0) return null;
+    let currentLevel = tree;
+    let topic = null;
+    for (const id of pathIds) {
+        topic = currentLevel?.find(t => t.id === id);
+        if (!topic) return null;
+        currentLevel = topic.children;
+    }
+    return topic;
+};
+// --- Helper Fonksiyonlar Sonu ---
 
 function TopicBrowserPage() {
-  const [topicTree, setTopicTree] = useState([]);
-  const [currentPath, setCurrentPath] = useState([]);
-  const [currentTopics, setCurrentTopics] = useState([]); // Gösterilecek güncel seviye konuları
-  const [selectedForContent, setSelectedForContent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const { token } = useAuth();
-  const navigate = useNavigate();
+    const [topicTree, setTopicTree] = useState([]);
+    const [currentPathIds, setCurrentPathIds] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const { token } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
 
-  const backendTopicUrl = 'http://localhost:3001/api/topics';
+    const backendTopicUrl = `${API_BASE_URL}/api/topics`;
 
-  const fetchTopics = useCallback(async () => {
-    setLoading(true); setError('');
-    if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return;}
-    try {
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get(backendTopicUrl, config);
-      setTopicTree(response.data || []);
-    } catch (err) { console.error("Konu ağacı çekilirken hata:", err); setError('Konular yüklenirken bir hata oluştu.'); }
-    finally { setLoading(false); }
-  }, [token, backendTopicUrl]);
+    const fetchTopics = useCallback(async () => {
+        setLoading(true); setError('');
+        if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return;}
+        try {
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            const response = await axios.get(backendTopicUrl, config);
+            setTopicTree(response.data || []);
+        } catch (err) {
+            console.error("Konu ağacı çekilirken hata:", err);
+            const errorMsg = err.response?.data?.message || 'Konular yüklenirken bir sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+            setError(errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    }, [token, backendTopicUrl]);
 
-  useEffect(() => { fetchTopics(); }, [fetchTopics]);
+    useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
-  // currentPath veya topicTree değiştiğinde gösterilecek konuları ayarla
-  useEffect(() => {
-    let currentLevelData = topicTree;
-    let isValidPath = true;
-    try {
-        currentPath.forEach(pathId => {
-            const nextLevel = currentLevelData.find(topic => topic.id === pathId);
-            if (nextLevel && nextLevel.children) {
-                currentLevelData = nextLevel.children;
-            } else {
-                isValidPath = false; // Path'in devamı yok veya children yok
-                // Eğer path'in sonuna geldiysek (çocuk yoksa), bu içerik gösterilecek durumdur
-                if (nextLevel && (!nextLevel.children || nextLevel.children.length === 0)) {
-                     // Hata fırlatma, bu normal durum olabilir
-                } else {
-                     throw new Error("Invalid path segment"); // Geçersiz path durumu
-                }
+    const { activeTopic, currentTopics } = useMemo(() => {
+        const topic = getTopicFromPath(currentPathIds, topicTree);
+        const children = currentPathIds.length === 0 ? topicTree : topic?.children || [];
+        return { activeTopic: topic, currentTopics: children };
+    }, [currentPathIds, topicTree]);
+
+    const handleTopicSelect = useCallback((selectedTopic) => {
+        setError('');
+        setCurrentPathIds(prevPath => [...prevPath, selectedTopic.id]);
+    }, []);
+
+    const handleGoBack = useCallback(() => {
+        setError('');
+        setCurrentPathIds(prevPath => prevPath.slice(0, -1));
+    }, []);
+
+     const breadcrumbItems = useMemo(() => {
+        const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0 }];
+        let currentLevel = topicTree;
+        currentPathIds.forEach((pathId, index) => {
+            const found = currentLevel?.find(t => t.id === pathId);
+            if (found) {
+                items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
+                currentLevel = found.children;
             }
         });
+        return items;
+    }, [currentPathIds, topicTree]);
 
-         if (isValidPath) {
-             setCurrentTopics(currentLevelData);
-             setSelectedForContent(null);
-         } else if (currentPath.length > 0) {
-             // Geçersiz path sonu, son geçerli konuyu bulup içerik için seçelim
-             let finalTopic = null;
-             let searchLevel = topicTree;
-             currentPath.forEach(pathId => {
-                 const found = searchLevel?.find(t => t.id === pathId);
-                 if (found) {
-                     finalTopic = found;
-                     searchLevel = found.children;
-                 } else {
-                     finalTopic = null; // Güvenlik önlemi
-                 }
-             });
-             if (finalTopic && (!finalTopic.children || finalTopic.children.length === 0)) {
-                  setSelectedForContent(finalTopic);
-                  setCurrentTopics([]);
-             } else {
-                  // Path vardı ama son eleman alt eleman içeriyorsa veya bulunamadıysa başa dönelim
-                  console.error("Path valid değil veya son eleman alt eleman içeriyor.");
-                  setCurrentPath([]); // Başa dön
-                  setCurrentTopics(topicTree);
-                  setSelectedForContent(null);
-             }
-         } else {
-             // Path boşsa (ilk yükleme)
-             setCurrentTopics(topicTree);
-             setSelectedForContent(null);
-         }
+    const navigateToPath = useCallback((index) => {
+        setCurrentPathIds(currentPathIds.slice(0, index));
+    }, [currentPathIds]);
 
-    } catch(e) {
-        console.error("Current topics ayarlanırken hata:", e);
-        setCurrentPath([]); // Hata durumunda başa dön
-        setCurrentTopics(topicTree);
-        setSelectedForContent(null);
+    // ÖNEMLİ NOT: handleContentNavigation fonksiyonu doğru topicId ile yönlendirme yapar.
+    // Ancak 'lecture' tipinde yönlendirilen LectureViewPage component'inin
+    // ve backend'deki /api/lectures endpoint'inin, tıpkı sorular için yapıldığı gibi,
+    // gelen topicId'ye ait TÜM ALT KONULARIN derslerini de getirecek şekilde
+    // güncellenmesi GEREKMEKTEDİR. Bu dosyadaki değişiklikler tek başına yeterli değildir.
+    const handleContentNavigation = (type, topicId) => {
+        if (!topicId) return;
+        if (type === 'lecture') {
+            navigate(`/lectures/topic/${topicId}`); // LectureViewPage'in tüm dersleri çekmesi lazım
+        } else if (type === 'quiz') {
+            navigate(`/solve?topicId=${topicId}`); // SolvePage zaten tüm soruları çekiyor
+        }
+    };
+
+// --- Render Bölümü Başlangıcı ---
+// --- Render Bölümü ---
+
+    if (loading) {
+        // İyileştirilmiş İskelet Yükleme Ekranı
+        return (
+            <div className="container py-8 animate-pulse">
+                <div className="h-5 bg-[var(--bg-tertiary)] rounded w-1/2 mb-6"></div> {/* Breadcrumb Skeleton */}
+                <div className="h-8 bg-[var(--bg-tertiary)] rounded w-32 mb-6"></div> {/* Back Button Skeleton */}
+                <div className="h-24 bg-[var(--bg-secondary)] rounded-lg mb-8"></div> {/* Active Topic Skeleton */}
+                <div className="card-grid">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="h-20 bg-[var(--bg-secondary)] rounded-md"></div> // Card Skeleton
+                    ))}
+                </div>
+            </div>
+        );
     }
 
-  }, [currentPath, topicTree]);
-
-  const handleTopicSelect = (selectedTopic) => {
-    setError('');
-    if (selectedTopic.children && selectedTopic.children.length > 0) {
-      setCurrentPath(prevPath => [...prevPath, selectedTopic.id]);
-    } else {
-      setSelectedForContent(selectedTopic);
-      setCurrentTopics([]);
+    if (error) {
+        // İyileştirilmiş Hata Ekranı
+        return (
+            <div className="container mt-6">
+                <div className="card card-accented-error text-center py-8">
+                    <FaExclamationTriangle className='mb-4 text-[3rem] text-[var(--feedback-error)] mx-auto' />
+                    <h3 className='h4 mb-3 text-[var(--text-primary)]'>Bir Hata Oluştu</h3>
+                    <p className="text-muted mb-5">{error}</p>
+                    <button onClick={fetchTopics} className="btn btn-danger">
+                        <FaRedo className='btn-icon' /> Tekrar Dene
+                    </button>
+                </div>
+            </div>
+        );
     }
-  };
 
-  const handleGoBack = () => {
-    setError('');
-    setCurrentPath(prevPath => prevPath.slice(0, -1));
-    setSelectedForContent(null);
-  };
+    // Ana İçerik Render
+    return (
+        <main className="topic-browser-page container py-8">
 
-   const handleContentNavigation = (type) => {
-       if (!selectedForContent) return;
-       if (type === 'lecture') { navigate(`/lectures/topic/${selectedForContent.id}`); }
-       else if (type === 'quiz') { navigate(`/solve/${selectedForContent.id}`); }
-   };
+            {/* Navigasyon Alanı (Breadcrumb ve Geri Butonu) */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <nav aria-label="breadcrumb">
+                    <ol className="breadcrumb" style={{ marginBottom: 0, padding: 0 }}>
+                        {breadcrumbItems.map((item, index) => {
+                            const isLast = index === breadcrumbItems.length - 1;
+                            return (
+                                <li key={item.id || 'home'} className={`breadcrumb-item ${isLast ? 'active' : ''}`}>
+                                    {!isLast && item.id !== null ? (
+                                        <a href="#" onClick={(e) => { e.preventDefault(); navigateToPath(index); }}>
+                                            {item.name}
+                                        </a>
+                                    ) : (
+                                        <span aria-current={isLast ? 'page' : undefined}>
+                                            {item.name}
+                                        </span>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </nav>
+                {currentPathIds.length > 0 && (
+                    <button onClick={handleGoBack} className="btn btn-ghost btn-sm flex-shrink-0">
+                        <FaArrowLeft className='btn-icon' />
+                        Geri ({breadcrumbItems[breadcrumbItems.length - 2]?.name || 'Konular'})
+                    </button>
+                )}
+            </div>
 
-  let currentPathNames = ['Konular'];
-  let searchLevelForNames = topicTree;
-  currentPath.forEach(pathId => {
-      const found = searchLevelForNames?.find(t => t.id === pathId);
-      if (found) { currentPathNames.push(found.name); searchLevelForNames = found.children; }
-  });
+             {/* Aktif Konu Başlığı ve Aksiyonları */}
+             {activeTopic && (
+                 <div className='active-topic-section mb-8 p-6 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] shadow-sm'>
+                      <div className='flex flex-wrap justify-between items-center gap-4'>
+                          <div>
+                                <h2 className='h2 mb-1'>{activeTopic.name}</h2>
+                                {activeTopic.description && <p className='text-muted mb-0 text-sm'>{activeTopic.description}</p>}
+                          </div>
+                           <div className="action-buttons flex gap-3 flex-shrink-0">
+                               <button
+                                   onClick={() => handleContentNavigation('lecture', activeTopic.id)}
+                                   className='btn btn-secondary'
+                                   title={`${activeTopic.name} Konu Anlatımı (Alt konular dahil)`} // Title güncellendi
+                               >
+                                   <FaBookOpen className='btn-icon' />
+                                   Konu Anlatımı
+                               </button>
+                               <button
+                                    onClick={() => handleContentNavigation('quiz', activeTopic.id)}
+                                    className='btn btn-primary'
+                                    title={`${activeTopic.name} ve Alt Konuları İçin Soru Çöz`}
+                                >
+                                   <FaPencilAlt className='btn-icon' />
+                                   Soruları Çöz
+                               </button>
+                           </div>
+                      </div>
+                 </div>
+             )}
 
-  if (loading) return <p>Konular yükleniyor...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
-  return (
-    <main>
-      <h2>{currentPathNames.join(' > ')}</h2>
-      {currentPath.length > 0 && !selectedForContent && ( <button onClick={handleGoBack} className="btn btn-secondary" style={{ marginBottom: 'var(--space-l)' }}> &lt; Geri ({currentPathNames[currentPathNames.length - 2] || 'Konular'}) </button> )}
-
-      {!selectedForContent ? (
-          // --- HATA BURADAYDI: topics yerine currentTopics kullanılmalı ---
-          currentTopics.length === 0 && currentPath.length > 0 ? (
-             <div>
-                <p>Bu konu altında başka alt konu bulunmuyor.</p>
-                {/* Son seviyede içerik seçme butonlarını gösterelim */}
-                 <button onClick={() => handleContentNavigation('lecture')} className='btn btn-secondary' style={{marginRight: '10px'}}> <i className="fas fa-book-open"></i> Konu Anlatımını Oku </button>
-                 <button onClick={() => handleContentNavigation('quiz')} className='btn btn-primary'> <i className="fas fa-pencil-alt"></i> Soruları Çöz </button>
-             </div>
-          ) : currentTopics.length === 0 && currentPath.length === 0 ? (
-              <p>Henüz hiç konu eklenmemiş.</p>
-          ): (
-              <div className="card-grid">
-                {currentTopics.map(topic => ( <TopicCard key={topic.id} topic={topic} onSelectTopic={handleTopicSelect} /> ))}
-              </div>
-          )
-      ) : (
-          <div className='card' style={{textAlign: 'center'}}>
-               <h3>{selectedForContent.name}</h3>
-               {selectedForContent.description && <p>{selectedForContent.description}</p>}
-               <p>Bu konuyla ilgili ne yapmak istersiniz?</p>
-               <button onClick={() => handleContentNavigation('lecture')} className='btn btn-secondary' style={{marginRight: '10px'}}> <i className="fas fa-book-open"></i> Konu Anlatımını Oku </button>
-               <button onClick={() => handleContentNavigation('quiz')} className='btn btn-primary'> <i className="fas fa-pencil-alt"></i> Soruları Çöz </button>
-               <br />
-               <button onClick={handleGoBack} className="btn btn-secondary" style={{marginTop: '20px', background: 'var(--bg-tertiary)'}}> &lt; Başka Konu Seç </button>
-          </div>
-      )}
-    </main>
-  );
-}
+            {/* Alt Konular veya Boş Durum Mesajı */}
+            {currentTopics.length > 0 ? (
+                <>
+                     {activeTopic && <h3 className="h4 mb-4 text-[var(--text-secondary)]">Alt Konular</h3>}
+                     <div className="card-grid">
+                         {currentTopics.map(topic => (
+                             <TopicCard
+                                 key={topic.id}
+                                 topic={topic}
+                                 onSelectTopic={handleTopicSelect}
+                                 className="card-interactive"
+                             />
+                         ))}
+                     </div>
+                 </>
+            ) : (
+                 !loading && (
+                    currentPathIds.length > 0 ? (
+                        <div className="text-center text-muted py-5 italic">
+                            Bu konuda başka alt başlık bulunmuyor.
+                        </div>
+                    ) : (
+                        <div className="card text-center py-8">
+                            <FaFolder className='mb-4 text-4xl text-[var(--text-muted)] mx-auto' />
+                            <h3 className="h4 mb-3">Henüz Konu Eklenmemiş</h3>
+                            <p className="text-muted">İçeriklere göz atmak için lütfen Yönetim Panelinden konuları ekleyin.</p>
+                       </div>
+                   )
+                 )
+            )}
+        </main>
+    );
+} // TopicBrowserPage Sonu
 
 export default TopicBrowserPage;

@@ -2,15 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function LectureList({ selectedTopicId }) {
   const [allLectures, setAllLectures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { token } = useAuth();
-  const backendUrl = 'http://localhost:3001/api/lectures';
-  const backendTopicUrl = 'http://localhost:3001/api/topics'; // Tüm konuları çekmek için
-
+  const backendUrl      = `${API_BASE_URL}/api/lectures`;
+const backendTopicUrl = `${API_BASE_URL}/api/topics`;
+  
   // Alt konu ID'lerini bulan recursive fonksiyon
   const getAllDescendantIds = useCallback((topicId, topicsMap, includeSelf = true) => {
     let ids = includeSelf ? [topicId] : [];

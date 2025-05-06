@@ -1,31 +1,39 @@
 const { Sequelize } = require('sequelize');
-const config = require('../../config/config.js'); // config.js dosyasının doğru yolunu belirtin
+const config = require('../../config/config.js');
 
-// Geliştirme ortamı için yapılandırmayı seç
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
-// Yeni bir Sequelize instance'ı oluştur
-const sequelize = new Sequelize(
-  dbConfig.database,
-  dbConfig.username,
-  dbConfig.password,
-  {
-    host: process.env.DB_HOST,
-    dialect: process.env.DB_DIALECT || 'postgres', // ← BU SATIR EKLENMELİ
-  }
-);
+let sequelize;
 
-// Bağlantıyı test etmek için asenkron bir fonksiyon
+if (dbConfig.use_env_variable) {
+  sequelize = new Sequelize(process.env[dbConfig.use_env_variable], {
+    dialect: dbConfig.dialect,
+    dialectOptions: dbConfig.dialectOptions
+  });
+} else {
+  sequelize = new Sequelize(
+    dbConfig.database,
+    dbConfig.username,
+    dbConfig.password,
+    {
+      host: dbConfig.host,
+      dialect: dbConfig.dialect
+    }
+  );
+}
+
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ Veritabanı bağlantısı başarıyla kuruldu.');
   } catch (error) {
     console.error('❌ Veritabanına bağlanılamadı:', error);
-    process.exit(1); // Bağlantı hatasında uygulamayı durdur (isteğe bağlı)
+    process.exit(1);
   }
 };
 
-// sequelize instance'ını ve bağlantı fonksiyonunu dışa aktar
-module.exports = { sequelize, connectDB };
+module.exports = {
+  sequelize,
+  connectDB
+};

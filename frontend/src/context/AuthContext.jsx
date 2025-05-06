@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const API_URL = 'http://localhost:3001/api/auth';
+  const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
   useEffect(() => {
     if (token) {

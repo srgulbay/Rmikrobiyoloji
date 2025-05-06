@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'production';
+
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -38,5 +40,11 @@ app.use((req, res, next) => { console.log(`>>> !!! Rota Bulunamadı (404): \<spa
 
 connectDB();
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => { console.log(`Rmikrobiyoloji Backend sunucusu http://localhost:${PORT} adresinde çalışıyor`); });
+// … diğer import ve ayarlar …
+
+// 🔑 Railway’nin tahsis ettiği porta dinle
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Sunucu ${PORT} portunda çalışıyor`);
+});

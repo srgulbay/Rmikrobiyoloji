@@ -19,26 +19,37 @@ const getDescendantTopicIds = async (topicId) => {
 
 // GET ALL QUESTIONS (Filtreleme ve Rastgele Sıralama Eklendi)
 const getAllQuestions = async (req, res) => {
-  const { topicId, includeSubtopics } = req.query;
+  // Sadece topicId'yi alalım, includeSubtopics'e gerek yok (her zaman dahil edeceğiz)
+  const { topicId } = req.query;
   try {
     const queryOptions = {
       include: [{ model: Topic, as: 'topic', attributes: ['id', 'name'] }],
       attributes: { exclude: ['topicId', 'createdAt', 'updatedAt'] },
-      order: sequelize.random() // Rastgele sırala
+      // topicId filtresi VARSA rastgele sıralama YAPMA! Belirli bir konunun
+      // soruları genellikle belirli bir sırada (veya ID sırası) istenir.
+      // Sadece topicId YOKSA rastgele sırala.
+      order: !topicId ? sequelize.random() : undefined
     };
+
     if (topicId) {
-      let topicIdsToFilter = [parseInt(topicId, 10)];
-      if (includeSubtopics === 'true') {
-         topicIdsToFilter = await getDescendantTopicIds(topicId);
-      }
+      console.log(`Filtering questions for topicId: ${topicId} including descendants.`); // Loglama
+      // --- GÜNCELLEME: includeSubtopics kontrolü kaldırıldı ---
+      // Eğer topicId varsa, HER ZAMAN alt konuları getir.
+      const topicIdsToFilter = await getDescendantTopicIds(topicId);
+      // --- Güncelleme Sonu ---
+
       queryOptions.where = {
          topicId: { [Op.in]: topicIdsToFilter }
       };
+    } else {
+        console.log("Fetching all questions randomly."); // Loglama
     }
+
     const questions = await Question.findAll(queryOptions);
     res.status(200).json(questions);
   } catch (error) {
     console.error('Soruları getirirken hata:', error);
+    // Hata yönetimi aynı kalabilir
     if (error instanceof TypeError || error instanceof SyntaxError || error.name === 'SequelizeDatabaseError') {
          res.status(400).json({ message: 'Geçersiz filtre parametresi veya veritabanı hatası.' });
     } else {
@@ -129,6 +140,57 @@ const createBulkQuestions = async (req, res) => {
     } catch (error) { console.error('Toplu soru eklenirken hata:', error); res.status(500).json({ message: 'Sunucu hatası. Sorular eklenemedi.', validationErrors: errors }); }
  };
 
+ // Kelime oyunu için uygun soruları getiren fonksiyon
+const getWordPracticeQuestions = async (req, res) => {
+  try {
+      // Tüm soruları çekelim (şimdilik filtrelemeden)
+      // İleride sadece belirli konular veya sınıflandırmalar çekilebilir
+      const allQuestions = await Question.findAll({
+          // Oyun için gerekli alanları seçelim
+          attributes: ['id', 'text', 'optionA', 'optionB', 'optionC', 'optionD', 'optionE', 'correctAnswer'],
+          // Konu bilgisi opsiyonel olarak eklenebilir
+          // include: [{ model: Topic, as: 'topic', attributes: ['name'] }]
+      });
+
+      const suitableQuestions = [];
+
+      allQuestions.forEach(question => {
+          const correctAnswerLetter = question.correctAnswer?.toUpperCase(); // 'A', 'B' etc.
+          if (!correctAnswerLetter || !['A', 'B', 'C', 'D', 'E'].includes(correctAnswerLetter)) {
+              return; // Geçerli bir şık değilse atla
+          }
+
+          // Doğru şıkka karşılık gelen metni al
+          const potentialAnswer = question[`option${correctAnswerLetter}`];
+
+          if (
+              potentialAnswer &&                       // Cevap metni var mı?
+              typeof potentialAnswer === 'string' &&   // String mi?
+              potentialAnswer.trim().length > 0 &&     // Boş değil mi?
+              potentialAnswer.trim().length <= 9 &&    // 9 harf veya daha az mı?
+              !potentialAnswer.includes(' ') &&        // Boşluk içeriyor mu (tek kelime mi)?
+              !potentialAnswer.toUpperCase().endsWith('LER') && // Çoğul eki var mı?
+              !potentialAnswer.toUpperCase().endsWith('LAR')    // Çoğul eki var mı?
+              // TODO: Başka ek kontrolleri buraya eklenebilir (rakam içeriyor mu vb.)
+          ) {
+              // Uygun soru bulundu! Sadece gerekli bilgileri alalım.
+              suitableQuestions.push({
+                  id: question.id,
+                  text: question.text, // Soru metni
+                  answerWord: potentialAnswer.trim().toUpperCase() // Cevap kelimesi (büyük harf)
+              });
+          }
+      });
+
+      // Uygun soruları rastgele karıştırıp gönderelim
+      res.status(200).json(suitableQuestions.sort(() => Math.random() - 0.5));
+
+  } catch (error) {
+      console.error('Kelime pratiği soruları getirilirken hata:', error);
+      res.status(500).json({ message: 'Sunucu hatası. Sorular getirilemedi.' });
+  }
+};
+
 // --- TÜM FONKSİYONLAR EXPORT EDİLİYOR ---
 module.exports = {
   getAllQuestions, // Filtreleme eklenmiş hali
@@ -136,5 +198,6 @@ module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
-  createBulkQuestions
+  createBulkQuestions,
+  getWordPracticeQuestions
 };

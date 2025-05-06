@@ -1,4 +1,4 @@
-const { QuestionAttempt, Question, Topic, User, sequelize } = require('../../models');
+const { QuestionAttempt, Question, Topic, User, WordleScore, sequelize } = require('../../models');
 const { Op, fn, col, literal } = require("sequelize");
 
 const getMyStatsSummary = async (req, res) => {
@@ -118,11 +118,135 @@ const getQuestionStats = async (req, res) => {
         res.status(500).json({ message: 'Sunucu hatası. Soru istatistikleri getirilemedi.' });
     }
 };
+const getAdminUserSummaries = async (req, res) => {
+    const { specialization } = req.query;
+    try {
+        const userWhereClause = {};
+        if (specialization) {
+            userWhereClause.specialization = specialization;
+        }
+
+        // İlgili kullanıcıları ve deneme sayılarını alalım
+        const usersWithStats = await User.findAll({
+            where: userWhereClause,
+            attributes: [
+                'id',
+                'username',
+                // Toplam deneme sayısı
+                [fn('COUNT', col('QuestionAttempts.id')), 'totalAttempts'],
+                // Toplam doğru sayısı (SUM CASE ile)
+                [fn('SUM', literal("CASE WHEN \"QuestionAttempts\".\"isCorrect\" = true THEN 1 ELSE 0 END")), 'correctAttempts']
+            ],
+            include: [{
+                model: QuestionAttempt,
+                attributes: [], // Sadece join için, ayrı attribute getirme
+                required: false // Henüz denemesi olmayan kullanıcılar da gelsin (LEFT JOIN)
+            }],
+            group: ['User.id', 'User.username'], // Kullanıcıya göre grupla
+            order: [['username', 'ASC']], // İsime göre sırala
+            raw: true, // Ham veri daha kolay işlenir
+            // subQuery: false // Bazen GROUP BY ile include'da gerekir ama burada basit COUNT/SUM için gerekmeyebilir
+        });
+
+        // Başarı oranını hesapla ve formatla
+        const results = usersWithStats.map(user => {
+            const total = parseInt(user.totalAttempts || 0, 10);
+            const correct = parseInt(user.correctAttempts || 0, 10);
+            const accuracy = total > 0 ? parseFloat(((correct / total) * 100).toFixed(2)) : 0;
+            return {
+                userId: user.id,
+                username: user.username,
+                totalAttempts: total,
+                correctAttempts: correct,
+                accuracy: accuracy
+            };
+        });
+
+        res.status(200).json(results);
+
+    } catch (error) {
+        console.error('Admin kullanıcı özetleri getirilirken hata:', error);
+        res.status(500).json({ message: 'Sunucu hatası. Kullanıcı özetleri getirilemedi.' });
+    }
+};
+// --- YENİ FONKSİYON SONU ---
+// Wordle oyun skorunu kaydet
+const recordWordleScore = async (req, res) => {
+    const { score } = req.body;
+    const userId = req.user.id; // Middleware'den gelen kullanıcı ID'si
+
+    // Basit doğrulama
+    if (score === undefined || typeof score !== 'number' || score < 0) {
+        return res.status(400).json({ message: 'Geçersiz skor değeri.' });
+    }
+
+    try {
+        const newScore = await WordleScore.create({
+            userId: userId,
+            score: Math.round(score) // Tam sayıya yuvarla
+        });
+        res.status(201).json({ message: 'Skor başarıyla kaydedildi.', score: newScore });
+    } catch (error) {
+        console.error("Wordle skoru kaydedilirken hata:", error);
+        res.status(500).json({ message: "Skor kaydedilirken sunucu hatası oluştu." });
+    }
+};
+
+const getWordleLeaderboard = async (req, res) => {
+    try {
+        // Top 10 skoru al, kullanıcı adlarını join et
+        const topScores = await WordleScore.findAll({
+            limit: 10,
+            order: [['score', 'DESC']], // Puana göre büyükten küçüğe sırala
+            attributes: [
+                'userId',
+                'score',
+                'createdAt' // Skurun ne zaman yapıldığını da alabiliriz
+                // Eğer her kullanıcının *en yüksek* skorunu istiyorsak daha karmaşık bir sorgu gerekir
+                // Örneğin: SELECT userId, MAX(score) as maxScore FROM WordleScores GROUP BY userId ORDER BY maxScore DESC LIMIT 10
+                // Bu Sequelize ile subquery veya group/max ile yapılabilir:
+                // attributes: ['userId', [sequelize.fn('MAX', sequelize.col('score')), 'maxScore']],
+                // group: ['userId', 'user.id'], // User join edildiğinde group'a eklemek gerekir
+                // order: [[sequelize.fn('MAX', sequelize.col('score')), 'DESC']],
+            ],
+            include: [{
+                model: User,
+                as: 'user', // Modeldeki ilişki adı
+                attributes: ['username'] // Sadece kullanıcı adını al
+            }],
+        });
+
+         // raw:true ve nest:true bazen include ile sorun çıkarabilir, alternatif:
+         /*
+         const topScores = await WordleScore.findAll({
+             limit: 10,
+             order: [['score', 'DESC']],
+             attributes: ['userId', 'score', 'createdAt'],
+             include: [{ model: User, as: 'user', attributes: ['username'] }]
+         });
+         // Gelen veriyi manuel olarak formatla (opsiyonel)
+         const formattedScores = topScores.map(s => ({
+             userId: s.userId,
+             score: s.score,
+             createdAt: s.createdAt,
+             username: s.user?.username // user objesi içinden al
+         }));
+         */
+
+        res.status(200).json(topScores); // Veya formattedScores
+    } catch (error) {
+        console.error("Lider tablosu getirilirken hata:", error);
+        res.status(500).json({ message: "Lider tablosu getirilirken bir sunucu hatası oluştu." });
+    }
+};
 
 module.exports = {
   getMyStatsSummary,
   getMyDetailedStats,
   getUserDetailedStatsForAdmin,
   getAdminOverviewStats,
-  getQuestionStats
+  getQuestionStats,
+  getAdminUserSummaries, // Yeni fonksiyonu export et
+  recordWordleScore,
+  getWordleLeaderboard // Yeni fonksiyonu export et
 };
