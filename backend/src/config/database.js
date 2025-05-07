@@ -9,7 +9,8 @@ let sequelize;
 if (dbConfig.use_env_variable) {
   sequelize = new Sequelize(process.env[dbConfig.use_env_variable], {
     dialect: dbConfig.dialect,
-    dialectOptions: dbConfig.dialectOptions
+    dialectOptions: dbConfig.dialectOptions || {},
+    logging: dbConfig.logging ?? false
   });
 } else {
   sequelize = new Sequelize(
@@ -18,7 +19,9 @@ if (dbConfig.use_env_variable) {
     dbConfig.password,
     {
       host: dbConfig.host,
-      dialect: dbConfig.dialect
+      port: dbConfig.port || 5432,
+      dialect: dbConfig.dialect,
+      logging: dbConfig.logging ?? false
     }
   );
 }
@@ -28,7 +31,7 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ Veritabanı bağlantısı başarıyla kuruldu.');
   } catch (error) {
-    console.error('❌ Veritabanına bağlanılamadı:', error);
+    console.error('❌ Veritabanına bağlanılamadı:', error.message);
     process.exit(1);
   }
 };
