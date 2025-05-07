@@ -1,5 +1,3 @@
-// src/pages/LoginPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -11,86 +9,85 @@ import {
   FormControl,
   FormLabel,
   Input,
-  InputGroup, // İkon eklemek için
-  InputLeftElement, // Sol ikon için
-  InputRightElement, // Sağ ikon (şifre göster/gizle) için
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
   Button,
-  IconButton, // Şifre göster/gizle butonu için
+  IconButton,
   Alert,
   AlertIcon,
   AlertDescription,
   Link as ChakraLink,
   Icon,
-  VStack, // Dikey yığınlama
+  VStack,
   Text,
   ScaleFade,
-  useColorModeValue, // Açık/Koyu moda göre renk seçimi için
-  Center // Tam ortalama için
+  // useColorModeValue kaldırıldı, semantic token'lar veya tema stilleri kullanılacak
+  // Center kaldırıldı, Flex zaten ortalama yapıyor
 } from '@chakra-ui/react';
-import { FaSignInAlt, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa'; // Gerekli ikonlar
+import { FaSignInAlt, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // Şifre görünürlüğü state'i
+  const [showPassword, setShowPassword] = useState(false);
   const { login, error, setError, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // Yönlendirme ve hata temizleme (aynı kalabilir)
+  // Yönlendirme ve hata temizleme (Aynı kalır)
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/browse', { replace: true });
     }
-    // Sayfadan ayrılırken hatayı temizle
     return () => setError(null);
   }, [isAuthenticated, navigate, setError]);
 
   const handleSubmit = async (e) => {
+    // ... (Aynı kalır)
     e.preventDefault();
     setError(null);
     if (!username || !password) {
       setError("Lütfen kullanıcı adı ve şifreyi girin.");
       return;
     }
-    // login fonksiyonu AuthContext içinde setLoading(true/false) yapmalı
     await login(username, password);
   };
 
   const handlePasswordVisibility = () => setShowPassword(!showPassword);
 
-  // Tema renklerini al (açık/koyu moda göre değişen)
-  const bgColor = useColorModeValue('gray.50', 'gray.900'); // Ana arka plan
-  const cardBgColor = useColorModeValue('white', 'gray.800'); // Kart arka planı
-  const inputBgColor = useColorModeValue('gray.100', 'gray.700'); // Input arka planı
-
-  console.log('Login Page Loading State:', loading); // <-- BU SATIRI EKLEYİN
+  // KALDIRILDI: Tema renklerini al (artık tema/semantic token'lar kullanılacak)
+  // const bgColor = useColorModeValue('gray.50', 'gray.900');
+  // const cardBgColor = useColorModeValue('white', 'gray.800');
+  // const inputBgColor = useColorModeValue('gray.100', 'gray.700');
 
   return (
     // Sayfayı tam ekran kaplayacak şekilde ortala
     <Flex
-      minH="100vh" // Tam yükseklik
+      minH="100vh"
       align="center"
-      justify="center"
-      bg={bgColor} // Açık/Koyu moda uygun arka plan
-      px={4} // Kenar boşlukları
+      justify="content"
+      // KALDIRILDI: bg={bgColor} - Bu artık styles.global'deki body'den gelmeli
+      px={4}
     >
-      {/* Eski .auth-form-container yerine daha belirgin Container veya Box */}
+      {/* Container tema stillerini kullanacak */}
       <Container
         maxW="md"
-        bg={cardBgColor}
-        p={{ base: 6, md: 8 }} // İç boşluk (responsive)
-        borderRadius="xl" // Daha yuvarlak köşeler
-        boxShadow="xl" // Daha belirgin gölge
+        bg="bgPrimary" // Semantic Token kullanıldı
+        p={{ base: 6, md: 8 }}
+        borderRadius="xl" // Temadan radii.xl
+        boxShadow="xl" // Temadan shadows.xl
         borderWidth={1}
-        borderColor={useColorModeValue('gray.200', 'gray.700')}
+        borderColor="borderPrimary" // Semantic Token kullanıldı
       >
+        {/* Heading tema rengini (brand.500) ve boyutunu (xl) kullanır */}
         <Heading as="h1" size="xl" textAlign="center" mb={8} color="brand.500">
           Platforma Giriş Yap
         </Heading>
 
         <Box as="form" onSubmit={handleSubmit}>
+          {/* VStack tema boşluklarını (spacing={5}) kullanır */}
           <VStack spacing={5}>
-            {/* Hata Mesajı */}
+            {/* Alert tema stilini (subtle, error) kullanır */}
             <ScaleFade initialScale={0.9} in={!!error} unmountOnExit>
               {error && (
                 <Alert status="error" borderRadius="md" width="full" variant="subtle">
@@ -100,41 +97,46 @@ function LoginPage() {
               )}
             </ScaleFade>
 
-            {/* Kullanıcı Adı Alanı (İkonlu) */}
+            {/* Kullanıcı Adı Alanı */}
             <FormControl id="usernameLogin" isRequired isDisabled={loading}>
+              {/* FormLabel tema stilini (sm, medium, textSecondary) kullanır */}
               <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı</FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
-                  <Icon as={FaUser} color="gray.400" />
+                  <Icon as={FaUser} color="gray.400" /> {/* İkon rengi şimdilik sabit */}
                 </InputLeftElement>
+                {/* Input tema stilini (varsayılan: outline, md) kullanır */}
+                {/* KALDIRILDI: bg={inputBgColor} */}
+                {/* KALDIRILDI: _placeholder={{ color: ... }} */}
                 <Input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder='Kullanıcı adınız'
-                  bg={inputBgColor} // Farklı input arka planı
-                  _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
                 />
               </InputGroup>
             </FormControl>
 
-            {/* Şifre Alanı (İkonlu ve Göster/Gizle Butonlu) */}
+            {/* Şifre Alanı */}
             <FormControl id="passwordLogin" isRequired isDisabled={loading}>
+              {/* FormLabel tema stilini kullanır */}
               <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
-              <InputGroup size="md">
+              <InputGroup size="md"> {/* InputGroup boyutu Input ile uyumlu */}
                 <InputLeftElement pointerEvents="none">
-                  <Icon as={FaLock} color="gray.400" />
+                  <Icon as={FaLock} color="gray.400" /> {/* İkon rengi şimdilik sabit */}
                 </InputLeftElement>
+                {/* Input tema stilini kullanır */}
+                {/* KALDIRILDI: bg={inputBgColor} */}
+                {/* KALDIRILDI: _placeholder={{ color: ... }} */}
                 <Input
-                  pr="4.5rem" // Sağdaki buton için yer aç
+                  pr="4.5rem"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder='Şifreniz'
-                  bg={inputBgColor}
-                  _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
                 />
                 <InputRightElement width="4.5rem">
+                  {/* IconButton tema stilini (ghost, sm) kullanır */}
                   <IconButton
                     h="1.75rem"
                     size="sm"
@@ -148,18 +150,19 @@ function LoginPage() {
             </FormControl>
 
             {/* Giriş Butonu */}
+            {/* Button tema stilini (solid, lg, brand) ve hover/active efektlerini kullanır */}
+            {/* KALDIRILDI: _hover={{ transform: ..., boxShadow: ... }} */}
+            {/* KALDIRILDI: _active={{ transform: ... }} */}
             <Button
               type="submit"
-              colorScheme="brand" // Temadaki ana renk
+              colorScheme="brand"
               size="lg"
               width="full"
-              mt={4} // VStack spacing'den sonra ek boşluk
+              mt={4}
               isLoading={loading}
-              loadingText="Giriş Yapılıyor..." // Yüklenirken gösterilecek metin
-              spinnerPlacement="start" // Spinner başta görünsün
-              leftIcon={!loading ? <Icon as={FaSignInAlt} /> : undefined} // İkon
-              _hover={{ transform: 'scale(1.02)', boxShadow: 'md' }} // Hover efekti
-              _active={{ transform: 'scale(0.98)' }} // Tıklama efekti
+              loadingText="Giriş Yapılıyor..."
+              spinnerPlacement="start"
+              leftIcon={!loading ? <Icon as={FaSignInAlt} /> : undefined}
             >
               Giriş Yap
             </Button>
@@ -167,9 +170,13 @@ function LoginPage() {
         </Box>
 
         {/* Kayıt Sayfasına Link */}
+        {/* Text tema stilini (sm) kullanır */}
         <Text textAlign="center" mt={8} fontSize="sm">
           Hesabınız yok mu?{' '}
-          <ChakraLink as={RouterLink} to="/register" fontWeight="medium" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+          {/* ChakraLink tema stilini (varsayılan: inline, blue) kullanır */}
+          {/* Özel renk ve hover korunuyor (varsayılan linkten farklı) */}
+          {/* KALDIRILDI: _hover={{ textDecoration: 'underline' }} */}
+          <ChakraLink as={RouterLink} to="/register" fontWeight="medium" color="brand.500">
             Hemen Kayıt Olun
           </ChakraLink>
         </Text>

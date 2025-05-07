@@ -6,9 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import {
   Box,
   Container,
-  Flex,
+  // Flex kaldırıldı, kullanılmıyor
   Button,
-  Link as ChakraLink,
+  // Link as ChakraLink kaldırıldı, kullanılmıyor
   Heading,
   Text,
   Spinner,
@@ -17,13 +17,14 @@ import {
   AlertTitle,
   AlertDescription,
   Icon,
-  Skeleton, // İskelet yükleme
+  Skeleton,
   SkeletonText,
-  Image,      // Resim için
-  Card,       // Kart için
-  CardBody,   // Kart içeriği için
-  VStack,     // Dikey yığınlama
-  Center      // Ortalama için
+  Image,
+  Card,
+  CardBody,
+  VStack,
+  Center,
+  // useColorModeValue kaldırıldı, gerek yok gibi
 } from '@chakra-ui/react';
 import { FaArrowLeft, FaExclamationTriangle, FaInfoCircle, FaRedo } from 'react-icons/fa';
 
@@ -36,27 +37,21 @@ function LectureViewPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const { token } = useAuth();
-    const navigate = useNavigate(); // useNavigate hook'u burada tanımlı
+    const navigate = useNavigate();
 
     const backendLectureUrl = `${API_BASE_URL}/api/lectures`;
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
 
-    // fetchData useCallback aynı kalabilir
+    // fetchData useCallback (API yanıtı kontrolü güçlendirildi)
     const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError('');
-        setLectures([]);
-        setTopicName('');
+        setLoading(true); setError('');
+        setLectures([]); setTopicName('');
 
         if (!token) {
-            setError("İçeriği görmek için giriş yapmalısınız.");
-            setLoading(false);
-            return;
+            setError("İçeriği görmek için giriş yapmalısınız."); setLoading(false); return;
         }
         if (!topicId) {
-            setError("Geçerli bir konu ID'si bulunamadı.");
-            setLoading(false);
-            return;
+            setError("Geçerli bir konu ID'si bulunamadı."); setLoading(false); return;
         }
 
         try {
@@ -68,19 +63,22 @@ function LectureViewPage() {
                 axios.get(lectureApiUrl, config),
                 axios.get(topicApiUrl, config)
             ]);
-
-            setLectures(lecturesRes.data || []);
+            // Gelen ders verisinin dizi olduğundan emin ol
+            setLectures(Array.isArray(lecturesRes.data) ? lecturesRes.data : []);
+            // Konu adı için fallback
             setTopicName(topicRes.data?.name || `Konu ID: ${topicId}`);
 
-            if (!lecturesRes.data || lecturesRes.data.length === 0) {
-                console.log("Bu konu ve alt konuları için konu anlatımı bulunamadı.");
-            }
+            // Konsol logunu kaldırabiliriz veya koşullu yapabiliriz
+            // if (!lecturesRes.data || lecturesRes.data.length === 0) {
+            //     console.log("Bu konu ve alt konuları için konu anlatımı bulunamadı.");
+            // }
 
         } catch (err) {
             console.error("Konu anlatımı veya konu bilgisi çekilirken hata:", err);
             const errorMsg = err.response?.data?.message || 'İçerik yüklenirken bir hata oluştu.';
             setError(errorMsg);
             setTopicName(`Konu ID: ${topicId}`);
+            setLectures([]); // Hata durumunda dersleri temizle
         } finally {
             setLoading(false);
         }
@@ -90,15 +88,15 @@ function LectureViewPage() {
         fetchData();
     }, [fetchData]);
 
-    // --- Render Bölümü (Chakra UI ile) ---
+    // --- Render Bölümü (Tema ile Uyumlu) ---
 
     if (loading) {
-        // Chakra UI İskelet Yükleme
+        // Skeleton tema stillerini kullanır
         return (
              <Container maxW="container.lg" py={8}>
-                 <Skeleton height="20px" width="150px" mb={4} /> {/* Geri link iskeleti */}
-                 <Skeleton height="35px" width="60%" mb={8} /> {/* Başlık iskeleti */}
-                 <VStack spacing={6} align="stretch"> {/* Konu anlatımları için iskelet */}
+                 <Skeleton height="20px" width="150px" mb={4} />
+                 <Skeleton height="35px" width="60%" mb={8} />
+                 <VStack spacing={6} align="stretch">
                      <Skeleton height="300px" borderRadius="lg" />
                      <Skeleton height="300px" borderRadius="lg" />
                  </VStack>
@@ -106,19 +104,19 @@ function LectureViewPage() {
         );
     }
 
-    // Hata Durumu
     if (error) {
+        // Alert ve Button tema stillerini kullanır
         return (
             <Container maxW="container.lg" mt={6}>
                  <Alert
                     status="error"
-                    variant="subtle"
+                    variant="subtle" // Temadaki alert varyantı
                     flexDirection="column"
                     alignItems="center"
                     justifyContent="center"
                     textAlign="center"
                     py={10}
-                    borderRadius="lg"
+                    borderRadius="lg" // Temadaki radii.lg
                  >
                     <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
                     <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle>
@@ -133,29 +131,28 @@ function LectureViewPage() {
 
     // Ana İçerik
     return (
-        // Eski div.container yerine Chakra Container
         <Container maxW="container.lg" py={8}>
-             {/* Eski Link yerine Chakra Button (RouterLink ile) */}
+             {/* Geri Dön Butonu - Tema stillerini (link, gray) kullanır */}
             <Button
                 as={RouterLink}
                 to="/browse"
-                variant="link" // Link görünümü
-                colorScheme="gray" // Veya tema rengi "brand"
+                variant="link"
+                colorScheme="gray" // Daha nötr bir renk veya 'brand' olabilir
                 leftIcon={<Icon as={FaArrowLeft} />}
                 mb={6}
-                alignSelf="flex-start" // Sola yasla
+                alignSelf="flex-start"
             >
                 Konulara Geri Dön
             </Button>
 
-             {/* Eski h1 yerine Chakra Heading */}
+             {/* Başlık - Tema stilini kullanır */}
             <Heading as="h1" size="xl" mb={8}>
                  {topicName} - Konu Anlatımları
             </Heading>
 
-            {/* Eski div.lecture-list yerine VStack */}
+            {/* Ders Listesi */}
             <VStack spacing={6} align="stretch" className="lecture-list">
-                 {/* Ders Yoksa Mesaj */}
+                 {/* Ders Yoksa Mesaj - Alert tema stilini kullanır */}
                 {!loading && lectures.length === 0 && !error && (
                     <Alert status="info" variant="subtle" borderRadius="lg" py={6} justifyContent="center">
                         <AlertIcon as={FaInfoCircle} />
@@ -167,41 +164,83 @@ function LectureViewPage() {
 
                 {/* Dersleri Listeleme */}
                 {lectures.map((lecture) => (
-                     // Eski article.lecture-item.card yerine Chakra Card
-                    <Card key={lecture.id} variant="outline" size="lg"> {/* Boyut ve varyant ayarlanabilir */}
-                        <CardBody p={{base: 4, md: 6}}> {/* Responsive padding */}
-                             {/* Eski h3 yerine Chakra Heading */}
+                     // Card tema stilini (outline, lg) kullanır
+                    <Card key={lecture.id} variant="outline" size="lg">
+                         {/* CardBody tema padding'ini (size=lg) kullanır */}
+                        <CardBody p={{base: 4, md: 6}}>
+                             {/* Heading tema stilini (lg) kullanır */}
                             <Heading as="h2" size="lg" mb={4}>{lecture.title}</Heading>
 
                             {/* Görsel */}
                             {lecture.imageUrl && (
-                                <Center my={5}> {/* Resmi ortalamak için */}
+                                <Center my={5}>
+                                     {/* Image tema stilini (radii.md, shadows.sm) kullanır */}
                                     <Image
                                         src={lecture.imageUrl}
                                         alt={`${lecture.title} için görsel`}
                                         borderRadius="md"
                                         boxShadow="sm"
-                                        maxW="xl" // Maksimum genişlik
-                                        objectFit="contain" // Resim oranını koru
+                                        maxW="xl"
+                                        objectFit="contain"
                                         loading="lazy"
                                     />
                                  </Center>
                             )}
 
-                            {/* İçerik Alanı */}
-                             {/* className eklendi, global CSS ile stil verilecek */}
+                            {/* İçerik Alanı - HTML için sx ile özel stil */}
                             <Box
                                 className="lecture-html-content"
                                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lecture.content) }}
-                                sx={{ // Temel stiller (daha fazlası global CSS'te olabilir)
-                                    'h1, h2, h3, h4, h5, h6': { my: 4, fontWeight:'semibold', lineHeight:'tight' },
-                                    'p': { mb: 4, lineHeight: 'tall' }, // Chakra'nın line height token'ı
+                                sx={{
+                                    // Başlıklar için tema font ailesi ve ağırlığı
+                                    'h1, h2, h3, h4, h5, h6': {
+                                        fontFamily: 'heading', // Temadan
+                                        fontWeight:'semibold', // Temadan
+                                        lineHeight:'tight', // Temadan
+                                        my: 4, // Temadan space.4
+                                    },
+                                    // Paragraflar için tema satır yüksekliği ve boşluk
+                                    'p': {
+                                        mb: 4, // Temadan space.4
+                                        lineHeight: 'tall', // Temadan lineHeights.tall
+                                    },
+                                    // Listeler için tema boşlukları
                                     'ul, ol': { pl: 6, mb: 4 },
                                     'li': { mb: 2 },
-                                    'img': { my: 4, borderRadius: 'md', maxW: '100%', height: 'auto', display:'block', mx:'auto' }, // Resimleri ortala
-                                    'a': { color: 'brand.500', textDecoration: 'underline', _hover: { color: 'brand.600'} },
-                                    'code': { fontFamily:'mono', bg:'bgTertiary', px:1, py:'1px', rounded:'sm', fontSize:'sm'},
-                                    'pre': { fontFamily:'mono', bg:'bgSecondary', p:4, rounded:'md', overflowX:'auto', fontSize:'sm', borderWidth:'1px', borderColor:'borderSecondary', my:5}
+                                    // Resimler için tema yuvarlaklığı ve boşluk
+                                    'img': {
+                                        my: 4,
+                                        borderRadius: 'md', // Temadan radii.md
+                                        maxW: '100%',
+                                        height: 'auto',
+                                        display:'block',
+                                        mx:'auto'
+                                    },
+                                    // Linkler için özel renk (içerik linkleri farklı olabilir)
+                                    'a': {
+                                        color: 'brand.500', // Tema rengi veya 'blue.500'
+                                        textDecoration: 'underline',
+                                        _hover: { color: 'brand.600' }, // Tema rengi
+                                    },
+                                    // Kod blokları için tema fontları ve renkleri (semantic tokens)
+                                    'code': {
+                                        fontFamily:'mono', // Temadan
+                                        bg:'bgTertiary', // Semantic Token
+                                        px:1, py:'1px', // Temadan space.1
+                                        rounded:'sm', // Temadan radii.sm
+                                        fontSize:'sm', // Temadan fontSizes.sm
+                                    },
+                                    'pre': {
+                                        fontFamily:'mono', // Temadan
+                                        bg:'bgSecondary', // Semantic Token
+                                        p:4, // Temadan space.4
+                                        rounded:'md', // Temadan radii.md
+                                        overflowX:'auto',
+                                        fontSize:'sm', // Temadan fontSizes.sm
+                                        borderWidth:'1px',
+                                        borderColor:'borderSecondary', // Semantic Token
+                                        my:5, // Temadan space.5
+                                    }
                                 }}
                             />
                         </CardBody>

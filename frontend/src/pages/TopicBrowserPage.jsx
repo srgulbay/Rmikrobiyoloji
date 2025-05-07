@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, Fragment } from 'reac
 import axios from 'axios';
 import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import TopicCard from '../components/TopicCard'; // Güncellenmiş TopicCard'ı kullan
+import TopicCard from '../components/TopicCard'; // Tema kullanan TopicCard varsayılıyor
 import {
   Box,
   Container,
@@ -24,35 +24,39 @@ import {
   Icon,
   Skeleton,
   SkeletonText,
-  SkeletonCircle, // Skeleton için
+  SkeletonCircle,
   HStack,
-  VStack,
   Center,
-  useColorModeValue // Renkler için
+  useColorModeValue, // Sadece top-level'da çağrılacak
+  Card, CardBody // Boş durum kartı için
 } from '@chakra-ui/react';
 import { FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle, FaInfoCircle, FaFolder, FaFolderOpen, FaListAlt, FaRedo } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-// Helper Fonksiyonlar (Aynı kalabilir)
+// Helper Fonksiyonlar
 const findTopicAndPathById = (id, nodes, currentPath = []) => {
+  if (!Array.isArray(nodes)) return null; // Ekstra güvenlik
   for (const node of nodes) {
     const newPath = [...currentPath, { id: node.id, name: node.name }];
     if (node.id === id) { return { topic: node, path: newPath }; }
-    if (node.children) {
+    if (Array.isArray(node.children)) { // Children'ın dizi olduğunu kontrol et
       const found = findTopicAndPathById(id, node.children, newPath);
       if (found) return found;
     }
   }
   return null;
 };
+
 const getTopicFromPath = (pathIds, tree) => {
   if (!pathIds || pathIds.length === 0) return null;
-  let currentLevel = tree; let topic = null;
+  let currentLevel = Array.isArray(tree) ? tree : []; // tree'nin dizi olduğundan emin ol
+  let topic = null;
   for (const id of pathIds) {
-    topic = currentLevel?.find(t => t.id === id);
+    currentLevel = Array.isArray(currentLevel) ? currentLevel : []; // Her seviyenin dizi olduğundan emin ol
+    topic = currentLevel.find(t => t.id === id);
     if (!topic) return null;
-    currentLevel = topic.children;
+    currentLevel = Array.isArray(topic.children) ? topic.children : []; // Children'ın dizi olduğundan emin ol
   }
   return topic;
 };
@@ -68,18 +72,26 @@ function TopicBrowserPage() {
 
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
 
-    // fetchTopics, handleTopicSelect, handleGoBack, breadcrumbItems, navigateToPath, handleContentNavigation aynı kalabilir
-     const fetchTopics = useCallback(async () => {
+    // --- Tema Değerlerini Top-Level'da Al ---
+    // Hooks'ları koşulsuz olarak en üst seviyede çağırın
+    const activeTopicBg = useColorModeValue('brand.50', 'brand.900');
+    const activeTopicBorder = useColorModeValue('brand.100', 'brand.700');
+    // Diğer useColorModeValue çağrıları semantic token'lar veya bileşen stilleri ile yönetiliyor olmalı.
+
+    // fetchTopics (API yanıtı kontrolü güçlendirildi)
+    const fetchTopics = useCallback(async () => {
         setLoading(true); setError('');
-        if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return;}
+        if (!token) { setError("Konuları görmek için giriş yapmalısınız."); setLoading(false); return; }
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
             const response = await axios.get(backendTopicUrl, config);
-            setTopicTree(response.data || []);
+            // API'den gelen verinin dizi olduğundan emin ol
+            setTopicTree(Array.isArray(response.data) ? response.data : []);
         } catch (err) {
             console.error("Konu ağacı çekilirken hata:", err);
             const errorMsg = err.response?.data?.message || 'Konular yüklenirken bir sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
             setError(errorMsg);
+            setTopicTree([]); // Hata durumunda boş dizi ata
         } finally {
             setLoading(false);
         }
@@ -87,10 +99,17 @@ function TopicBrowserPage() {
 
     useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
+    // currentTopics'in her zaman dizi olmasını garantileyen useMemo
     const { activeTopic, currentTopics } = useMemo(() => {
-        const topic = getTopicFromPath(currentPathIds, topicTree);
-        const children = currentPathIds.length === 0 ? topicTree : topic?.children || [];
-        return { activeTopic: topic, currentTopics: children };
+        const rootLevel = Array.isArray(topicTree) ? topicTree : [];
+        const topic = getTopicFromPath(currentPathIds, rootLevel);
+        let childrenToDisplay = [];
+        if (currentPathIds.length === 0) {
+            childrenToDisplay = rootLevel;
+        } else if (topic && Array.isArray(topic.children)) { // Children'ın dizi olduğunu kontrol et
+            childrenToDisplay = topic.children;
+        }
+        return { activeTopic: topic, currentTopics: childrenToDisplay };
     }, [currentPathIds, topicTree]);
 
     const handleTopicSelect = useCallback((selectedTopic) => {
@@ -103,21 +122,31 @@ function TopicBrowserPage() {
         setCurrentPathIds(prevPath => prevPath.slice(0, -1));
     }, []);
 
+    // breadcrumbItems (currentLevel kontrolü eklendi)
     const breadcrumbItems = useMemo(() => {
-      const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0 }];
-      let currentLevel = topicTree;
-      currentPathIds.forEach((pathId, index) => {
-        const found = currentLevel?.find(t => t.id === pathId);
-        if (found) {
-          items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
-          currentLevel = found.children;
-        }
-      });
-      return items;
-    }, [currentPathIds, topicTree]);
+        const rootLevel = Array.isArray(topicTree) ? topicTree : [];
+        const items = [{ id: null, name: 'Konular', isLink: currentPathIds.length > 0, isRoot: true }];
+        let currentLevel = rootLevel;
+        currentPathIds.forEach((pathId, index) => {
+            currentLevel = Array.isArray(currentLevel) ? currentLevel : []; // Her zaman dizi kontrolü
+            const found = currentLevel.find(t => t.id === pathId);
+            if (found) {
+              items.push({ id: pathId, name: found.name, isLink: index < currentPathIds.length - 1 });
+              currentLevel = Array.isArray(found.children) ? found.children : []; // Bir sonraki seviye için dizi kontrolü
+            } else {
+              console.warn(`Breadcrumb oluşturulurken ID ${pathId} bulunamadı.`);
+            }
+        });
+        return items;
+      }, [currentPathIds, topicTree]);
 
-    const navigateToPath = useCallback((index) => {
-        setCurrentPathIds(currentPathIds.slice(0, index));
+    // navigateToPath (isRoot kontrolü eklendi)
+    const navigateToPath = useCallback((index, isRoot = false) => {
+        if (isRoot && index === 0) {
+             setCurrentPathIds([]);
+        } else {
+             setCurrentPathIds(currentPathIds.slice(0, index));
+        }
     }, [currentPathIds]);
 
     const handleContentNavigation = (type, topicId) => {
@@ -131,10 +160,10 @@ function TopicBrowserPage() {
     // --- Logic Sonu ---
 
 
-    // --- Render Bölümü (Chakra UI ile Mükemmelleştirilmiş) ---
+    // --- Render Bölümü (Tema ile Uyumlu) ---
 
     if (loading) {
-        // İskelet Ekranı
+        // İskelet Ekranı (Temadan etkilenir)
         return (
             <Container maxW="container.xl" py={8}>
                 <HStack mb={6} spacing={4}>
@@ -151,8 +180,19 @@ function TopicBrowserPage() {
     }
 
     if (error) {
-        // Hata Ekranı
-        return ( <Container maxW="container.lg" mt={10}> <Alert status="error" variant="left-accent" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg"> <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} /> <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle> <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription> <Button colorScheme="red" onClick={fetchTopics} leftIcon={<Icon as={FaRedo} />}> Tekrar Dene </Button> </Alert> </Container> );
+        // Hata Ekranı (Temadan etkilenir)
+        return (
+             <Container maxW="container.lg" mt={10}>
+                  <Alert status="error" variant="left-accent" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
+                      <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
+                      <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle>
+                      <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription>
+                      <Button colorScheme="red" onClick={fetchTopics} leftIcon={<Icon as={FaRedo} />}>
+                          Tekrar Dene
+                      </Button>
+                  </Alert>
+            </Container>
+        );
     }
 
     // Ana İçerik Render
@@ -160,20 +200,23 @@ function TopicBrowserPage() {
         <Container maxW="container.xl" py={8}>
 
             {/* Navigasyon Alanı */}
-            <Flex wrap="wrap" align="center" justify="space-between" gap={4} mb={8}> {/* Alt boşluk artırıldı */}
+            <Flex wrap="wrap" align="center" justify="space-between" gap={4} mb={8}>
                 <Breadcrumb separator="/" spacing={2} fontSize="sm">
                     {breadcrumbItems.map((item, index) => {
                         const isLast = index === breadcrumbItems.length - 1;
+                        const isRootLink = !!item.isRoot && currentPathIds.length > 0; // isRoot flag'ini kontrol et
+                        const isClickable = (!isLast && item.id !== null) || isRootLink;
+
                         return (
                             <BreadcrumbItem key={item.id || 'home'} isCurrentPage={isLast}>
                                 <BreadcrumbLink
-                                    as={!isLast && item.id !== null ? 'a' : 'span'}
-                                    href={!isLast && item.id !== null ? '#' : undefined}
-                                    onClick={!isLast && item.id !== null ? (e) => { e.preventDefault(); navigateToPath(index); } : undefined}
-                                    fontWeight={isLast ? 'semibold' : 'normal'} // Aktif olanı kalın yap
-                                    color={isLast ? 'textPrimary' : 'textSecondary'} // Aktif olanı daha belirgin yap
-                                    _hover={!isLast && item.id !== null ? { color: 'accent', textDecor: 'underline' } : {}}
+                                    as={isClickable ? Link : 'span'}
+                                    onClick={isClickable ? (e) => { e.preventDefault(); navigateToPath(index, !!item.isRoot); } : undefined}
+                                    fontWeight={isLast ? 'semibold' : 'normal'}
+                                    color={isLast ? 'textPrimary' : 'textSecondary'} // Semantic Token
+                                    _hover={isClickable ? { color: 'accent', textDecoration: 'underline' } : {}} // Semantic Token
                                     aria-current={isLast ? 'page' : undefined}
+                                    cursor={isClickable ? 'pointer' : 'default'}
                                 >
                                     {item.name}
                                 </BreadcrumbLink>
@@ -188,11 +231,22 @@ function TopicBrowserPage() {
                 )}
             </Flex>
 
-             {/* Aktif Konu Başlığı ve Aksiyonları (Daha Belirgin) */}
+             {/* Aktif Konu Başlığı ve Aksiyonları */}
+             {/* Koşullu render içinde hook çağrısı olmaması için değerler dışarıda alındı */}
              {activeTopic && (
-                 <Box mb={10} p={6} borderRadius="xl" bg={useColorModeValue('brand.50', 'brand.900')} borderWidth="1px" borderColor={useColorModeValue('brand.100', 'brand.700')} boxShadow="md">
+                 <Box
+                    mb={10}
+                    p={6}
+                    borderRadius="xl"
+                    bg={activeTopicBg} // Hook dışından alınan değer
+                    borderWidth="1px"
+                    borderColor={activeTopicBorder} // Hook dışından alınan değer
+                    boxShadow="md" // Temadan shadows.md
+                 >
                       <Flex wrap="wrap" justify="space-between" align="center" gap={4}>
                           <HStack spacing={4} flex="1" minW={0}>
+                               {/* Bu ikon/metin renkleri _dark prop'u veya semantic token ile yönetilebilir */}
+                               {/* Şimdilik specific renkler kalabilir */}
                                <Icon as={FaFolderOpen} boxSize="24px" color="brand.500" _dark={{color:"brand.200"}}/>
                                <Box>
                                    <Heading as="h2" size="lg" color="brand.700" _dark={{color:"brand.100"}} noOfLines={2}>
@@ -202,23 +256,22 @@ function TopicBrowserPage() {
                                </Box>
                           </HStack>
                            <HStack spacing={3} flexShrink={0} mt={{base: 4, md: 0}}>
+                               {/* Butonlar tema stillerini kullanır, explicit _hover kaldırıldı */}
                                <Button
                                    onClick={() => handleContentNavigation('lecture', activeTopic.id)}
                                    variant="outline"
-                                   colorScheme="brand" // Ana renkle uyumlu outline
+                                   colorScheme="brand"
                                    leftIcon={<Icon as={FaBookOpen} />}
                                    title={`${activeTopic.name} Konu Anlatımı`}
-                                   _hover={{ bg: useColorModeValue('brand.100', 'brand.800') }}
                                >
                                    Konu Anlatımı
                                </Button>
                                <Button
                                     onClick={() => handleContentNavigation('quiz', activeTopic.id)}
-                                    colorScheme="brand" // Ana renk
+                                    colorScheme="brand" // Varsayılan variant="solid" kullanılır
                                     leftIcon={<Icon as={FaPencilAlt} />}
                                     title={`${activeTopic.name} Soru Çöz`}
-                                    _hover={{ bg: useColorModeValue('brand.600', 'brand.400') }} // Hafif koyu/açık hover
-                                >
+                               >
                                    Soruları Çöz
                                </Button>
                            </HStack>
@@ -226,8 +279,8 @@ function TopicBrowserPage() {
                  </Box>
              )}
 
-
             {/* Alt Konular veya Boş Durum Mesajı */}
+            {/* currentTopics her zaman dizi */}
             {currentTopics.length > 0 ? (
                 <>
                      {activeTopic && (
@@ -235,36 +288,34 @@ function TopicBrowserPage() {
                             Alt Konular
                          </Heading>
                      )}
-                     {/* Güncellenmiş TopicCard ile SimpleGrid */}
                      <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={5}>
                          {currentTopics.map(topic => (
                              <TopicCard
                                  key={topic.id}
                                  topic={topic}
                                  onSelectTopic={handleTopicSelect}
-                                 // Ekstra props veya stil gerekirse buraya eklenebilir
                              />
                          ))}
                      </SimpleGrid>
                  </>
             ) : (
-                 !loading && ( // Sadece yükleme bittiyse göster
+                 !loading && ( // Yükleme bitince göster
                     currentPathIds.length > 0 ? (
-                         // Daha bilgilendirici boş durum
+                         // Alt konu yok durumu
                         <Center py={10}>
                             <Text color="textMuted" fontStyle="italic">
                                 Bu konuda başka alt başlık bulunmuyor.
                             </Text>
                         </Center>
                     ) : (
-                         // Daha ilgi çekici boş durum kartı
+                         // Hiç konu yok durumu
+                         // Card ve içindekiler tema stillerini ve semantic token'ları kullanır
                         <Card variant="outline" textAlign="center" py={10} mt={8} bg="bgSecondary">
                              <CardBody>
                                 <Icon as={FaFolder} boxSize="40px" color="textMuted" mb={4} />
                                 <Heading as="h3" size="md" mb={3}>Henüz Konu Eklenmemiş</Heading>
                                 <Text color="textMuted">İçeriklere göz atmak için lütfen Yönetim Panelinden konuları ekleyin.</Text>
-                                {/* Opsiyonel: Yönetim paneline link */}
-                                {/* <Button as={RouterLink} to="/admin" colorScheme="brand" variant="outline" mt={6}>Yönetim Paneline Git</Button> */}
+                                {/* <Button as={RouterLink} to="/admin" variant="outline" mt={6}>Yönetim Paneline Git</Button> */}
                             </CardBody>
                        </Card>
                    )

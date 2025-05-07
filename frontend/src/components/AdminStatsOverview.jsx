@@ -1,30 +1,59 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext'; // Token için
+import { useAuth } from '../context/AuthContext';
+// Chakra UI Bileşenlerini Import Et
+import {
+    Box,
+    VStack,
+    Heading,
+    Text,
+    Spinner,
+    Alert,
+    AlertIcon,
+    AlertDescription,
+    FormControl,
+    FormLabel,
+    Select,
+    SimpleGrid,
+    StatGroup,
+    Stat,
+    StatLabel,
+    StatNumber,
+    TableContainer,
+    Table,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
+    Center,
+    Icon // Heading için
+} from '@chakra-ui/react';
+// İkonlar
+import { FaChartBar } from 'react-icons/fa'; // Örnek ikon
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-// Uzmanlık alanları listesi (RegisterPage'deki ile aynı olabilir)
+
+// Uzmanlık alanları listesi
 const specializations = [
     "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
 ];
 
-
 function AdminStatsOverview() {
-    const [overviewStats, setOverviewStats] = useState(null); // Genel özet için
-    const [userSummaries, setUserSummaries] = useState([]); // Kullanıcı listesi için
+    const [overviewStats, setOverviewStats] = useState(null);
+    const [userSummaries, setUserSummaries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedSpec, setSelectedSpec] = useState('');
-    const { token } = useAuth();
+    const { token } = useAuth(); // Token'ı al
 
     const backendOverviewUrl = `${API_BASE_URL}/api/stats/admin/overview`;
-    const backendUserSummariesUrl = `${API_BASE_URL}/api/stats/admin/user-summaries`; // Yeni endpoint
+    const backendUserSummariesUrl = `${API_BASE_URL}/api/stats/admin/user-summaries`;
 
-    // Hem genel özeti hem de kullanıcı listesini çeken fonksiyon
+    // Veri çekme logic'i (Aynı kalır, API yanıtı kontrolü eklendi)
     const fetchStats = useCallback(async (filter = '') => {
-        setLoading(true);
-        setError('');
-        setUserSummaries([]); // Önceki listeyi temizle
-        setOverviewStats(null); // Önceki özeti temizle
+        setLoading(true); setError('');
+        setUserSummaries([]); setOverviewStats(null);
 
         if (!token) { setError("Yetkilendirme token'ı bulunamadı."); setLoading(false); return; }
 
@@ -39,28 +68,24 @@ function AdminStatsOverview() {
                 userSummariesUrl += queryParam;
             }
 
-            console.log("Fetching Overview Stats from:", overviewUrl);
-            console.log("Fetching User Summaries from:", userSummariesUrl);
-
-            // İki isteği aynı anda atalım
             const [overviewRes, summariesRes] = await Promise.all([
                 axios.get(overviewUrl, config),
                 axios.get(userSummariesUrl, config)
             ]);
 
-            setOverviewStats(overviewRes.data);
-            setUserSummaries(summariesRes.data || []); // Dizi gelmezse boş dizi ata
+            // Gelen verinin object ve array olduğundan emin ol
+            setOverviewStats(typeof overviewRes.data === 'object' && overviewRes.data !== null ? overviewRes.data : null);
+            setUserSummaries(Array.isArray(summariesRes.data) ? summariesRes.data : []);
 
         } catch (err) {
             console.error("İstatistikleri çekerken hata:", err);
             const errorMsg = err.response?.data?.message || 'İstatistikler yüklenirken bir hata oluştu.';
             setError(errorMsg);
-            setOverviewStats(null);
-            setUserSummaries([]);
+            setOverviewStats(null); setUserSummaries([]);
         } finally {
             setLoading(false);
         }
-    }, [token, backendOverviewUrl, backendUserSummariesUrl]); // URL'leri bağımlılıklara ekle
+    }, [token, backendOverviewUrl, backendUserSummariesUrl]);
 
     useEffect(() => {
         fetchStats(selectedSpec);
@@ -70,66 +95,109 @@ function AdminStatsOverview() {
         setSelectedSpec(event.target.value);
     };
 
-    if (loading) return <p>Genel İstatistikler yükleniyor...</p>;
+    // --- Render Bölümü (Chakra UI ve Tema ile Uyumlu) ---
+
+    if (loading) {
+        // Chakra UI Spinner
+        return (
+            <Center p={10}>
+                <Spinner size="xl" color="brand.500" />
+                <Text ml={3} color="textSecondary">İstatistikler yükleniyor...</Text>
+            </Center>
+        );
+    }
 
     return (
+         // Ana VStack, tema boşluklarını kullanır
+        <VStack spacing={6} align="stretch">
+            {/* Heading tema stilini kullanır */}
+            <Heading as="h3" size="lg" display="flex" alignItems="center" gap={3}>
+                <Icon as={FaChartBar} /> Genel Bakış ve Kullanıcı Performansları
+            </Heading>
 
-         // Ana div'e stil ekleyelim
-         <div className="admin-section" style={{ padding: '15px', border: '1px solid var(--border-secondary)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-secondary)', marginBottom:'var(--space-l)' }}>
-            <h3>Genel Bakış ve Kullanıcı Performansları</h3>
-            {error && <p style={{ color: 'red' }}>Hata: {error}</p>}
+            {/* Alert tema stilini kullanır */}
+            {error && (
+                <Alert status="error" variant="subtle" borderRadius="md">
+                    <AlertIcon />
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
 
-            <div style={{ marginBottom: '15px' }}>
-                <label htmlFor="spec-filter">Uzmanlık Alanına Göre Filtrele: </label>
-                <select id="spec-filter" value={selectedSpec} onChange={handleFilterChange}>
-                    <option value="">Tümü</option>
-                    {specializations.map(spec => ( <option key={spec} value={spec}>{spec}</option> ))}
-                </select>
-            </div>
+             {/* FormControl ve Select tema stillerini kullanır */}
+            <FormControl id="spec-filter-overview"> {/* ID benzersiz olmalı */}
+                <FormLabel>Uzmanlık Alanına Göre Filtrele:</FormLabel>
+                <Select value={selectedSpec} onChange={handleFilterChange} placeholder="Tümü">
+                    {specializations.map(spec => (<option key={spec} value={spec}>{spec}</option>))}
+                </Select>
+            </FormControl>
 
-            {/* Genel İstatistik Özeti */}
+            {/* Genel İstatistik Özeti - Box, Heading, StatGroup tema/semantic token'ları kullanır */}
             {overviewStats && (
-                <div style={{ marginBottom:'20px', paddingBottom:'15px', borderBottom:'1px solid var(--border-primary)'}}>
-                    <h4>Genel Özet ({overviewStats.filter})</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                        <div style={{padding: '10px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)'}}><strong>Kullanıcı Sayısı:</strong> {overviewStats.userCount}</div>
-                        <div style={{padding: '10px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)'}}><strong>Toplam Deneme:</strong> {overviewStats.totalAttempts}</div>
-                        <div style={{padding: '10px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)'}}><strong>Doğru Sayısı:</strong> {overviewStats.correctAttempts}</div>
-                        <div style={{padding: '10px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)'}}><strong>Başarı Oranı:</strong> %{overviewStats.accuracy}</div>
-                    </div>
-                </div>
+                <Box borderWidth="1px" borderRadius="lg" p={6} borderColor="borderPrimary" bg="bgSecondary">
+                    <Heading as="h4" size="md" mb={4}>Genel Özet ({overviewStats.filter || 'Tümü'})</Heading>
+                    {/* StatGroup/Stat bileşenleri varsayılan tema stillerini kullanır */}
+                    <StatGroup>
+                        <Stat>
+                            <StatLabel>Kullanıcı Sayısı</StatLabel>
+                            <StatNumber>{overviewStats.userCount}</StatNumber>
+                        </Stat>
+                        <Stat>
+                            <StatLabel>Toplam Deneme</StatLabel>
+                            <StatNumber>{overviewStats.totalAttempts}</StatNumber>
+                        </Stat>
+                        <Stat>
+                            <StatLabel>Doğru Sayısı</StatLabel>
+                            <StatNumber color="green.500">{overviewStats.correctAttempts}</StatNumber>
+                        </Stat>
+                         <Stat>
+                            <StatLabel>Başarı Oranı</StatLabel>
+                            {/* Renk dinamik, Text/StatNumber tema stillerini kullanır */}
+                            <StatNumber color={overviewStats.accuracy >= 80 ? 'green.500' : overviewStats.accuracy >= 50 ? 'yellow.500' : 'red.500'}>
+                                %{overviewStats.accuracy}
+                            </StatNumber>
+                        </Stat>
+                    </StatGroup>
+                </Box>
             )}
 
-            {/* Kullanıcı Performans Listesi */}
-            <h4>Kullanıcı Performansları ({selectedSpec || 'Tümü'})</h4>
-            {userSummaries.length === 0 && !loading ? (
-                 <p>Filtreye uygun kullanıcı veya deneme bulunamadı.</p>
-            ) : (
-                <div style={{overflowX:'auto'}}>
-                    <table border="1" style={{ width: '100%', borderCollapse: 'collapse', minWidth:'500px' }}>
-                        <thead>
-                            <tr>
-                                <th>Kullanıcı Adı</th>
-                                <th>Toplam Deneme</th>
-                                <th>Doğru Sayısı</th>
-                                <th>Başarı Oranı (%)</th>
-                                {/* İleride buraya detay linki eklenebilir */}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {userSummaries.map(userStat => (
-                                <tr key={userStat.userId}>
-                                    <td>{userStat.username} (ID: {userStat.userId})</td>
-                                    <td>{userStat.totalAttempts}</td>
-                                    <td>{userStat.correctAttempts}</td>
-                                    <td>{userStat.accuracy}%</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
+            {/* Kullanıcı Performans Listesi - Box, Heading, Alert, Table tema/semantic token'ları kullanır */}
+            <Box>
+                <Heading as="h4" size="md" mb={4}>Kullanıcı Performansları ({selectedSpec || 'Tümü'})</Heading>
+                {userSummaries.length === 0 && !loading ? (
+                    <Alert status="info" variant="subtle" borderRadius="md">
+                        <AlertIcon /> Filtreye uygun kullanıcı veya deneme bulunamadı.
+                    </Alert>
+                ) : (
+                    <TableContainer borderWidth="1px" borderRadius="md" borderColor="borderSecondary">
+                        <Table variant="striped" size="sm">
+                            {/* Thead tema stilini (bgTertiary) kullanır */}
+                            <Thead bg="bgTertiary">
+                                <Tr>
+                                    <Th>Kullanıcı Adı</Th>
+                                    <Th isNumeric>Toplam Deneme</Th>
+                                    <Th isNumeric>Doğru Sayısı</Th>
+                                    <Th isNumeric>Başarı Oranı (%)</Th>
+                                </Tr>
+                            </Thead>
+                             {/* Tbody, Tr, Td tema stillerini ve semantic token'ları kullanır */}
+                            <Tbody>
+                                {userSummaries.map(userStat => (
+                                    <Tr key={userStat.userId} _hover={{ bg: 'blackAlpha.100', _dark: { bg: 'whiteAlpha.100' }}}>
+                                        <Td>{userStat.username} <Text as="span" fontSize="xs" color="textMuted">(ID: {userStat.userId})</Text></Td>
+                                        <Td isNumeric>{userStat.totalAttempts}</Td>
+                                        <Td isNumeric>{userStat.correctAttempts}</Td>
+                                         {/* Renk dinamik, Td tema stilini kullanır */}
+                                        <Td isNumeric color={userStat.accuracy >= 80 ? 'green.600' : userStat.accuracy >= 50 ? 'yellow.600' : 'red.600'}>
+                                            {userStat.accuracy}%
+                                        </Td>
+                                    </Tr>
+                                ))}
+                            </Tbody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </Box>
+        </VStack>
     );
 }
 

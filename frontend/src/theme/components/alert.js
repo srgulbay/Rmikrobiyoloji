@@ -1,5 +1,6 @@
 // frontend/src/theme/components/alert.js
-import { mode, getColor, getColorSchemeContrast } from '@chakra-ui/theme-tools';
+// getColorSchemeContrast kaldırıldı
+import { mode, getColor, transparentize } from '@chakra-ui/theme-tools';
 
 // Alert bileşeni için renk şemasına (status) göre renkleri belirleyen yardımcı fonksiyon
 const getAlertColors = (props, type = 'bg') => {
@@ -7,16 +8,20 @@ const getAlertColors = (props, type = 'bg') => {
   const colorScheme = c || status; // Eğer colorScheme prop'u verilmemişse status'u kullan
 
   // Renk paletinden ilgili renkleri al
-  // Örn: colorScheme 'green' ise green.500, green.50 vb.
-  // Not: Bu renklerin temanızdaki colors.js'de tanımlı olması gerekir.
   const lightBg = getColor(theme, `${colorScheme}.50`, colorScheme);
-  const darkBg = getColor(theme, `${colorScheme}.800`, colorScheme); // Koyu modda daha koyu bir arkaplan
+  const darkBg = getColor(theme, `${colorScheme}.800`, colorScheme);
   const accentColorLight = getColor(theme, `${colorScheme}.500`, colorScheme);
   const accentColorDark = getColor(theme, `${colorScheme}.300`, colorScheme);
   const textColorLight = getColor(theme, `${colorScheme}.700`, colorScheme);
   const textColorDark = getColor(theme, `${colorScheme}.100`, colorScheme);
   const solidBgLight = getColor(theme, `${colorScheme}.500`, colorScheme);
-  const solidBgDark = getColor(theme, `${colorScheme}.400`, colorScheme);
+  const solidBgDark = getColor(theme, `${colorScheme}.400`, colorScheme); // Koyu mod solid için .400 tonu
+
+  // Solid varyant metin rengi için manuel kontrast belirleme
+  // Açık mod: Genellikle beyaz, sarı/cyan gibi çok açık renklerde siyah/koyu gri
+  const solidTextColorLight = ['yellow', 'cyan', 'gray'].includes(colorScheme) ? 'blackAlpha.800' : 'white';
+  // Koyu mod: Genellikle koyu gri/siyah, .400 tonları genellikle açıktır
+  const solidTextColorDark = 'gray.900'; // Veya 'black'
 
   switch (type) {
     case 'subtle-bg':
@@ -25,80 +30,66 @@ const getAlertColors = (props, type = 'bg') => {
       return mode(textColorLight, textColorDark)(props);
     case 'left-accent-border':
     case 'top-accent-border':
+    case 'icon-color': // İkon rengi için de accent kullanalım
       return mode(accentColorLight, accentColorDark)(props);
     case 'solid-bg':
       return mode(solidBgLight, solidBgDark)(props);
     case 'solid-text':
-      // Solid varyantında metin rengi genellikle arkaplanla kontrast oluşturur
-      return mode(
-        getColorSchemeContrast(theme, colorScheme, solidBgLight), // Açık modda kontrast renk
-        getColorSchemeContrast(theme, colorScheme, solidBgDark)   // Koyu modda kontrast renk
-      )(props) || mode('white', 'gray.900')(props); // Fallback
-    default:
-      return mode(accentColorLight, accentColorDark)(props); // İkon rengi için
+      // GÜNCELLENDİ: getColorSchemeContrast yerine mode ile manuel kontrast
+      return mode(solidTextColorLight, solidTextColorDark)(props);
+    default: // Varsayılan olarak ikon rengini veya accent'i döndür
+      return mode(accentColorLight, accentColorDark)(props);
   }
 };
 
 const Alert = {
   baseStyle: (props) => ({
     container: {
-      px: 4, // Yatay padding
-      py: 3, // Dikey padding
-      borderRadius: 'md', // Temadaki radii.md
-      alignItems: 'flex-start', // İkon ve metinlerin dikeyde başlangıca hizalanması
-      // transitionProperty: 'common', // Renk geçişleri için
-      // transitionDuration: 'normal',
+      px: 4,
+      py: 3,
+      borderRadius: 'md',
+      alignItems: 'flex-start',
     },
     icon: {
       flexShrink: 0,
-      marginEnd: 3, // İkon ile metin arası boşluk (rtl desteği için marginEnd)
-      w: 5, // İkon genişliği
-      h: 5, // İkon yüksekliği
-      // Renk, varyanta ve statüye göre ayarlanacak
+      marginEnd: 3,
+      w: 5,
+      h: 5,
+      // Renk artık varyant içinde belirleniyor (getAlertColors ile)
+      color: getAlertColors(props, 'icon-color'),
     },
     title: {
-      fontWeight: 'semibold', // Başlık font ağırlığı
-      lineHeight: 'short', // Satır yüksekliği
-      // Renk, varyanta ve statüye göre ayarlanacak
+      fontWeight: 'semibold',
+      lineHeight: 'short',
+      // Renk prop'u container'dan veya varianttan miras alınır
     },
     description: {
-      lineHeight: 'base', // Açıklama satır yüksekliği
-      // Renk, varyanta ve statüye göre ayarlanacak
+      lineHeight: 'base',
+      // Renk prop'u container'dan veya varianttan miras alınır
     },
-    spinner: { // Yükleme durumu için spinner
-      // Gerekirse stil eklenebilir
-    }
+    spinner: {}
   }),
   variants: {
-    // Hafif arkaplanlı, metin rengi vurgulu (kodlarınızda kullanılıyor)
     subtle: (props) => ({
       container: {
         bg: getAlertColors(props, 'subtle-bg'),
       },
-      icon: {
-        color: getAlertColors(props, 'icon-color'), // Genellikle accent rengi
-      },
-      title: {
-        color: getAlertColors(props, 'subtle-text'),
-      },
-      description: {
-        color: getAlertColors(props, 'subtle-text'),
-      },
+      // İkon, başlık ve açıklama renkleri baseStyle'dan veya container'dan miras alınabilir
+      // veya burada özel olarak ayarlanabilir:
+      // icon: { color: getAlertColors(props, 'icon-color') },
+      // title: { color: getAlertColors(props, 'subtle-text') },
+      // description: { color: getAlertColors(props, 'subtle-text') },
     }),
-    // Sol kenarı çizgili (kodlarınızda kullanılıyor)
     'left-accent': (props) => ({
       container: {
-        paddingStart: 3, // Sol padding (rtl desteği için paddingStart)
-        borderStartWidth: '4px', // Sol kenarlık kalınlığı
+        paddingStart: 3,
+        borderStartWidth: '4px',
         borderStartColor: getAlertColors(props, 'left-accent-border'),
-        bg: mode('gray.50', 'gray.700')(props), // Hafif bir arkaplan (semanticTokens.bgSecondary)
+        bg: mode('gray.50', 'gray.700')(props), // semanticTokens.bgSecondary
       },
-      icon: {
-        color: getAlertColors(props, 'icon-color'),
-      },
-      // title ve description renkleri varsayılan metin renklerini kullanabilir (textPrimary, textSecondary)
+      // icon: { color: getAlertColors(props, 'icon-color') },
+      // title/description varsayılan metin renklerini kullanır
     }),
-    // Üst kenarı çizgili
     'top-accent': (props) => ({
       container: {
         paddingTop: 2,
@@ -106,56 +97,43 @@ const Alert = {
         borderTopColor: getAlertColors(props, 'top-accent-border'),
         bg: mode('gray.50', 'gray.700')(props),
       },
-      icon: {
-        color: getAlertColors(props, 'icon-color'),
-      },
+      // icon: { color: getAlertColors(props, 'icon-color') },
     }),
-    // Tamamen dolgulu
     solid: (props) => ({
       container: {
         bg: getAlertColors(props, 'solid-bg'),
-        color: getAlertColors(props, 'solid-text'), // Metin rengi arkaplanla kontrast olmalı
+        color: getAlertColors(props, 'solid-text'), // Hesaplanan kontrast rengi
       },
       icon: {
-        // Solid varyantta ikon rengi genellikle metin rengiyle aynı veya biraz daha açık/koyu olabilir
-        color: getAlertColors(props, 'solid-text'),
-        opacity: 0.8, // İkonu biraz daha soluk yapabiliriz
+        color: getAlertColors(props, 'solid-text'), // Metinle aynı renk
       },
-      title: {
-         // color prop'u container'dan miras alınır
-      },
-      description: {
-         // color prop'u container'dan miras alınır
-      }
     }),
-    // "Modern/Şık" bir varyant: Hafif gölgeli, daha yumuşak
     stylish: (props) => ({
         container: {
-            borderRadius: 'lg', // Daha yumuşak köşeler
-            bg: mode('white', 'gray.700')(props), // Temiz bir arkaplan
+            borderRadius: 'lg',
+            bg: mode('white', 'gray.700')(props),
             borderWidth: '1px',
-            borderColor: getAlertColors(props, 'left-accent-border'), // Kenarlık status renginde
-            boxShadow: mode(props.theme.shadows.sm, props.theme.shadows.md)(props), // Hafif bir gölge
-            padding: 5, // Biraz daha fazla padding
+            borderColor: getAlertColors(props, 'left-accent-border'),
+            boxShadow: mode(props.theme.shadows.sm, props.theme.shadows.md)(props),
+            padding: 5,
             _dark: {
-                borderColor: getAlertColors(props, 'left-accent-border'), // Koyu modda da kenarlık rengi
+                borderColor: getAlertColors(props, 'left-accent-border'),
             }
         },
         icon: {
             color: getAlertColors(props, 'icon-color'),
-            boxSize: 6, // Biraz daha büyük ikon
+            boxSize: 6,
         },
         title: {
-            color: mode('gray.800', 'whiteAlpha.900')(props),
+            color: mode('gray.800', 'whiteAlpha.900')(props), // textPrimary
         },
         description: {
-            color: mode('gray.600', 'gray.300')(props),
+            color: mode('gray.600', 'gray.300')(props), // textSecondary
         }
     })
   },
   defaultProps: {
-    variant: 'subtle', // Varsayılan alert varyantı
-    // colorScheme (status) prop ile otomatik ayarlanır.
+    variant: 'subtle',
   },
 };
 

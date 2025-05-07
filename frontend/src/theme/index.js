@@ -2,18 +2,19 @@
 import { extendTheme } from "@chakra-ui/react";
 
 // 1. Tema Modüllerini Import Et
-import colors from "./colors";       // Renk paletleri
-import typography from "./typography"; // Fontlar, boyutlar, ağırlıklar vb.
-import space from "./spacing";         // Boşluk ve boyut skalası (spacing.js 'space' olarak export ediliyor)
-import breakpoints from "./breakpoints"; // Ekran kırılma noktaları
-import radii from "./radii";         // Kenar yuvarlaklıkları
-import shadows from "./shadows";       // Gölge stilleri
-import styles from "./styles";         // Global stiller (body, a etiketleri vb.)
+import colors from "./colors";
+import typography from "./typography";
+import space from "./spacing";
+import breakpoints from "./breakpoints";
+import radii from "./radii";
+import shadows from "./shadows";
+import styles from "./styles";
 
-// 2. Bileşen Stillerini Import Et (Bunları bir sonraki adımda oluşturacağız)
+// 2. Bileşen Stillerini Import Et
 import Button from "./components/button";
 import Card from "./components/card";
-import Input from "./components/input"; // Input, Textarea, Select için temel stil olabilir
+// GÜNCELLENDİ: Input, Select, Textarea için named import kullan
+import { Input, Select, Textarea } from "./components/input";
 import Alert from "./components/alert";
 import Badge from "./components/badge";
 import Tabs from "./components/tabs";
@@ -22,73 +23,31 @@ import Table from "./components/table";
 import Link from "./components/link";
 // ... diğer bileşenler eklenecek
 
-// 3. Tema Konfigürasyonu (Opsiyonel)
+// 3. Tema Konfigürasyonu
 const config = {
-  initialColorMode: "light", // Varsayılan renk modu ('light', 'dark', 'system')
-  useSystemColorMode: false, // Kullanıcının sistem tercihini otomatik algılasın mı?
+  initialColorMode: "light",
+  useSystemColorMode: false,
 };
 
-// 4. Semantik Token'lar (Kodlarınızdaki textPrimary, bgSecondary vb. için)
-// Bu token'lar, renk moduna göre otomatik olarak değişir.
-// Kullanım: <Text color="textPrimary">...</Text> veya <Box bg="bgPrimary">...</Box>
+// 4. Semantik Token'lar
 const semanticTokens = {
   colors: {
-    // Metin Renkleri
-    textPrimary: {
-      default: "gray.700", // Açık mod için
-      _dark: "whiteAlpha.900", // Koyu mod için
-    },
-    textSecondary: {
-      default: "gray.600",
-      _dark: "gray.400",
-    },
-    textMuted: { // Daha soluk metinler için (örn: UserStats ID, LectureViewPage notu)
-      default: "gray.500",
-      _dark: "gray.500", // Koyu modda da biraz soluk kalabilir veya gray.400
-    },
-    // Arkaplan Renkleri
-    bgPrimary: { // Ana sayfa/konteyner arkaplanı (styles.global.body.bg ile uyumlu olmalı)
-      default: "white", // Veya colors.gray[50] eğer styles.global'de öyleyse
-      _dark: "gray.800",  // Veya colors.gray[900]
-    },
-    bgSecondary: { // Kartlar, bölümler için biraz farklı arkaplan (AdminStatsOverview, TopicNode, SolvePage Başlık)
-      default: "gray.50",
-      _dark: "gray.700", // Veya gray.800 eğer bgPrimary daha koyuysa
-    },
-    bgTertiary: { // Tablo başlıkları, daha az önemli arkaplanlar (MyStatsPage özet kutuları)
-      default: "gray.100",
-      _dark: "gray.600",
-    },
-    // Kenarlık Renkleri
-    borderPrimary: { // Ana kenarlıklar (TopicBrowserPage Aktif Konu, SolvePage Başlık)
-      default: "gray.200",
-      _dark: "gray.700",
-    },
-    borderSecondary: { // Daha az önemli kenarlıklar (AdminStatsOverview Tablo, TopicNode)
-      default: "gray.300", // Veya borderPrimary ile aynı olabilir
-      _dark: "gray.600",
-    },
-    // Vurgu Rengi (Accent)
-    accent: { // Breadcrumb hover gibi yerlerde kullanılabilir
-      default: "brand.500", // Marka renginin bir tonu
-      _dark: "brand.300",
-    },
-    // Form elemanları için
-    inputBg: { // Login, Register sayfalarındaki inputlar
-        default: 'gray.100',
-        _dark: 'gray.700'
-    },
-    inputPlaceholder: {
-        default: 'gray.500',
-        _dark: 'gray.400'
-    }
+    textPrimary: { default: "gray.700", _dark: "whiteAlpha.900" },
+    textSecondary: { default: "gray.600", _dark: "gray.400" },
+    textMuted: { default: "gray.500", _dark: "gray.500" },
+    bgPrimary: { default: "white", _dark: "gray.800" },
+    bgSecondary: { default: "gray.50", _dark: "gray.700" },
+    bgTertiary: { default: "gray.100", _dark: "gray.600" },
+    borderPrimary: { default: "gray.200", _dark: "gray.700" },
+    borderSecondary: { default: "gray.300", _dark: "gray.600" },
+    accent: { default: "brand.500", _dark: "brand.300" },
+    inputBg: { default: 'white', _dark: 'gray.700' }, // Input temasındaki bg ile tutarlı olmalı
+    inputPlaceholder: { default: 'gray.500', _dark: 'gray.400' },
+    // Başka semantic tokenlar eklenebilir
   },
   shadows: {
-    // Örnek semantik gölge
-    // cardShadow: {
-    //   default: shadows.md,
-    //   _dark: shadows.lg, // Koyu modda gölgeler farklı olabilir
-    // }
+    // Örnek
+    // cardShadow: { default: shadows.md, _dark: shadows.lg }
   }
 };
 
@@ -96,27 +55,28 @@ const semanticTokens = {
 // 5. Tüm Parçaları Birleştir
 const overrides = {
   config,
-  styles,    // Global stiller
-  colors,    // Ana renk paletleri (brand, gray, green vb.)
-  shadows,   // Gölge tanımları
-  radii,     // Kenar yuvarlaklıkları
-  space,     // Boşluk skalası (Chakra 'space' olarak bekler, spacing.js'den 'space' olarak export etmiştik)
+  styles,
+  colors,
+  shadows,
+  radii,
+  space, // spacing.js'den gelen 'space' objesi
   breakpoints,
-  ...typography, // fonts, fontSizes, fontWeights, lineHeights, letterSpacings'i kök dizine yayar
-
-  semanticTokens, // Semantik token'ları ekle
-
+  ...typography, // typography objesini köke yay
+  semanticTokens,
   components: {
     Button,
     Card,
-    Input, // Input, Textarea, Select bu temelden türeyebilir
+    // GÜNCELLENDİ: Input, Select ve Textarea ayrı ayrı eklendi
+    Input,
+    Select,
+    Textarea,
     Alert,
     Badge,
     Tabs,
     Modal,
     Table,
     Link,
-    // ...diğer bileşenler buraya eklenecek
+    // ...diğer import edilen bileşen stilleri
   },
 };
 

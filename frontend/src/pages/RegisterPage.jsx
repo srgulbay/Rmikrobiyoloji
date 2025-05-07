@@ -1,5 +1,3 @@
-// src/pages/RegisterPage.jsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -27,8 +25,8 @@ import {
   FormErrorMessage,
   ScaleFade,
   Progress, // Şifre gücü için
-  useColorModeValue,
-  Center
+  // useColorModeValue kaldırıldı
+  // Center kaldırıldı
 } from '@chakra-ui/react';
 // İkonlar
 import { FaUserPlus, FaUser, FaLock, FaEye, FaEyeSlash, FaGraduationCap } from 'react-icons/fa';
@@ -101,10 +99,10 @@ function RegisterPage() {
 
     const isPasswordMismatch = password !== confirmPassword && confirmPassword !== '';
 
-    // Tema renkleri
-    const bgColor = useColorModeValue('gray.50', 'gray.900');
-    const cardBgColor = useColorModeValue('white', 'gray.800');
-    const inputBgColor = useColorModeValue('white', 'gray.700'); // Input için farklı arka plan
+    // KALDIRILDI: Tema renkleri (artık tema/semantic token'lar kullanılacak)
+    // const bgColor = useColorModeValue('gray.50', 'gray.900');
+    // const cardBgColor = useColorModeValue('white', 'gray.800');
+    // const inputBgColor = useColorModeValue('white', 'gray.700');
 
     // Şifre gücü rengi
     const strengthColor = useMemo(() => {
@@ -115,26 +113,28 @@ function RegisterPage() {
 
     return (
         // Sayfayı ortala
-        <Flex minH="100vh" align="center" justify="center" bg={bgColor} px={4} py={12}>
+        <Flex minH="100vh" align="center" justify="center" /* KALDIRILDI: bg={bgColor} */ px={4} py={12}>
              {/* Form container */}
             <Container
                 maxW="md"
-                bg={cardBgColor}
+                bg="bgPrimary" // Semantic Token
                 p={{ base: 6, md: 8 }}
-                borderRadius="xl"
-                boxShadow="xl"
+                borderRadius="xl" // Temadan radii.xl
+                boxShadow="xl" // Temadan shadows.xl
                 borderWidth={1}
-                borderColor={useColorModeValue('gray.200', 'gray.700')}
+                borderColor="borderPrimary" // Semantic Token
             >
                 <Heading as="h1" size="xl" textAlign="center" mb={8} color="brand.500">
                     Yeni Hesap Oluştur
                 </Heading>
 
                 <Box as="form" onSubmit={handleSubmit}>
-                    <VStack spacing={4}> {/* Spacing biraz azaltıldı */}
+                    {/* VStack tema boşluklarını kullanır */}
+                    <VStack spacing={4}>
                         {/* Hata Mesajı */}
                         <ScaleFade initialScale={0.9} in={!!error} unmountOnExit>
                            {error && (
+                             // Alert tema stilini kullanır
                              <Alert status="error" borderRadius="md" width="full" variant="subtle">
                                <AlertIcon />
                                <AlertDescription fontSize="sm">{error}</AlertDescription>
@@ -142,39 +142,46 @@ function RegisterPage() {
                            )}
                         </ScaleFade>
 
+                        {/* Kullanıcı Adı */}
                         <FormControl id="usernameReg" isRequired isDisabled={loading}>
+                            {/* FormLabel tema stilini kullanır */}
                             <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı</FormLabel>
                             <InputGroup>
                                 <InputLeftElement pointerEvents="none">
                                     <Icon as={FaUser} color="gray.400" />
                                 </InputLeftElement>
+                                {/* Input tema stilini kullanır */}
+                                {/* KALDIRILDI: bg={inputBgColor} */}
+                                {/* KALDIRILDI: _placeholder */}
                                 <Input
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder='Kullanıcı adınızı belirleyin'
-                                    bg={inputBgColor}
-                                    _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
                                 />
                             </InputGroup>
                         </FormControl>
 
+                        {/* Şifre */}
                         <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (!!error && error.toLowerCase().includes('şifre'))}>
+                            {/* FormLabel tema stilini kullanır */}
                             <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
                             <InputGroup size="md">
                                 <InputLeftElement pointerEvents="none">
                                     <Icon as={FaLock} color="gray.400" />
                                 </InputLeftElement>
+                                {/* Input tema stilini kullanır */}
+                                {/* KALDIRILDI: bg={inputBgColor} */}
+                                {/* KALDIRILDI: _placeholder */}
                                 <Input
                                     pr="4.5rem"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
-                                    onChange={handlePasswordChange} // Şifre gücü için özel handler
+                                    onChange={handlePasswordChange}
                                     placeholder='En az 6 karakter'
-                                    bg={inputBgColor}
-                                    _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
                                 />
                                 <InputRightElement width="4.5rem">
+                                     {/* IconButton tema stilini kullanır */}
                                     <IconButton
                                         h="1.75rem" size="sm" variant="ghost"
                                         onClick={handlePasswordVisibility}
@@ -185,28 +192,33 @@ function RegisterPage() {
                             </InputGroup>
                             {/* Şifre Gücü Göstergesi */}
                             {password.length > 0 && (
+                                // Progress tema stilini ve dinamik colorScheme'i kullanır
                                 <Progress colorScheme={strengthColor} size="xs" value={passwordStrength} mt={2} borderRadius="sm" />
                             )}
-                            {/* Şifre uzunluğu hatası */}
+                             {/* FormErrorMessage tema stilini kullanır */}
                              {error && error.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>}
                         </FormControl>
 
+                        {/* Şifre Tekrar */}
                         <FormControl id="confirmPasswordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch}>
+                            {/* FormLabel tema stilini kullanır */}
                             <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre Tekrar</FormLabel>
                             <InputGroup size="md">
                                  <InputLeftElement pointerEvents="none">
                                     <Icon as={FaLock} color="gray.400" />
                                  </InputLeftElement>
+                                 {/* Input tema stilini kullanır */}
+                                 {/* KALDIRILDI: bg={inputBgColor} */}
+                                 {/* KALDIRILDI: _placeholder */}
                                 <Input
                                     pr="4.5rem"
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder='Şifrenizi tekrar girin'
-                                    bg={inputBgColor}
-                                    _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
                                 />
                                 <InputRightElement width="4.5rem">
+                                     {/* IconButton tema stilini kullanır */}
                                     <IconButton
                                         h="1.75rem" size="sm" variant="ghost"
                                         onClick={handleConfirmPasswordVisibility}
@@ -215,25 +227,27 @@ function RegisterPage() {
                                     />
                                 </InputRightElement>
                             </InputGroup>
-                             {/* Şifre eşleşme hatası */}
+                             {/* FormErrorMessage tema stilini kullanır */}
                             {isPasswordMismatch && (
                                 <FormErrorMessage fontSize="xs">Girilen şifreler eşleşmiyor!</FormErrorMessage>
                             )}
                         </FormControl>
 
+                        {/* Uzmanlık Alanı */}
                         <FormControl id="specialization" isDisabled={loading}>
+                             {/* FormLabel tema stilini kullanır */}
                              <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Uzmanlık Alanı (İsteğe Bağlı)</FormLabel>
                              <InputGroup>
                                  <InputLeftElement pointerEvents='none'>
                                      <Icon as={FaGraduationCap} color='gray.400' />
                                  </InputLeftElement>
+                                 {/* Select tema stilini kullanır */}
+                                 {/* KALDIRILDI: bg={inputBgColor} */}
                                  <Select
                                     placeholder="-- Alan Seçiniz --"
                                     value={specialization}
                                     onChange={(e) => setSpecialization(e.target.value)}
-                                    bg={inputBgColor}
-                                    // İkonla hizalamak için paddingLeft gerekebilir
-                                    // pl="2.5rem" // InputLeftElement genişliğine göre ayarlayın
+                                    // pl="2.5rem" // Gerekirse ikon için sol padding
                                 >
                                     {specializations.map(spec => (
                                         <option key={spec} value={spec}>{spec}</option>
@@ -242,6 +256,10 @@ function RegisterPage() {
                             </InputGroup>
                         </FormControl>
 
+                        {/* Kayıt Ol Butonu */}
+                         {/* Button tema stilini (solid, lg, brand) ve hover/active efektlerini kullanır */}
+                         {/* KALDIRILDI: _hover */}
+                         {/* KALDIRILDI: _active */}
                         <Button
                             type="submit"
                             colorScheme="brand"
@@ -252,17 +270,20 @@ function RegisterPage() {
                             loadingText="Kayıt Olunuyor..."
                             spinnerPlacement="start"
                             leftIcon={!loading ? <Icon as={FaUserPlus} /> : undefined}
-                            _hover={{ transform: 'scale(1.02)', boxShadow: 'md' }}
-                            _active={{ transform: 'scale(0.98)' }}
                         >
                             Kayıt Ol
                         </Button>
                     </VStack>
                 </Box>
 
+                {/* Giriş Sayfasına Link */}
+                {/* Text tema stilini (sm) kullanır */}
                 <Text textAlign="center" mt={8} fontSize="sm">
                     Zaten hesabınız var mı?{' '}
-                    <ChakraLink as={RouterLink} to="/login" fontWeight="medium" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {/* ChakraLink tema stilini (varsayılan: inline, blue) kullanır */}
+                    {/* Özel renk ve hover korunuyor */}
+                    {/* KALDIRILDI: _hover={{ textDecoration: 'underline' }} */}
+                    <ChakraLink as={RouterLink} to="/login" fontWeight="medium" color="brand.500">
                         Giriş Yapın
                     </ChakraLink>
                 </Text>

@@ -1,9 +1,11 @@
 // src/context/AuthContext.jsx
-
+console.log(">>> API BASE:", import.meta.env.VITE_API_BASE_URL);
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL
+});
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -18,7 +20,6 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
   useEffect(() => {
     if (token) {
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     const MIN_LOADING_TIME = 500; // Minimum 500ms yükleme süresi
 
     try {
-      const response = await axios.post(`${API_URL}/login`, { username, password });
+      const response = await API.post('/api/auth/login', { username, password });
       if (response.data.token) {
         setToken(response.data.token);
         navigate('/browse');

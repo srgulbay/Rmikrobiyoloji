@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import axios from 'axios';
 import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
+// useColorModeValue kaldırıldı, renkler tema/semantic token'lardan gelecek
+// useColorMode hook'u da kullanılmıyorsa kaldırılabilir, DOMPurify skin/content_css için gerekli olabilir
 import { useColorMode } from '@chakra-ui/react';
-import { useLocation, Link as RouterLink } from 'react-router-dom'; // RouterLink eklendi
+import { useLocation, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -12,45 +14,42 @@ import {
   IconButton,
   Heading,
   Text,
-  SimpleGrid, // Grid için
-  Card,       // Kart için
-  CardBody,   // Kart içeriği için
-  Image,      // Resim için
+  SimpleGrid,
+  Card,
+  CardBody,
+  Image,
   Alert,
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  Spinner,    // Yükleme göstergesi
+  Spinner,
   Icon,
-  Skeleton,   // İskelet yükleme
+  Skeleton,
   SkeletonText,
-  Stat,       // İstatistik gösterimi
+  Stat,
   StatLabel,
   StatNumber,
-  HStack,     // Yatay dizilim
-  VStack,     // Dikey yığınlama
-  Center,     // Ortalama için
-  Tag,        // Etiket (örn: zorluk) için
-  useToast,   // Bildirimler için (opsiyonel)
-  List, ListItem, ListIcon, // Bitiş ekranı için
-  Divider // Ayırıcı için
+  HStack,
+  VStack,
+  Center,
+  Tag,
+  useToast,
+  List, ListItem, // ListIcon kaldırıldı, kullanılmıyor
+  Divider
 } from '@chakra-ui/react';
 import { FaArrowLeft, FaArrowRight, FaCheck, FaFlagCheckered, FaRedo, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import { FiClock, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-// formatTime helper (aynı kalabilir)
+// formatTime helper
 const formatTime = totalSeconds => {
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-// getDifficultyBgVariable fonksiyonu kaldırıldı, stil Chakra ile yönetilecek.
-
 function SolvePage() {
-    // State'ler ve hook'lar aynı kalabilir
     const [allQuestions, setAllQuestions] = useState([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -65,9 +64,9 @@ function SolvePage() {
     const [timeElapsed, setTimeElapsed] = useState(0);
     const timerRef = useRef(null);
     const [questionStatsMap, setQuestionStatsMap] = useState({});
-    const { colorMode } = useColorMode();
+    const { colorMode } = useColorMode(); // DOMPurify skin için gerekli olabilir
     const location = useLocation();
-    const toast = useToast(); // Bildirimler için (opsiyonel)
+    const toast = useToast();
 
     const urls = {
         questions: `${API_BASE_URL}/api/questions`,
@@ -75,9 +74,7 @@ function SolvePage() {
         stats:     `${API_BASE_URL}/api/stats/questions`
     };
 
-    // initializeQuiz, useEffect, selectOption, checkAnswer, goTo, prev, next, finish
-    // fonksiyonlarının iç mantığı büyük ölçüde aynı kalabilir.
-    // Sadece hata/başarı bildirimleri için toast kullanılabilir.
+    // --- Logic (Aynı kalır) ---
      const initializeQuiz = useCallback(async () => {
         setLoading(true); setError(''); setScore(0);
         setIsQuizFinished(false); setSelectedAnswer(''); setIsAnswerChecked(false);
@@ -103,12 +100,13 @@ function SolvePage() {
                 axios.get(urls.stats, config)
             ]);
 
-            const questionsData = qRes.data || [];
+            const questionsData = Array.isArray(qRes.data) ? qRes.data : []; // Gelen verinin dizi olduğundan emin ol
             if (questionsData.length) {
                 const finalQuestions = topicIdFilter ? questionsData : [...questionsData].sort(() => Math.random() - 0.5);
                 setAllQuestions(finalQuestions);
                 setCurrentQuestion(finalQuestions[0]);
-                setQuestionStatsMap(sRes.data || {});
+                // İstatistiklerin object olduğundan emin ol
+                setQuestionStatsMap(typeof sRes.data === 'object' && sRes.data !== null ? sRes.data : {});
                 setTimeElapsed(0);
             } else {
                 setError(topicIdFilter ? 'Bu konuya ait soru bulunamadı.' : 'Uygun soru bulunamadı.');
@@ -127,85 +125,59 @@ function SolvePage() {
 
     useEffect(() => {
         initializeQuiz();
-        return () => {
-            clearInterval(timerRef.current);
-             timerRef.current = null;
-        };
+        return () => { clearInterval(timerRef.current); timerRef.current = null; };
     }, [initializeQuiz]);
 
     useEffect(() => {
         if (!loading && allQuestions.length > 0 && !isQuizFinished) {
             if (!timerRef.current) {
-                timerRef.current = setInterval(() => {
-                    setTimeElapsed(t => t + 1);
-                }, 1000);
+                timerRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000);
             }
         } else {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
+            clearInterval(timerRef.current); timerRef.current = null;
         }
-         return () => {
-             clearInterval(timerRef.current);
-             timerRef.current = null;
-         };
+         return () => { clearInterval(timerRef.current); timerRef.current = null; };
     }, [loading, allQuestions, isQuizFinished]);
 
     const selectOption = useCallback((opt) => {
-        if (!isAnswerChecked) {
-            setSelectedAnswer(opt);
-        }
+        if (!isAnswerChecked) setSelectedAnswer(opt);
     }, [isAnswerChecked]);
 
     const checkAnswer = useCallback(async () => {
         if (!selectedAnswer || !currentQuestion) return;
         const correct = selectedAnswer === currentQuestion.correctAnswer;
-        setIsAnswerChecked(true);
-        setIsCorrect(correct);
+        setIsAnswerChecked(true); setIsCorrect(correct);
         if (correct) setScore(s => s + 1);
         if (token) {
             try {
-                 await axios.post(urls.attempts, {
-                     questionId: currentQuestion.id,
-                     selectedAnswer,
-                     isCorrect: correct
-                    }, { headers: { Authorization: `Bearer ${token}` } });
-             } catch (err) {
-                 console.error("Deneme kaydedilirken hata:", err);
-                 // Opsiyonel: Kullanıcıya toast ile bilgi verilebilir
-                 // toast({ title: "Hata", description: "Cevabınız kaydedilemedi.", status: "error", duration: 3000, isClosable: true });
-             }
+                 await axios.post(urls.attempts, { questionId: currentQuestion.id, selectedAnswer, isCorrect: correct }, { headers: { Authorization: `Bearer ${token}` } });
+             } catch (err) { console.error("Deneme kaydedilirken hata:", err); }
         }
-    }, [selectedAnswer, currentQuestion, token, urls.attempts, toast]); // toast eklendi (opsiyonel)
+    }, [selectedAnswer, currentQuestion, token, urls.attempts]);
 
     const goTo = useCallback((index) => {
         if (index < 0 || index >= allQuestions.length) return;
         setCurrentQuestion(allQuestions[index]);
         setCurrentQuestionIndex(index);
-        setSelectedAnswer('');
-        setIsAnswerChecked(false);
-        setIsCorrect(null);
-        setError(''); // Hataları temizle
+        setSelectedAnswer(''); setIsAnswerChecked(false); setIsCorrect(null); setError('');
     }, [allQuestions]);
 
     const prev = useCallback(() => goTo(currentQuestionIndex - 1), [goTo, currentQuestionIndex]);
     const next = useCallback(() => goTo(currentQuestionIndex + 1), [goTo, currentQuestionIndex]);
 
      const finish = useCallback(() => {
-        // Chakra UI'da confirm için Modal kullanılabilir, şimdilik window.confirm kalıyor
         if (window.confirm('Testi bitirmek istediğinizden emin misiniz?')) {
             setIsQuizFinished(true);
-            clearInterval(timerRef.current);
-            timerRef.current = null;
+            clearInterval(timerRef.current); timerRef.current = null;
         }
     }, []);
 
     const currentQStats = useMemo(() => questionStatsMap[currentQuestion?.id], [questionStatsMap, currentQuestion]);
     // --- Logic Sonu ---
 
-
-    // --- Render Başlangıcı ---
+    // --- Render Başlangıcı (Tema ile Uyumlu) ---
     if (loading) {
-        // Chakra UI Skeleton
+        // Skeleton tema stillerini kullanır
         return (
             <Container maxW="container.lg" py={8}>
                 <Skeleton height="50px" mb={6} borderRadius="md" />
@@ -219,20 +191,11 @@ function SolvePage() {
     }
 
     if (error && !currentQuestion) {
-        // Chakra UI Alert
+        // Alert ve Button tema stillerini kullanır
         return (
             <Container maxW="container.lg" mt={6}>
-                <Alert
-                    status="error"
-                    variant="subtle"
-                    flexDirection="column"
-                    alignItems="center"
-                    justifyContent="center"
-                    textAlign="center"
-                    py={10}
-                    borderRadius="lg"
-                >
-                    <AlertIcon boxSize="40px" mr={0} />
+                <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
+                    <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle}/>
                     <AlertTitle mt={4} mb={1} fontSize="xl">Hata!</AlertTitle>
                     <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription>
                     <Button colorScheme="red" variant="outline" onClick={initializeQuiz} leftIcon={<Icon as={FaRedo} />}>
@@ -247,12 +210,14 @@ function SolvePage() {
         const accuracy = allQuestions.length > 0 ? ((score / allQuestions.length) * 100).toFixed(0) : 0;
         const accuracyColorScheme = accuracy >= 80 ? 'green' : accuracy >= 50 ? 'yellow' : 'red';
 
-        // Chakra UI Quiz Bitiş Ekranı
+        // Bitiş ekranı tema stillerini kullanır (Card, Heading, List, Text, Button)
         return (
              <Container maxW="container.sm" centerContent py={10}>
+                 {/* Card varsayılan (elevated) veya outline stilini kullanır */}
                  <Card textAlign="center" p={8} variant="outline" w="full">
                      <CardBody>
                          <Heading as="h2" size="2xl" mb={4} color="accent">Test Tamamlandı!</Heading>
+                         {/* List ve ListItem varsayılan stilleri, Text semantic token'ları kullanır */}
                          <List spacing={3} my={6} py={5} borderTopWidth="1px" borderBottomWidth="1px" borderColor="borderSecondary" textAlign="left">
                             <ListItem display="flex" justifyContent="space-between">
                                 <Text as="span" color="textSecondary">Geçen Süre:</Text>
@@ -268,9 +233,11 @@ function SolvePage() {
                             </ListItem>
                          </List>
                         <Text fontSize="lg" fontWeight="semibold" mb={1}>Başarı Oranınız:</Text>
+                        {/* Text tema renklerini (dinamik) ve font boyutunu kullanır */}
                         <Text fontSize="5xl" fontWeight="bold" color={`${accuracyColorScheme}.500`} my={4}>
                             %{accuracy}
                         </Text>
+                        {/* Button tema stilini (solid, lg, brand) kullanır */}
                         <Button
                              colorScheme="brand"
                              size="lg"
@@ -287,11 +254,11 @@ function SolvePage() {
     }
 
     if (!currentQuestion) {
-         // Chakra UI Soru Yok Uyarısı
+        // Alert ve Button tema stillerini kullanır
          return (
              <Container maxW="container.lg" mt={6}>
-                 <Alert status="info" borderRadius="lg" py={6} flexDirection="column" alignItems="center" justifyContent="center" textAlign="center">
-                    <AlertIcon boxSize="30px" mr={0} />
+                 <Alert status="info" variant="subtle" borderRadius="lg" py={6} flexDirection="column" alignItems="center" justifyContent="center" textAlign="center">
+                    <AlertIcon boxSize="30px" mr={0} as={FaInfoCircle}/>
                     <AlertDescription mt={4} maxWidth="md">
                          Gösterilecek soru bulunamadı. Lütfen tekrar deneyin veya farklı bir konu seçin.
                     </AlertDescription>
@@ -303,20 +270,20 @@ function SolvePage() {
         );
     }
 
-    // --- Ana Soru Çözme Arayüzü (Chakra UI ile) ---
+    // --- Ana Soru Çözme Arayüzü ---
     return (
         <Container maxW="container.lg" py={6}>
-            {/* Başlık ve İstatistikler Alanı */}
+            {/* Başlık ve İstatistikler Alanı - Tema stillerini kullanır */}
             <Flex
                 wrap="wrap"
                 justify="space-between"
                 align="center"
                 gap={4}
                 p={4}
-                bg="bgSecondary"
-                borderRadius="md"
+                bg="bgSecondary" // Semantic Token
+                borderRadius="md" // Temadan radii.md
                 borderWidth="1px"
-                borderColor="borderPrimary"
+                borderColor="borderPrimary" // Semantic Token
                 mb={6}
                 fontSize="sm"
             >
@@ -324,18 +291,19 @@ function SolvePage() {
                 <HStack spacing={4} wrap="wrap">
                     <HStack>
                         <Icon as={FiCheckCircle} color="green.500" />
-                        <Text>Doğru: <Text as="span" fontWeight="bold" color="textPrimary">{score}</Text></Text>
+                        <Text>Doğru: <Text as="span" fontWeight="bold" color="textPrimary">{score}</Text></Text> {/* Semantic Token */}
                     </HStack>
                     <HStack>
-                        <Icon as={FiClock} color="textMuted" />
-                        <Text>Süre: <Text as="span" fontWeight="bold" color="textPrimary">{formatTime(timeElapsed)}</Text></Text>
+                        <Icon as={FiClock} color="textMuted" /> {/* Semantic Token */}
+                        <Text>Süre: <Text as="span" fontWeight="bold" color="textPrimary">{formatTime(timeElapsed)}</Text></Text> {/* Semantic Token */}
                     </HStack>
                 </HStack>
             </Flex>
 
-            {/* Soru Kartı */}
-            <Card variant="outline" my={6} bg="bgPrimary" /* Dinamik BG kaldırıldı, tema veya Tag ile yönetilebilir */>
+            {/* Soru Kartı - Tema stillerini kullanır */}
+            <Card variant="outline" my={6} bg="bgPrimary"> {/* Semantic Token */}
                 <CardBody>
+                    {/* Tag tema stilini (subtle, sm) ve renk şemalarını kullanır */}
                     <HStack spacing={4} wrap="wrap" fontSize="xs" color="textMuted" mb={4}>
                         <Tag size="sm" variant='subtle'>Konu: {currentQuestion.topic?.name || '-'}</Tag>
                         <Tag size="sm" variant='subtle' colorScheme={!currentQStats ? 'gray' : currentQStats.accuracy >= 75 ? 'green' : currentQStats.accuracy >= 50 ? 'yellow' : 'red'}>
@@ -343,37 +311,41 @@ function SolvePage() {
                         </Tag>
                          <Tag size="sm" variant='subtle'>Sınıf: {currentQuestion.classification || '-'}</Tag>
                     </HStack>
+                    {/* Divider varsayılan stilini kullanır */}
                     <Divider my={4} />
                     {currentQuestion.imageUrl && (
                         <Center mb={4}>
+                            {/* Image tema stilini (radii.md) kullanır */}
                             <Image
-                                className="question-image" // İsteğe bağlı ek sınıf
+                                className="question-image"
                                 src={currentQuestion.imageUrl}
                                 alt={`Soru ${currentQuestionIndex + 1} için görsel`}
                                 borderRadius="md"
                                 maxW="100%"
-                                htmlWidth="auto" // Tarayıcının boyutlandırmasına izin ver
+                                htmlWidth="auto"
                                 htmlHeight="auto"
                                 loading="lazy"
                             />
                         </Center>
                     )}
-                    {/* dangerouslySetInnerHTML güvenli kullanıldı */}
+                    {/* dangerouslySetInnerHTML içindeki HTML için prose stilleri */}
                     <Box
-                         className="question-text" // Prose stilleri için belki Tailwind Prose eklentisi veya Chakra'da manuel stil
+                         className="question-text"
                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentQuestion.text) }}
-                         sx={{ // Temel prose benzeri stiller (opsiyonel, Chakra temasına taşınabilir)
-                            'h1, h2, h3, h4, h5, h6': { my: 4 },
-                            'p': { mb: 4, lineHeight: 'base' },
-                            'ul, ol': { pl: 6, mb: 4 },
+                         sx={{
+                            // Link stilleri kaldırıldı, global link stili kullanılacak
+                            'h1, h2, h3, h4, h5, h6': { my: 4, fontWeight:'semibold', lineHeight:'tight' }, // Tema tipografisini kullanabilir
+                            'p': { mb: 4, lineHeight: 'base' }, // Tema tipografisini kullanır
+                            'ul, ol': { pl: 6, mb: 4 }, // Liste stilleri
                             'li': { mb: 2 },
-                            'img': { my: 4, borderRadius: 'md', maxW: '100%', height: 'auto' }
+                            'img': { my: 4, borderRadius: 'md', maxW: '100%', height: 'auto' }, // Resim stilleri
+                            // 'a' stili kaldırıldı
                          }}
                     />
                 </CardBody>
             </Card>
 
-            {/* Cevap Seçenekleri */}
+            {/* Cevap Seçenekleri - Butonlar tema stillerini kullanır */}
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={6}>
                 {['A', 'B', 'C', 'D', 'E'].map(opt => {
                     const optionText = currentQuestion[`option${opt}`];
@@ -383,31 +355,19 @@ function SolvePage() {
                     const isCorrectAnswer = opt === currentQuestion.correctAnswer;
                     const isIncorrectSelected = isSelected && !isCorrectAnswer;
 
-                    let variant = 'outline'; // Varsayılan
-                    let colorScheme = 'gray'; // Varsayılan
+                    let variant = 'outline';
+                    let colorScheme = 'gray';
                     let leftIcon = undefined;
                     let sx = {};
 
                     if (isAnswerChecked) {
-                         if (isCorrectAnswer) {
-                             variant = 'solid'; // Doğruyu vurgula
-                             colorScheme = 'green';
-                             leftIcon = <Icon as={FiCheckCircle} />;
-                         } else if (isIncorrectSelected) {
-                             variant = 'solid'; // Yanlış seçileni vurgula
-                             colorScheme = 'red';
-                             leftIcon = <Icon as={FiXCircle} />;
-                         } else {
-                             // Diğer şıklar soluk
-                             variant = 'outline';
-                             sx = { opacity: 0.6 };
-                         }
-                    } else if (isSelected) {
-                         variant = 'solid'; // Seçili ama kontrol edilmemiş
-                         colorScheme = 'yellow'; // Dikkat çek
-                    }
+                         if (isCorrectAnswer) { variant = 'solid'; colorScheme = 'green'; leftIcon = <Icon as={FiCheckCircle} />; }
+                         else if (isIncorrectSelected) { variant = 'solid'; colorScheme = 'red'; leftIcon = <Icon as={FiXCircle} />; }
+                         else { variant = 'outline'; sx = { opacity: 0.6 }; }
+                    } else if (isSelected) { variant = 'solid'; colorScheme = 'yellow'; }
 
                     return (
+                        // Button ve Text tema stillerini kullanır
                         <Button
                             key={opt}
                             variant={variant}
@@ -415,33 +375,33 @@ function SolvePage() {
                             onClick={() => selectOption(opt)}
                             isDisabled={isAnswerChecked}
                             aria-pressed={isSelected}
-                            w="100%" // Tam genişlik
-                            h="auto" // İçeriğe göre yükseklik
-                            py={3}   // Dikey padding
-                            px={4}   // Yatay padding
-                            justifyContent="flex-start" // İçeriği sola yasla
+                            w="100%"
+                            h="auto"
+                            py={3}
+                            px={4}
+                            justifyContent="flex-start"
                             textAlign="left"
-                            sx={sx} // Opacity gibi ek stiller için
-                            leftIcon={leftIcon} // Doğru/Yanlış ikonu
+                            sx={sx}
+                            leftIcon={leftIcon}
                         >
                             <Text as="span" fontWeight="bold" mr={2}>{opt})</Text>
-                            <Text as="span" whiteSpace="normal">{optionText}</Text> {/* Uzun metinlerin kayması için */}
+                            <Text as="span" whiteSpace="normal">{optionText}</Text>
                         </Button>
                     );
                 })}
             </SimpleGrid>
 
-            {/* Kontrol Düğmeleri */}
+            {/* Kontrol Düğmeleri - Flex, Box, Button, IconButton tema stillerini kullanır */}
             <Flex
                 justify="space-between"
                 align="center"
                 wrap="wrap"
                 gap={3}
                 p={5}
-                bg="bgSecondary"
-                borderRadius="md"
+                bg="bgSecondary" // Semantic Token
+                borderRadius="md" // Temadan radii.md
                 borderWidth="1px"
-                borderColor="borderPrimary"
+                borderColor="borderPrimary" // Semantic Token
                 mt={6}
             >
                 <IconButton
@@ -450,13 +410,13 @@ function SolvePage() {
                     isDisabled={currentQuestionIndex === 0}
                     aria-label="Önceki Soru"
                     title="Önceki Soru"
-                    variant="ghost"
+                    variant="ghost" // Tema stilini kullanır
                 />
 
                 <Box flex="1" textAlign="center">
                     {!isAnswerChecked ? (
                         <Button
-                            colorScheme="brand"
+                            colorScheme="brand" // Tema stilini kullanır
                             onClick={checkAnswer}
                             isDisabled={!selectedAnswer}
                             aria-label="Cevabı Kontrol Et"
@@ -478,16 +438,14 @@ function SolvePage() {
                         onClick={next}
                         aria-label="Sonraki Soru"
                         title="Sonraki Soru"
-                        variant="ghost"
-                        // Cevap kontrol edilmese bile sonraki soruya geçilebilir
-                        // isDisabled={!isAnswerChecked}
+                        variant="ghost" // Tema stilini kullanır
                     />
                 ) : (
                     <IconButton
                         icon={<Icon as={FaFlagCheckered} />}
-                        colorScheme="green"
+                        colorScheme="green" // Tema stilini kullanır
                         onClick={finish}
-                        isDisabled={!isAnswerChecked} // Testi bitirmek için son sorunun cevaplanması gerekir
+                        isDisabled={!isAnswerChecked}
                         aria-label="Testi Bitir"
                         title="Testi Bitir"
                     />

@@ -1,66 +1,87 @@
-/* index.css (Chakra UI ile Kullanım İçin Temizlenmiş Hali) */
-
-/*
-  @tailwind direktifleri kaldırıldı.
-  :root ve body.dark-mode içindeki özel değişken tanımlamaları kaldırıldı
-  (Bunlar Chakra temasına taşınmalı).
-  Özel bileşen sınıfları (.btn, .card, .form-input vb.) kaldırıldı
-  (Bunlar Chakra bileşenleri ve stil props ile değiştirilmeli).
-  Utility sınıfları (.m-4, .d-flex vb.) kaldırıldı
-  (Bunlar Chakra stil props ile değiştirilmeli).
-*/
+/* index.css (Chakra UI Teması ile Kullanım İçin Optimize Edilmiş) */
 
 html {
-  line-height: 1.5; /* Chakra varsayılanına yakın */
+  /* line-height: 1.5; */ /* Chakra temasındaki styles.global.body'den gelir */
   -webkit-text-size-adjust: 100%;
   -moz-tab-size: 4;
   tab-size: 4;
-  font-family: system-ui, sans-serif; /* Chakra varsayılanı veya temanızdaki font */
-  scroll-behavior: smooth;
-  height: 100%;
-  -webkit-font-smoothing: antialiased;
+  /* font-family: system-ui, sans-serif; */ /* Chakra temasındaki styles.global.body'den gelir */
+  scroll-behavior: smooth; /* Sayfa içi linklerde yumuşak kaydırma */
+  height: 100%; /* HTML'in tam yüksekliği kaplaması bazı layout'lar için önemlidir */
+  -webkit-font-smoothing: antialiased; /* Fontları daha pürüzsüz gösterir */
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  min-height: 100%;
-  font-family: inherit; /* html'den alır */
-  color: inherit; /* Chakra temasından gelecek */
-  background-color: inherit; /* Chakra temasından gelecek */
-  transition: background-color 250ms ease, color 250ms ease; /* Temel geçiş */
-}
+/*
+  Body stilleri (font, renk, arkaplan, geçişler) tamamen Chakra temasındaki
+  styles.global objesi tarafından yönetilmelidir. Bu nedenle buradaki body kuralı kaldırıldı.
+*/
+/* body { ... } */
 
 /*
-  Gerekliyse global ::selection, scrollbar stilleri burada kalabilir,
-  ancak Chakra tema objesi içinde de tanımlanabilirler (daha merkezi yönetim için).
+  ::selection ve ::-webkit-scrollbar stilleri theme/styles.js içinde tanımlandı.
+  Tutarlılık ve merkezi yönetim için orada kalmaları daha iyidir.
+  Eğer orada tanımlıysa, buradakiler kaldırılabilir veya yoruma alınabilir.
 */
+/*
 ::selection {
-  /* background-color: var(--chakra-colors-brand-500); */ /* Chakra tema rengi kullanılır */
-  /* color: white; */
+  background-color: var(--chakra-colors-brand-200);
+  color: var(--chakra-colors-brand-900);
 }
 
-/* Temel başlık/paragraf stilleri genellikle Chakra tarafından yönetilir. */
-/* Özel global stilleriniz varsa burada bırakabilirsiniz. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--chakra-colors-gray-100);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--chakra-colors-brand-400);
+  border-radius: 10px;
+  border: 2px solid var(--chakra-colors-gray-100);
+}
+::-webkit-scrollbar-thumb:hover {
+   background: var(--chakra-colors-brand-500);
+}
+*/
 
-/* Odak halkası genellikle Chakra tarafından yönetilir. */
-/* *:focus-visible { ... } */
+/*
+  Temel başlık/paragraf stilleri, odak halkası, sr-only sınıfı gibi
+  diğer genel stiller Chakra UI ve teması tarafından yönetilir.
+*/
 
-/* Sr-only sınıfı Chakra'da genellikle VisuallyHidden bileşeni ile sağlanır. */
-/* .sr-only { ... } */
-
-/* Print stilleri projenizin ihtiyacına göre kalabilir veya kaldırılabilir. */
+/*
+  Print stilleri projenizin özel ihtiyaçlarına göre burada kalabilir.
+  Chakra teması print stillerini doğrudan yönetmez.
+*/
 @media print {
   body {
     background-color: #fff !important;
     color: #000 !important;
     font-size: 10pt;
   }
-  .no-print { display: none !important; }
-  a { text-decoration: underline; color: #000 !important; }
-  /* Diğer print stilleri... */
+  /* Yazdırılmayacak elemanları gizle (örn: header, sidebar, butonlar) */
+  .no-print, header, nav, aside, button, [aria-hidden="true"] {
+     display: none !important;
+  }
+  /* Linkleri belirginleştir */
+  a {
+    text-decoration: underline;
+    color: #000 !important;
+  }
+  /* Sayfa sonlarını kontrol et */
+  h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
+  p, blockquote, pre, table, figure { page-break-inside: avoid; }
+  /* Diğer özel print stilleri... */
 }
 
-/* Wordle veya diğer spesifik, bileşen bazlı olmayan global stiller burada kalabilir,
-   ancak idealde ilgili bileşenin stiline dahil edilir. */
-/* .word-display { ... } */
-/* .word-letter-box { ... } */
+/*
+  Wordle gibi spesifik, bileşen bazlı olmayan global stilleriniz varsa
+  ve bunları tema objesine dahil etmek istemiyorsanız burada kalabilirler.
+  Ancak ideal olan, bu tür stilleri ilgili bileşenlerin stiline
+  veya tema içindeki bileşen stillerine taşımaktır.
+*/
+/* Örnek: */
+/* .wordle-grid-cell { ... } */
