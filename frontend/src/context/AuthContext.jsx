@@ -1,11 +1,17 @@
 // src/context/AuthContext.jsx
-console.log(">>> API BASE:", import.meta.env.VITE_API_BASE_URL);
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+// jwt-decode kütüphanesini import et
+import { jwtDecode } from "jwt-decode"; // Named import olarak kullan
+
+// Axios instance (baseURL'i kontrol et, VITE_API_BASE_URL yerine VITE_API_URL kullanılmış olabilir)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+console.log(">>> API BASE:", API_BASE_URL); // Kontrol logu
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL
+  baseURL: API_BASE_URL
 });
+
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -14,67 +20,82 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('rmikro_token') || null);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('rmikro_token'));
-  const [loading, setLoading] = useState(false);
+  // Başlangıçta localStorage'dan token'ı al
+  const [token, setToken] = useState(() => localStorage.getItem('rmikro_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(!!token); // Başlangıç durumunu token varlığına göre ayarla
+  const [loading, setLoading] = useState(false); // Auth işlemleri için yükleme durumu
+  const [authLoading, setAuthLoading] = useState(true); // Başlangıç token kontrolü için yükleme durumu
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Logout fonksiyonunu useCallback ile tanımla, useEffect içinde kullanılacak
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('rmikro_token');
+    delete axios.defaults.headers.common['Authorization'];
+    // Login sayfasına yönlendirirken replace: true kullanmak daha iyi olabilir
+    navigate('/login', { replace: true });
+  }, [navigate]); // navigate bağımlılığını ekle
 
+  // Token değiştiğinde veya component ilk yüklendiğinde çalışacak useEffect
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('rmikro_token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setIsAuthenticated(true);
+    const currentToken = localStorage.getItem('rmikro_token'); // Her zaman localStorage'ı kontrol et
+    setAuthLoading(true); // Kontrol başlarken yüklemeyi başlat
+
+    if (currentToken) {
       try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const decodedUser = JSON.parse(jsonPayload);
-        setUser({
-            id: decodedUser.id,
-            username: decodedUser.username,
-            role: decodedUser.role,
-            specialization: decodedUser.specialization
-        });
+        const decoded = jwtDecode(currentToken); // jwtDecode kullan
+        const now = Date.now() / 1000; // Şu anki zaman (saniye cinsinden)
+
+        // Token süresi dolmuş mu kontrol et
+        if (decoded.exp < now) {
+          console.log("AuthContext: Token expired.");
+          logout(); // Süresi dolmuşsa çıkış yap
+        } else {
+          // Token geçerli ve süresi dolmamış
+          if (!token || token !== currentToken) {
+              setToken(currentToken); // State'i güncelle (eğer farklıysa)
+          }
+          axios.defaults.headers.common['Authorization'] = `Bearer ${currentToken}`;
+          setIsAuthenticated(true);
+          // Kullanıcı bilgilerini state'e set et
+          setUser({
+            id: decoded.id,
+            username: decoded.username,
+            role: decoded.role,
+            specialization: decoded.specialization
+          });
+        }
       } catch (e) {
-        console.error("AuthContext: Error decoding token for user state:", e);
-        setToken(null);
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('rmikro_token');
-        delete axios.defaults.headers.common['Authorization'];
+        // Token decode edilemiyorsa (bozuksa)
+        console.error("AuthContext: Invalid token.", e);
+        logout(); // Çıkış yap
       }
     } else {
-      localStorage.removeItem('rmikro_token');
-      delete axios.defaults.headers.common['Authorization'];
-      setIsAuthenticated(false);
-      setUser(null);
+      // Token yoksa state'leri temizle (logout fonksiyonu bunu zaten yapıyor ama burada da olabilir)
+       if (token) setToken(null); // State'de token varsa temizle
+       if (user) setUser(null);
+       if (isAuthenticated) setIsAuthenticated(false);
+       delete axios.defaults.headers.common['Authorization'];
     }
-  }, [token]);
+    setAuthLoading(false); // Kontrol bittiğinde yüklemeyi bitir
+  }, [token, logout]); // token ve logout bağımlılıkları
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('rmikro_token');
-    if (storedToken && !token) {
-       setToken(storedToken);
-    }
-  }, []);
-
-
+  // Login fonksiyonu
   const login = async (username, password) => {
     setError(null);
+    setLoading(true); // API isteği için yükleme durumu
     const startTime = Date.now();
-    setLoading(true);
-
-    const MIN_LOADING_TIME = 500; // Minimum 500ms yükleme süresi
+    const MIN_LOADING_TIME = 500;
 
     try {
       const response = await API.post('/api/auth/login', { username, password });
       if (response.data.token) {
-        setToken(response.data.token);
-        navigate('/browse');
+        localStorage.setItem('rmikro_token', response.data.token); // Önce localStorage'a yaz
+        setToken(response.data.token); // Sonra state'i güncelle (bu useEffect'i tetikleyecek)
+        // navigate('/browse'); // Yönlendirme useEffect içinde token set edilince yapılabilir
       } else {
         throw new Error("Sunucudan geçersiz yanıt alındı.");
       }
@@ -85,23 +106,23 @@ export const AuthProvider = ({ children }) => {
     } finally {
       const elapsedTime = Date.now() - startTime;
       const remainingTime = MIN_LOADING_TIME - elapsedTime;
-
-      if (remainingTime > 0) {
-        setTimeout(() => {
-          setLoading(false);
-        }, remainingTime);
-      } else {
+      setTimeout(() => {
         setLoading(false);
-      }
+      }, remainingTime > 0 ? remainingTime : 0);
     }
   };
 
+  // Register fonksiyonu
   const register = async (username, password, specialization) => {
-    setLoading(true);
+    setLoading(true); // API isteği için yükleme durumu
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}/register`, { username, password, specialization });
+      // API_URL yerine API_BASE_URL kullanılmalı ve axios instance (API) kullanılmalı
+      await API.post('/api/auth/register', { username, password, specialization });
+      // Kayıt başarılıysa login sayfasına yönlendirip bilgi mesajı gösterilebilir
       navigate('/login');
+      // Başarı mesajı için toast kullanılabilir
+      // toast({ title: "Kayıt Başarılı", description: "Şimdi giriş yapabilirsiniz.", status: "success" });
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Kayıt sırasında bir hata oluştu.';
       setError(errorMsg);
@@ -111,26 +132,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('rmikro_token');
-    delete axios.defaults.headers.common['Authorization'];
-    navigate('/login');
-  };
-
+  // Context değeri
   const value = {
     user,
     token,
     isAuthenticated,
-    loading,
+    loading, // API işlemleri için yükleme durumu
+    authLoading, // Başlangıç kontrolü için yükleme durumu
     error,
     login,
     register,
     logout,
     setError
   };
+
+  // Başlangıç yüklemesi bitene kadar içeriği gösterme (opsiyonel)
+  // if (authLoading) {
+  //    return <Center h="100vh"><Spinner size="xl" color="brand.500" /></Center>;
+  // }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
