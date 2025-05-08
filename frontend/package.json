@@ -14,7 +14,6 @@
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@stitches/react": "^1.2.8",
-    "@tinymce/tinymce-react": "^6.1.0",
     "axios": "^1.8.4",
     "dompurify": "^3.2.5",
     "framer-motion": "^10.12.16",
