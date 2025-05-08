@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-  "start": "npx sequelize-cli db:migrate && node src/server.js", // Önce migrate, sonra başlat
+  "start": "npx sequelize-cli db:migrate && node src/server.js",
   "dev": "nodemon src/server.js"
   },
   "keywords": [],
