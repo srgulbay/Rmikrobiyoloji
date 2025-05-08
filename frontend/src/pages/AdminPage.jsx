@@ -21,9 +21,8 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const specializations = [
-    "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
+    "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer Uzmanlıklar"
 ];
-
 
 function AdminStatsOverview({ token }) {
     const [overviewStats, setOverviewStats] = useState(null);
