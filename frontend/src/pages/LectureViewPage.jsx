@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DOMPurify from 'dompurify';
@@ -6,9 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Box,
   Container,
-  // Flex kaldırıldı, kullanılmıyor
   Button,
-  // Link as ChakraLink kaldırıldı, kullanılmıyor
   Heading,
   Text,
   Spinner,
@@ -24,7 +22,6 @@ import {
   CardBody,
   VStack,
   Center,
-  // useColorModeValue kaldırıldı, gerek yok gibi
 } from '@chakra-ui/react';
 import { FaArrowLeft, FaExclamationTriangle, FaInfoCircle, FaRedo } from 'react-icons/fa';
 
@@ -39,20 +36,22 @@ function LectureViewPage() {
     const { token } = useAuth();
     const navigate = useNavigate();
 
+    // --- Süre Takibi için Ref'ler ---
+    const startTimeRef = useRef(null); // Sayfa görünür olduğunda başlangıç zamanı
+    const accumulatedTimeRef = useRef(0); // Toplam görünür kalma süresi (ms)
+
     const backendLectureUrl = `${API_BASE_URL}/api/lectures`;
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
+    const backendLectureViewUrl = `${API_BASE_URL}/api/lecture-views`; // Yeni endpoint
 
-    // fetchData useCallback (API yanıtı kontrolü güçlendirildi)
     const fetchData = useCallback(async () => {
         setLoading(true); setError('');
         setLectures([]); setTopicName('');
+        accumulatedTimeRef.current = 0; // Veri yeniden çekildiğinde süreyi sıfırla
+        startTimeRef.current = null;
 
-        if (!token) {
-            setError("İçeriği görmek için giriş yapmalısınız."); setLoading(false); return;
-        }
-        if (!topicId) {
-            setError("Geçerli bir konu ID'si bulunamadı."); setLoading(false); return;
-        }
+        if (!token) { setError("İçeriği görmek için giriş yapmalısınız."); setLoading(false); return; }
+        if (!topicId) { setError("Geçerli bir konu ID'si bulunamadı."); setLoading(false); return; }
 
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -63,22 +62,15 @@ function LectureViewPage() {
                 axios.get(lectureApiUrl, config),
                 axios.get(topicApiUrl, config)
             ]);
-            // Gelen ders verisinin dizi olduğundan emin ol
-            setLectures(Array.isArray(lecturesRes.data) ? lecturesRes.data : []);
-            // Konu adı için fallback
+            const fetchedLectures = Array.isArray(lecturesRes.data) ? lecturesRes.data : [];
+            setLectures(fetchedLectures);
             setTopicName(topicRes.data?.name || `Konu ID: ${topicId}`);
-
-            // Konsol logunu kaldırabiliriz veya koşullu yapabiliriz
-            // if (!lecturesRes.data || lecturesRes.data.length === 0) {
-            //     console.log("Bu konu ve alt konuları için konu anlatımı bulunamadı.");
-            // }
-
         } catch (err) {
             console.error("Konu anlatımı veya konu bilgisi çekilirken hata:", err);
             const errorMsg = err.response?.data?.message || 'İçerik yüklenirken bir hata oluştu.';
             setError(errorMsg);
             setTopicName(`Konu ID: ${topicId}`);
-            setLectures([]); // Hata durumunda dersleri temizle
+            setLectures([]);
         } finally {
             setLoading(false);
         }
@@ -88,10 +80,76 @@ function LectureViewPage() {
         fetchData();
     }, [fetchData]);
 
-    // --- Render Bölümü (Tema ile Uyumlu) ---
+    // Süre gönderme fonksiyonu
+    const sendDurationData = useCallback(async (totalDurationMs) => {
+        const durationInSeconds = Math.round(totalDurationMs / 1000);
+        // Sadece anlamlı bir süre varsa gönder (örn: 3 saniyeden fazla)
+        if (!token || lectures.length === 0 || !lectures[0]?.id || durationInSeconds < 3) {
+            console.log("Duration not sent (insufficient time or data). Duration:", durationInSeconds, "Lecture ID:", lectures[0]?.id);
+            return;
+        }
+
+        const lectureIdToSend = lectures[0].id; // Şimdilik ilk dersin ID'sini gönderiyoruz
+
+        try {
+            console.log(`Sending lecture view duration: lectureId=${lectureIdToSend}, duration=${durationInSeconds}s`);
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            await axios.post(backendLectureViewUrl, {
+                lectureId: lectureIdToSend,
+                duration: durationInSeconds
+            }, config);
+        } catch (error) {
+            console.error('Ders görüntüleme süresi gönderilirken hata:', error);
+        }
+    }, [token, lectures, backendLectureViewUrl]); // lectures bağımlılığı eklendi
+
+    // Görünürlük ve Süre Takibi useEffect'i
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                // Sayfa gizlendi, geçen süreyi hesapla ve biriktir
+                if (startTimeRef.current) {
+                    const elapsed = Date.now() - startTimeRef.current;
+                    accumulatedTimeRef.current += elapsed;
+                    startTimeRef.current = null; // Başlangıç zamanını sıfırla
+                    console.log(`Page hidden. Accumulated time: ${Math.round(accumulatedTimeRef.current / 1000)}s`);
+                }
+            } else {
+                // Sayfa görünür oldu, başlangıç zamanını ayarla
+                startTimeRef.current = Date.now();
+                 console.log("Page visible. Timer started.");
+            }
+        };
+
+        // Sayfa yüklendiğinde görünürse zamanlayıcıyı başlat
+        if (!document.hidden) {
+            startTimeRef.current = Date.now();
+             console.log("Initial page visible. Timer started.");
+        }
+
+        // Listener'ları ekle
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Component unmount olduğunda çalışacak cleanup fonksiyonu
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            // Unmount anında sayfa görünür durumdaysa son geçen süreyi de ekle
+            if (startTimeRef.current) {
+                const elapsed = Date.now() - startTimeRef.current;
+                accumulatedTimeRef.current += elapsed;
+                console.log(`Page unmounting while visible. Final accumulated time: ${Math.round(accumulatedTimeRef.current / 1000)}s`);
+            } else {
+                 console.log(`Page unmounting while hidden. Final accumulated time: ${Math.round(accumulatedTimeRef.current / 1000)}s`);
+            }
+            // Toplam süreyi backend'e gönder
+            sendDurationData(accumulatedTimeRef.current);
+            // Ref'leri temizle (teknik olarak gerekli değil ama iyi pratik)
+            startTimeRef.current = null;
+            accumulatedTimeRef.current = 0;
+        };
+    }, [sendDurationData]); // sendDurationData bağımlılığı eklendi
 
     if (loading) {
-        // Skeleton tema stillerini kullanır
         return (
              <Container maxW="container.lg" py={8}>
                  <Skeleton height="20px" width="150px" mb={4} />
@@ -105,19 +163,9 @@ function LectureViewPage() {
     }
 
     if (error) {
-        // Alert ve Button tema stillerini kullanır
         return (
             <Container maxW="container.lg" mt={6}>
-                 <Alert
-                    status="error"
-                    variant="subtle" // Temadaki alert varyantı
-                    flexDirection="column"
-                    alignItems="center"
-                    justifyContent="center"
-                    textAlign="center"
-                    py={10}
-                    borderRadius="lg" // Temadaki radii.lg
-                 >
+                 <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="lg">
                     <AlertIcon boxSize="40px" mr={0} as={FaExclamationTriangle} />
                     <AlertTitle mt={4} mb={1} fontSize="xl">Bir Hata Oluştu</AlertTitle>
                     <AlertDescription maxWidth="sm" mb={5}>{error}</AlertDescription>
@@ -129,30 +177,17 @@ function LectureViewPage() {
         );
     }
 
-    // Ana İçerik
     return (
         <Container maxW="container.lg" py={8}>
-             {/* Geri Dön Butonu - Tema stillerini (link, gray) kullanır */}
-            <Button
-                as={RouterLink}
-                to="/browse"
-                variant="link"
-                colorScheme="gray" // Daha nötr bir renk veya 'brand' olabilir
-                leftIcon={<Icon as={FaArrowLeft} />}
-                mb={6}
-                alignSelf="flex-start"
-            >
+            <Button as={RouterLink} to="/browse" variant="link" colorScheme="gray" leftIcon={<Icon as={FaArrowLeft} />} mb={6} alignSelf="flex-start">
                 Konulara Geri Dön
             </Button>
 
-             {/* Başlık - Tema stilini kullanır */}
             <Heading as="h1" size="xl" mb={8}>
                  {topicName} - Konu Anlatımları
             </Heading>
 
-            {/* Ders Listesi */}
             <VStack spacing={6} align="stretch" className="lecture-list">
-                 {/* Ders Yoksa Mesaj - Alert tema stilini kullanır */}
                 {!loading && lectures.length === 0 && !error && (
                     <Alert status="info" variant="subtle" borderRadius="lg" py={6} justifyContent="center">
                         <AlertIcon as={FaInfoCircle} />
@@ -162,19 +197,12 @@ function LectureViewPage() {
                     </Alert>
                 )}
 
-                {/* Dersleri Listeleme */}
                 {lectures.map((lecture) => (
-                     // Card tema stilini (outline, lg) kullanır
                     <Card key={lecture.id} variant="outline" size="lg">
-                         {/* CardBody tema padding'ini (size=lg) kullanır */}
                         <CardBody p={{base: 4, md: 6}}>
-                             {/* Heading tema stilini (lg) kullanır */}
                             <Heading as="h2" size="lg" mb={4}>{lecture.title}</Heading>
-
-                            {/* Görsel */}
                             {lecture.imageUrl && (
                                 <Center my={5}>
-                                     {/* Image tema stilini (radii.md, shadows.sm) kullanır */}
                                     <Image
                                         src={lecture.imageUrl}
                                         alt={`${lecture.title} için görsel`}
@@ -186,61 +214,18 @@ function LectureViewPage() {
                                     />
                                  </Center>
                             )}
-
-                            {/* İçerik Alanı - HTML için sx ile özel stil */}
                             <Box
                                 className="lecture-html-content"
                                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lecture.content) }}
                                 sx={{
-                                    // Başlıklar için tema font ailesi ve ağırlığı
-                                    'h1, h2, h3, h4, h5, h6': {
-                                        fontFamily: 'heading', // Temadan
-                                        fontWeight:'semibold', // Temadan
-                                        lineHeight:'tight', // Temadan
-                                        my: 4, // Temadan space.4
-                                    },
-                                    // Paragraflar için tema satır yüksekliği ve boşluk
-                                    'p': {
-                                        mb: 4, // Temadan space.4
-                                        lineHeight: 'tall', // Temadan lineHeights.tall
-                                    },
-                                    // Listeler için tema boşlukları
+                                    'h1, h2, h3, h4, h5, h6': { fontFamily: 'heading', fontWeight:'semibold', lineHeight:'tight', my: 4, },
+                                    'p': { mb: 4, lineHeight: 'tall', },
                                     'ul, ol': { pl: 6, mb: 4 },
                                     'li': { mb: 2 },
-                                    // Resimler için tema yuvarlaklığı ve boşluk
-                                    'img': {
-                                        my: 4,
-                                        borderRadius: 'md', // Temadan radii.md
-                                        maxW: '100%',
-                                        height: 'auto',
-                                        display:'block',
-                                        mx:'auto'
-                                    },
-                                    // Linkler için özel renk (içerik linkleri farklı olabilir)
-                                    'a': {
-                                        color: 'brand.500', // Tema rengi veya 'blue.500'
-                                        textDecoration: 'underline',
-                                        _hover: { color: 'brand.600' }, // Tema rengi
-                                    },
-                                    // Kod blokları için tema fontları ve renkleri (semantic tokens)
-                                    'code': {
-                                        fontFamily:'mono', // Temadan
-                                        bg:'bgTertiary', // Semantic Token
-                                        px:1, py:'1px', // Temadan space.1
-                                        rounded:'sm', // Temadan radii.sm
-                                        fontSize:'sm', // Temadan fontSizes.sm
-                                    },
-                                    'pre': {
-                                        fontFamily:'mono', // Temadan
-                                        bg:'bgSecondary', // Semantic Token
-                                        p:4, // Temadan space.4
-                                        rounded:'md', // Temadan radii.md
-                                        overflowX:'auto',
-                                        fontSize:'sm', // Temadan fontSizes.sm
-                                        borderWidth:'1px',
-                                        borderColor:'borderSecondary', // Semantic Token
-                                        my:5, // Temadan space.5
-                                    }
+                                    'img': { my: 4, borderRadius: 'md', maxW: '100%', height: 'auto', display:'block', mx:'auto' },
+                                    'a': { color: 'brand.500', textDecoration: 'underline', _hover: { color: 'brand.600'} },
+                                    'code': { fontFamily:'mono', bg:'bgTertiary', px:1, py:'1px', rounded:'sm', fontSize:'sm'},
+                                    'pre': { fontFamily:'mono', bg:'bgSecondary', p:4, rounded:'md', overflowX:'auto', fontSize:'sm', borderWidth:'1px', borderColor:'borderSecondary', my:5}
                                 }}
                             />
                         </CardBody>

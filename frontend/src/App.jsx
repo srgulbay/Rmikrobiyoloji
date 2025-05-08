@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage';
 import AdminPage from './pages/AdminPage';
 import SolvePage from './pages/SolvePage';
 import MyStatsPage from './pages/MyStatsPage';
+import DashboardPage from './pages/DashboardPage'; // Yeni satır
 import LectureViewPage from './pages/LectureViewPage';
 import WordPracticePage from './pages/WordPracticePage';
 
@@ -93,6 +94,10 @@ function App() {
                path="/wordle-game"
                element={ <ProtectedRoute> <WordPracticePage /> </ProtectedRoute> }
              />
+              <Route
+                path="/dashboard" // veya "/dashboard" gibi yeni bir yol da tanımlayabilirsiniz
+                element={ <ProtectedRoute> <DashboardPage /> </ProtectedRoute> } // Yeni satır
+              />
             {/* Ana sayfa yönlendirmesi */}
             <Route path="/" element={<Navigate to="/browse" replace />} />
         </Route>

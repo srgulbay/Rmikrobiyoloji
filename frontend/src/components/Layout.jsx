@@ -141,6 +141,9 @@ function Layout() {
               <CustomNavLink to="/admin">Yönetim Paneli</CustomNavLink>
             )}
             {isAuthenticated && (
+              <CustomNavLink to="/dashboard">Strateji Merkezim</CustomNavLink>
+            )}
+            {isAuthenticated && (
               <CustomNavLink to="/solve">Soru Çöz</CustomNavLink>
             )}
             {isAuthenticated && (
@@ -219,6 +222,9 @@ function Layout() {
                <CustomMobileNavLink to="/browse" onClose={onMobileMenuClose}>Konular</CustomMobileNavLink>
                {isAuthenticated && user?.role === 'admin' && (
                  <CustomMobileNavLink to="/admin" onClose={onMobileMenuClose}>Yönetim Paneli</CustomMobileNavLink>
+               )}
+                {isAuthenticated && (
+                 <CustomMobileNavLink to="/dashboard" onClose={onMobileMenuClose}>Strateji Merkezim</CustomMobileNavLink>
                )}
                {isAuthenticated && (
                  <CustomMobileNavLink to="/solve" onClose={onMobileMenuClose}>Soru Çöz</CustomMobileNavLink>

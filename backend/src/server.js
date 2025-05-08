@@ -14,15 +14,16 @@ const topicRoutes = require('./routes/topicRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const attemptRoutes = require('./routes/attemptRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const lectureViewRoutes = require('./routes/lectureViewRoutes'); // Yeni route import edildi
 
 dotenv.config();
 const app = express();
 
-app.use((req, res, next) => { console.log(`>>> İstek Alındı: \<span class="math-inline">\{req\.method\} \</span>{req.originalUrl}`); next(); });
+app.use((req, res, next) => { console.log(`>>> İstek Alındı: ${req.method} ${req.originalUrl}`); next(); });
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use((req, res, next) => { console.log(`>>> Temel Middleware Sonrası. Path: ${req.path}`); next(); });
+// app.use((req, res, next) => { console.log(`>>> Temel Middleware Sonrası. Path: ${req.path}`); next(); }); // Bu log azaltılabilir
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/', (req, res) => { res.send('Rmikrobiyoloji Backend Sunucusu Çalışıyor!'); });
@@ -35,14 +36,12 @@ app.use('/api/topics', topicRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/attempts', attemptRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/lecture-views', lectureViewRoutes); // Yeni route eklendi
 
-app.use((req, res, next) => { console.log(`>>> !!! Rota Bulunamadı (404): \<span class="math-inline">\{req\.method\} \</span>{req.originalUrl}`); res.status(404).send("Üzgünüz, aradığınız sayfa bulunamadı!"); });
+app.use((req, res, next) => { console.log(`>>> !!! Rota Bulunamadı (404): ${req.method} ${req.originalUrl}`); res.status(404).send("Üzgünüz, aradığınız sayfa bulunamadı!"); });
 
 connectDB();
 
-// … diğer import ve ayarlar …
-
-// 🔑 Railway’nin tahsis ettiği porta dinle
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, '0.0.0.0', () => {

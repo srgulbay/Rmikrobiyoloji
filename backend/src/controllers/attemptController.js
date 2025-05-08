@@ -1,35 +1,35 @@
-const { QuestionAttempt, Question } = require('../../models'); // Question modelini de alalım (belki lazım olur)
+const { QuestionAttempt, Question } = require('../../models');
 
 const recordAttempt = async (req, res) => {
-  const { questionId, selectedAnswer, isCorrect } = req.body;
-  const userId = req.user.id; // protect middleware'inden gelir
+  const { questionId, selectedAnswer, isCorrect, timeTaken } = req.body;
+  const userId = req.user.id;
 
   if (questionId === undefined || selectedAnswer === undefined || isCorrect === undefined) {
     return res.status(400).json({ message: 'Eksik veri: questionId, selectedAnswer ve isCorrect zorunludur.' });
   }
 
-  try {
-    // İsteğe bağlı: Böyle bir soru var mı diye kontrol edilebilir
-    // const questionExists = await Question.findByPk(questionId);
-    // if (!questionExists) {
-    //    return res.status(404).json({ message: 'Soru bulunamadı.' });
-    // }
+  const validTimeTaken = (typeof timeTaken === 'number' && timeTaken >= 0) ? Math.round(timeTaken) : null;
 
+  try {
     const newAttempt = await QuestionAttempt.create({
       userId,
-      questionId,
-      selectedAnswer,
-      isCorrect // Frontend'den gelen doğru/yanlış bilgisine güveniyoruz
+      questionId: parseInt(questionId, 10),
+      selectedAnswer: String(selectedAnswer),
+      isCorrect: Boolean(isCorrect),
+      timeTaken: validTimeTaken
     });
     res.status(201).json(newAttempt);
 
   } catch (error) {
     console.error('Soru denemesi kaydedilirken hata:', error);
+     if (error.name === 'SequelizeValidationError') {
+       const messages = error.errors.map(err => err.message).join('. ');
+       return res.status(400).json({ message: `Doğrulama hatası: ${messages}` });
+    }
     res.status(500).json({ message: 'Sunucu hatası. Cevap kaydedilemedi.' });
   }
 };
 
 module.exports = {
   recordAttempt,
-  // İleride istatistik getirme fonksiyonları eklenebilir
 };

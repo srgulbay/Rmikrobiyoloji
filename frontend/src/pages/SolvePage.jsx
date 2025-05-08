@@ -59,8 +59,9 @@ function SolvePage() {
     const { token } = useAuth();
     const [score, setScore] = useState(0);
     const [isQuizFinished, setIsQuizFinished] = useState(false);
-    const [timeElapsed, setTimeElapsed] = useState(0);
-    const timerRef = useRef(null);
+    const [timeElapsed, setTimeElapsed] = useState(0); // Toplam süre
+    const [questionStartTime, setQuestionStartTime] = useState(null); // Soru başlama zamanı
+    const timerRef = useRef(null); // Toplam süre için timer ref
     const [questionStatsMap, setQuestionStatsMap] = useState({});
     const { colorMode } = useColorMode();
     const location = useLocation();
@@ -78,6 +79,7 @@ function SolvePage() {
         setIsQuizFinished(false); setSelectedAnswer(''); setIsAnswerChecked(false);
         setIsCorrect(null); setTimeElapsed(0); setQuestionStatsMap({});
         setShowExplanation(false);
+        setQuestionStartTime(null); // Başlangıç zamanını sıfırla
         clearInterval(timerRef.current);
         timerRef.current = null;
 
@@ -101,6 +103,7 @@ function SolvePage() {
                 setCurrentQuestion(finalQuestions[0]);
                 setQuestionStatsMap(typeof sRes.data === 'object' && sRes.data !== null ? sRes.data : {});
                 setTimeElapsed(0);
+                // setQuestionStartTime(Date.now()); // İlk soru için başlangıç zamanı (useEffect içinde yapılacak)
             } else {
                 setError(topicIdFilter ? 'Bu konuya ait soru bulunamadı.' : 'Uygun soru bulunamadı.');
                 setAllQuestions([]); setCurrentQuestion(null);
@@ -114,6 +117,7 @@ function SolvePage() {
 
     useEffect(() => { initializeQuiz(); return () => { clearInterval(timerRef.current); timerRef.current = null; }; }, [initializeQuiz]);
 
+    // Toplam süreyi takip eden useEffect
     useEffect(() => {
         if (!loading && allQuestions.length > 0 && !isQuizFinished) {
             if (!timerRef.current) { timerRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000); }
@@ -121,25 +125,55 @@ function SolvePage() {
          return () => { clearInterval(timerRef.current); timerRef.current = null; };
     }, [loading, allQuestions, isQuizFinished]);
 
+    // Soru değiştiğinde başlangıç zamanını ayarlayan useEffect
+     useEffect(() => {
+        if (currentQuestion && !isQuizFinished && !isAnswerChecked) {
+            setQuestionStartTime(Date.now());
+        }
+     }, [currentQuestion, isQuizFinished, isAnswerChecked]);
+
     const selectOption = useCallback((opt) => { if (!isAnswerChecked) setSelectedAnswer(opt); }, [isAnswerChecked]);
 
+    // Cevabı kontrol et ve süreyi gönder
     const checkAnswer = useCallback(async () => {
         if (!selectedAnswer || !currentQuestion) return;
-        const correct = selectedAnswer === currentQuestion.correctAnswer;
-        setIsAnswerChecked(true); setIsCorrect(correct);
-        if (correct) setScore(s => s + 1);
-        if (token) {
-            try { await axios.post(urls.attempts, { questionId: currentQuestion.id, selectedAnswer, isCorrect: correct }, { headers: { Authorization: `Bearer ${token}` } }); }
-            catch (err) { console.error("Deneme kaydedilirken hata:", err); }
-        }
-    }, [selectedAnswer, currentQuestion, token, urls.attempts]);
 
+        const endTime = Date.now();
+        // Geçen süreyi saniye cinsinden hesapla (negatif olamaz)
+        const timeDiffSeconds = questionStartTime ? Math.max(0, Math.round((endTime - questionStartTime) / 1000)) : null;
+
+        const correct = selectedAnswer === currentQuestion.correctAnswer;
+        setIsAnswerChecked(true);
+        setIsCorrect(correct);
+        if (correct) setScore(s => s + 1);
+
+        // Sonraki hesaplamalar için başlangıç zamanını sıfırla
+        setQuestionStartTime(null);
+
+        if (token) {
+            try {
+                 await axios.post(
+                    urls.attempts,
+                    {
+                        questionId: currentQuestion.id,
+                        selectedAnswer,
+                        isCorrect: correct,
+                        timeTaken: timeDiffSeconds // Hesaplanan süreyi gönder
+                    },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+             } catch (err) { console.error("Deneme kaydedilirken hata:", err); }
+        }
+    }, [selectedAnswer, currentQuestion, token, urls.attempts, questionStartTime]); // questionStartTime bağımlılıklara eklendi
+
+    // Soru değiştirirken state'leri sıfırla
     const goTo = useCallback((index) => {
         if (index < 0 || index >= allQuestions.length) return;
         setCurrentQuestion(allQuestions[index]);
         setCurrentQuestionIndex(index);
         setSelectedAnswer(''); setIsAnswerChecked(false); setIsCorrect(null); setError('');
         setShowExplanation(false);
+        // setQuestionStartTime(Date.now()); // Yeni soru geldiğinde useEffect tetiklenip ayarlayacak
     }, [allQuestions]);
 
     const prev = useCallback(() => goTo(currentQuestionIndex - 1), [goTo, currentQuestionIndex]);
@@ -269,6 +303,7 @@ function SolvePage() {
                             'ul, ol': { pl: 6, mb: 4 },
                             'li': { mb: 2 },
                             'img': { my: 4, borderRadius: 'md', maxW: '100%', height: 'auto' },
+                            'a': { color: 'brand.500', textDecoration: 'underline', _hover: { color: 'brand.600'} }, // Link stili global temadan gelebilir veya burada kalabilir
                          }}
                     />
                 </CardBody>
@@ -322,7 +357,7 @@ function SolvePage() {
              )}
 
             <Flex justify="space-between" align="center" wrap="wrap" gap={3} p={5} bg="bgSecondary" borderRadius="md" borderWidth="1px" borderColor="borderPrimary" mt={6}>
-                <IconButton icon={<Icon as={FaArrowLeft} />} onClick={prev} isDisabled={currentQuestionIndex === 0} aria-label="Önceki Soru" title="Önceki Soru" variant="ghost"/>
+                <IconButton icon={<Icon as={FaArrowLeft} />} onClick={prev} isDisabled={currentQuestionIndex === 0 || !isAnswerChecked /*Cevap kontrol edilmeden geçilemesin*/} aria-label="Önceki Soru" title="Önceki Soru" variant="ghost"/>
 
                 <HStack flex="1" justifyContent="center" spacing={4}>
                     {!isAnswerChecked ? (
@@ -349,7 +384,7 @@ function SolvePage() {
                 </HStack>
 
                 {currentQuestionIndex < allQuestions.length - 1 ? (
-                    <IconButton icon={<Icon as={FaArrowRight} />} onClick={next} aria-label="Sonraki Soru" title="Sonraki Soru" variant="ghost" />
+                    <IconButton icon={<Icon as={FaArrowRight} />} onClick={next} isDisabled={!isAnswerChecked} aria-label="Sonraki Soru" title="Sonraki Soru" variant="ghost" />
                 ) : (
                     <IconButton icon={<Icon as={FaFlagCheckered} />} colorScheme="green" onClick={finish} isDisabled={!isAnswerChecked} aria-label="Testi Bitir" title="Testi Bitir"/>
                 )}
