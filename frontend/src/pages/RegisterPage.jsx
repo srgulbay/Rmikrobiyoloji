@@ -102,7 +102,9 @@ function RegisterPage() {
         if (result && result.success && result.message) {
             setRegistrationMessage(result.message);
         }
-        // Hata durumu zaten AuthContext'teki setError ile yönetiliyor ve 'error' state'ine yansıyor.
+        // Hata durumu AuthContext'teki `error` state'i ile yönetiliyor.
+        // `setError` zaten AuthContext içinde çağrılıyor,
+        // ve `error` prop'u bu sayfada `useAuth`'dan alınıyor.
     };
 
     const handlePasswordVisibility = () => setShowPassword(!showPassword);
@@ -147,7 +149,7 @@ function RegisterPage() {
                                {error && (
                                  <Alert status="error" borderRadius="md" width="full" variant="subtle">
                                    <AlertIcon />
-                                   <AlertDescription fontSize="sm">{typeof error === 'string' ? error : error.message}</AlertDescription>
+                                   <AlertDescription fontSize="sm">{error.message}</AlertDescription>
                                  </Alert>
                                )}
                             </ScaleFade>
@@ -180,7 +182,7 @@ function RegisterPage() {
                                 </InputGroup>
                             </FormControl>
 
-                            <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (!!error && typeof error === 'object' && error.message && error.message.toLowerCase().includes('şifre'))}>
+                            <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (error?.message && error.message.toLowerCase().includes('şifre'))}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
                                 <InputGroup size="md">
                                     <InputLeftElement pointerEvents="none">
@@ -203,7 +205,8 @@ function RegisterPage() {
                                 {password.length > 0 && (
                                     <Progress colorScheme={strengthColor} size="xs" value={passwordStrength} mt={2} borderRadius="sm" />
                                 )}
-                                 {error && typeof error === 'object' && error.message && error.message.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
+                                 {error?.message && error.message.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
+                                 {error?.message && error.message.toLowerCase().includes('eşleşmiyor') && isPasswordMismatch && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
                             </FormControl>
 
                             <FormControl id="confirmPasswordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch}>
