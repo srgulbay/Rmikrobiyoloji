@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     localStorage.removeItem('rmikro_token');
     delete axios.defaults.headers.common['Authorization'];
-    delete API.defaults.headers.common['Authorization']; // Also remove from the instance
+    delete API.defaults.headers.common['Authorization'];
     navigate('/login', { replace: true });
   }, [navigate]);
 
@@ -44,10 +44,7 @@ export const AuthProvider = ({ children }) => {
         const now = Date.now() / 1000;
 
         if (decoded.exp < now) {
-          console.log("AuthContext: Token expired.");
-          // Clear invalid token from storage immediately
           localStorage.removeItem('rmikro_token');
-          // Call logout logic without navigate if already unauthenticated
           setToken(null);
           setUser(null);
           setIsAuthenticated(false);
@@ -57,7 +54,6 @@ export const AuthProvider = ({ children }) => {
           if (!token || token !== currentToken) {
             setToken(currentToken);
           }
-          // Set Authorization header for both default axios and the instance
           axios.defaults.headers.common['Authorization'] = `Bearer ${currentToken}`;
           API.defaults.headers.common['Authorization'] = `Bearer ${currentToken}`;
           setIsAuthenticated(true);
@@ -70,9 +66,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (e) {
         console.error("AuthContext: Invalid token.", e);
-        // Clear invalid token from storage immediately
         localStorage.removeItem('rmikro_token');
-        // Call logout logic without navigate if already unauthenticated
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
@@ -80,7 +74,6 @@ export const AuthProvider = ({ children }) => {
         delete API.defaults.headers.common['Authorization'];
       }
     } else {
-      // Ensure states are cleared if no token found
       if (token) setToken(null);
       if (user) setUser(null);
       if (isAuthenticated) setIsAuthenticated(false);
@@ -88,27 +81,34 @@ export const AuthProvider = ({ children }) => {
       delete API.defaults.headers.common['Authorization'];
     }
     setAuthLoading(false);
-  }, [token]); // Removed logout from dependencies to avoid potential loops
+  }, [token]);
 
   const login = async (username, password) => {
     setError(null);
     setLoading(true);
     const startTime = Date.now();
-    const MIN_LOADING_TIME = 300; // Reduced min loading time
+    const MIN_LOADING_TIME = 300;
 
     try {
       const response = await API.post('/api/auth/login', { username, password });
       if (response.data.token) {
         localStorage.setItem('rmikro_token', response.data.token);
-        setToken(response.data.token); // Trigger useEffect to update user and headers
-        navigate('/browse', { replace: true }); // Navigate after successful login attempt
+        setToken(response.data.token);
+        navigate('/browse', { replace: true });
       } else {
-        throw new Error("Sunucudan geçersiz yanıt alındı.");
+        // Backend'den token gelmediyse ama hata da yoksa genel bir hata fırlat
+        setError({ message: response.data.message || "Sunucudan geçersiz yanıt alındı." });
+        // throw new Error(response.data.message || "Sunucudan geçersiz yanıt alındı.");
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Giriş sırasında bir hata oluştu.';
-      setError(errorMsg);
-      console.error("AuthContext: Login error:", errorMsg, err.response?.data || err.message);
+      const errorData = err.response?.data;
+      const errorMsg = errorData?.message || 'Giriş sırasında bir hata oluştu.';
+      setError({
+        message: errorMsg,
+        needsVerification: errorData?.needsVerification,
+        email: errorData?.email
+      });
+      console.error("AuthContext: Login error:", errorMsg, errorData || err.message);
     } finally {
       const elapsedTime = Date.now() - startTime;
       const remainingTime = MIN_LOADING_TIME - elapsedTime;
@@ -118,21 +118,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, password, specialization) => {
+  // GÜNCELLENDİ: register fonksiyon imzası ve payload düzeltildi
+  const register = async (username, email, password, specialization) => {
     setLoading(true);
     setError(null);
+    let responseMessage = null;
     try {
-      // Use the API instance and correct endpoint
-      await API.post('/api/auth/register', { username, password, specialization });
-      navigate('/login');
-      // Optionally show a success toast here
+      // Backend'e gönderilecek payload'un doğru alanları içerdiğinden emin ol
+      const payload = { username, email, password, specialization };
+      console.log("AuthContext -> register -> Backend'e gönderilen payload:", payload); // Kontrol logu
+      const response = await API.post('/api/auth/register', payload);
+      // Kayıt başarılıysa, backend'den gelen mesajı alıp RegisterPage'e döndür
+      responseMessage = response.data.message || 'Kayıt başarılı. Lütfen e-postanızı kontrol edin.';
+      // navigate('/login'); // Hemen login'e yönlendirmek yerine mesaj gösterilecek RegisterPage'de
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Kayıt sırasında bir hata oluştu.';
-      setError(errorMsg);
-      console.error("AuthContext: Register error:", errorMsg, err.response?.data || err.message);
+      const errorData = err.response?.data;
+      const errorMsg = errorData?.message || 'Kayıt sırasında bir hata oluştu.';
+      setError({ message: errorMsg, details: errorData }); // Hata objesini setError'a ver
+      console.error("AuthContext: Register error:", errorMsg, errorData || err.message);
     } finally {
       setLoading(false);
     }
+    return responseMessage; // RegisterPage'in mesajı işlemesi için döndür
   };
 
   const value = {
@@ -148,11 +155,8 @@ export const AuthProvider = ({ children }) => {
     setError
   };
 
-  // Render children only after initial auth check is complete
-  // This prevents rendering protected routes with incorrect auth state briefly
   if (authLoading) {
-     // You might want a better loading indicator here, e.g., using Chakra's Spinner
-     return null; // Or a loading component
+     return null;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

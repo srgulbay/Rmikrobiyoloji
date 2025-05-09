@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import axios from 'axios'; // axios import edildi
 import {
   Box,
   Flex,
@@ -22,92 +23,129 @@ import {
   VStack,
   Text,
   ScaleFade,
-  // useColorModeValue kaldırıldı, semantic token'lar veya tema stilleri kullanılacak
-  // Center kaldırıldı, Flex zaten ortalama yapıyor
+  Spinner // Yeniden gönderme sırasında buton için
 } from '@chakra-ui/react';
-import { FaSignInAlt, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaSignInAlt, FaUser, FaLock, FaEye, FaEyeSlash, FaPaperPlane } from 'react-icons/fa';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // AuthContext'ten error, setError, loading, isAuthenticated ve login'i al
   const { login, error, setError, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // Yönlendirme ve hata temizleme (Aynı kalır)
+  // Yeniden gönderme için state'ler
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+  const [resendStatus, setResendStatus] = useState(''); // 'success' or 'error'
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/browse', { replace: true });
     }
-    return () => setError(null);
+    return () => {
+        setError(null); // Sayfadan ayrılırken AuthContext'teki hatayı temizle
+        setResendMessage(''); // Yerel mesajı da temizle
+        setResendStatus('');
+    }
   }, [isAuthenticated, navigate, setError]);
 
   const handleSubmit = async (e) => {
-    // ... (Aynı kalır)
     e.preventDefault();
     setError(null);
+    setResendMessage('');
+    setResendStatus('');
     if (!username || !password) {
-      setError("Lütfen kullanıcı adı ve şifreyi girin.");
+      setError({ message: "Lütfen kullanıcı adı ve şifreyi girin." }); // Hata objesi olarak set et
       return;
     }
-    await login(username, password);
+    await login(username, password); // login fonksiyonu AuthContext'ten geliyor ve error'u set ediyor
   };
 
   const handlePasswordVisibility = () => setShowPassword(!showPassword);
 
-  // KALDIRILDI: Tema renklerini al (artık tema/semantic token'lar kullanılacak)
-  // const bgColor = useColorModeValue('gray.50', 'gray.900');
-  // const cardBgColor = useColorModeValue('white', 'gray.800');
-  // const inputBgColor = useColorModeValue('gray.100', 'gray.700');
+  const handleResendVerificationEmail = async () => {
+    if (!error || !error.email) {
+        setResendMessage('E-posta adresi bulunamadı.');
+        setResendStatus('error');
+        return;
+    }
+    setIsResending(true);
+    setResendMessage('');
+    setResendStatus('');
+    try {
+        const response = await axios.post(`${API_BASE_URL}/api/auth/resend-verification-email`, { email: error.email });
+        setResendMessage(response.data.message || 'Yeni bir doğrulama e-postası gönderildi.');
+        setResendStatus('success');
+    } catch (err) {
+        setResendMessage(err.response?.data?.message || 'E-posta gönderilirken bir hata oluştu.');
+        setResendStatus('error');
+    } finally {
+        setIsResending(false);
+    }
+  };
 
   return (
-    // Sayfayı tam ekran kaplayacak şekilde ortala
-    <Flex
-      minH="100vh"
-      align="center"
-      justify="content"
-      // KALDIRILDI: bg={bgColor} - Bu artık styles.global'deki body'den gelmeli
-      px={4}
-    >
-      {/* Container tema stillerini kullanacak */}
+    <Flex minH="100vh" align="center" justify="center" px={4} py={12}>
       <Container
         maxW="md"
-        bg="bgPrimary" // Semantic Token kullanıldı
+        bg="bgPrimary"
         p={{ base: 6, md: 8 }}
-        borderRadius="xl" // Temadan radii.xl
-        boxShadow="xl" // Temadan shadows.xl
+        borderRadius="xl"
+        boxShadow="xl"
         borderWidth={1}
-        borderColor="borderPrimary" // Semantic Token kullanıldı
+        borderColor="borderPrimary"
       >
-        {/* Heading tema rengini (brand.500) ve boyutunu (xl) kullanır */}
         <Heading as="h1" size="xl" textAlign="center" mb={8} color="brand.500">
           Platforma Giriş Yap
         </Heading>
 
         <Box as="form" onSubmit={handleSubmit}>
-          {/* VStack tema boşluklarını (spacing={5}) kullanır */}
           <VStack spacing={5}>
-            {/* Alert tema stilini (subtle, error) kullanır */}
-            <ScaleFade initialScale={0.9} in={!!error} unmountOnExit>
-              {error && (
+            <ScaleFade initialScale={0.9} in={!!error || !!resendMessage} unmountOnExit>
+              {error && !error.needsVerification && (
                 <Alert status="error" borderRadius="md" width="full" variant="subtle">
                   <AlertIcon />
-                  <AlertDescription fontSize="sm">{error}</AlertDescription>
+                  <AlertDescription fontSize="sm">{error.message}</AlertDescription>
                 </Alert>
+              )}
+              {error && error.needsVerification && (
+                <Alert status="warning" borderRadius="md" width="full" variant="subtle" flexDirection="column" alignItems="flex-start">
+                  <Flex w="full">
+                    <AlertIcon />
+                    <AlertDescription fontSize="sm" flex="1">{error.message}</AlertDescription>
+                  </Flex>
+                  <Button
+                    mt={3}
+                    size="sm"
+                    variant="link"
+                    colorScheme="blue"
+                    onClick={handleResendVerificationEmail}
+                    isLoading={isResending}
+                    loadingText="Gönderiliyor..."
+                    leftIcon={<Icon as={FaPaperPlane} />}
+                  >
+                    Doğrulama E-postasını Yeniden Gönder
+                  </Button>
+                </Alert>
+              )}
+              {resendMessage && resendStatus && !error?.needsVerification && (
+                 <Alert status={resendStatus === 'success' ? 'success' : 'error'} borderRadius="md" width="full" variant="subtle">
+                    <AlertIcon />
+                    <AlertDescription fontSize="sm">{resendMessage}</AlertDescription>
+                 </Alert>
               )}
             </ScaleFade>
 
-            {/* Kullanıcı Adı Alanı */}
-            <FormControl id="usernameLogin" isRequired isDisabled={loading}>
-              {/* FormLabel tema stilini (sm, medium, textSecondary) kullanır */}
+            <FormControl id="usernameLogin" isRequired isDisabled={loading || isResending}>
               <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı</FormLabel>
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
-                  <Icon as={FaUser} color="gray.400" /> {/* İkon rengi şimdilik sabit */}
+                  <Icon as={FaUser} color="gray.400" />
                 </InputLeftElement>
-                {/* Input tema stilini (varsayılan: outline, md) kullanır */}
-                {/* KALDIRILDI: bg={inputBgColor} */}
-                {/* KALDIRILDI: _placeholder={{ color: ... }} */}
                 <Input
                   type="text"
                   value={username}
@@ -117,17 +155,12 @@ function LoginPage() {
               </InputGroup>
             </FormControl>
 
-            {/* Şifre Alanı */}
-            <FormControl id="passwordLogin" isRequired isDisabled={loading}>
-              {/* FormLabel tema stilini kullanır */}
+            <FormControl id="passwordLogin" isRequired isDisabled={loading || isResending}>
               <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
-              <InputGroup size="md"> {/* InputGroup boyutu Input ile uyumlu */}
+              <InputGroup size="md">
                 <InputLeftElement pointerEvents="none">
-                  <Icon as={FaLock} color="gray.400" /> {/* İkon rengi şimdilik sabit */}
+                  <Icon as={FaLock} color="gray.400" />
                 </InputLeftElement>
-                {/* Input tema stilini kullanır */}
-                {/* KALDIRILDI: bg={inputBgColor} */}
-                {/* KALDIRILDI: _placeholder={{ color: ... }} */}
                 <Input
                   pr="4.5rem"
                   type={showPassword ? 'text' : 'password'}
@@ -136,7 +169,6 @@ function LoginPage() {
                   placeholder='Şifreniz'
                 />
                 <InputRightElement width="4.5rem">
-                  {/* IconButton tema stilini (ghost, sm) kullanır */}
                   <IconButton
                     h="1.75rem"
                     size="sm"
@@ -149,10 +181,6 @@ function LoginPage() {
               </InputGroup>
             </FormControl>
 
-            {/* Giriş Butonu */}
-            {/* Button tema stilini (solid, lg, brand) ve hover/active efektlerini kullanır */}
-            {/* KALDIRILDI: _hover={{ transform: ..., boxShadow: ... }} */}
-            {/* KALDIRILDI: _active={{ transform: ... }} */}
             <Button
               type="submit"
               colorScheme="brand"
@@ -160,6 +188,7 @@ function LoginPage() {
               width="full"
               mt={4}
               isLoading={loading}
+              isDisabled={isResending}
               loadingText="Giriş Yapılıyor..."
               spinnerPlacement="start"
               leftIcon={!loading ? <Icon as={FaSignInAlt} /> : undefined}
@@ -169,17 +198,18 @@ function LoginPage() {
           </VStack>
         </Box>
 
-        {/* Kayıt Sayfasına Link */}
-        {/* Text tema stilini (sm) kullanır */}
         <Text textAlign="center" mt={8} fontSize="sm">
           Hesabınız yok mu?{' '}
-          {/* ChakraLink tema stilini (varsayılan: inline, blue) kullanır */}
-          {/* Özel renk ve hover korunuyor (varsayılan linkten farklı) */}
-          {/* KALDIRILDI: _hover={{ textDecoration: 'underline' }} */}
           <ChakraLink as={RouterLink} to="/register" fontWeight="medium" color="brand.500">
             Hemen Kayıt Olun
           </ChakraLink>
         </Text>
+        {/* Şifremi Unuttum linki buraya eklenebilir */}
+         <Text textAlign="center" mt={4} fontSize="xs">
+             <ChakraLink as={RouterLink} to="/request-password-reset" color="textMuted" _hover={{ color: "brand.500" }}>
+                 Şifremi Unuttum
+             </ChakraLink>
+         </Text>
       </Container>
     </Flex>
   );
