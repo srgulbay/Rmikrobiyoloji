@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!token);
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // Hata artık bir obje olabilir: { message, needsVerification, email }
   const navigate = useNavigate();
 
   const logout = useCallback(() => {
@@ -45,9 +45,7 @@ export const AuthProvider = ({ children }) => {
 
         if (decoded.exp < now) {
           localStorage.removeItem('rmikro_token');
-          setToken(null);
-          setUser(null);
-          setIsAuthenticated(false);
+          setToken(null); setUser(null); setIsAuthenticated(false);
           delete axios.defaults.headers.common['Authorization'];
           delete API.defaults.headers.common['Authorization'];
         } else {
@@ -65,11 +63,9 @@ export const AuthProvider = ({ children }) => {
           });
         }
       } catch (e) {
-        console.error("AuthContext: Invalid token.", e);
+        console.error("AuthContext: Invalid token on load.", e);
         localStorage.removeItem('rmikro_token');
-        setToken(null);
-        setUser(null);
-        setIsAuthenticated(false);
+        setToken(null); setUser(null); setIsAuthenticated(false);
         delete axios.defaults.headers.common['Authorization'];
         delete API.defaults.headers.common['Authorization'];
       }
@@ -95,10 +91,12 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('rmikro_token', response.data.token);
         setToken(response.data.token);
         navigate('/browse', { replace: true });
+        return { success: true, user: response.data.user }; // Başarılı giriş bilgisini döndür
       } else {
-        // Backend'den token gelmediyse ama hata da yoksa genel bir hata fırlat
-        setError({ message: response.data.message || "Sunucudan geçersiz yanıt alındı." });
-        // throw new Error(response.data.message || "Sunucudan geçersiz yanıt alındı.");
+        // Backend'den token gelmedi ama 2xx yanıtı geldiyse (beklenmedik durum)
+        const errorMsg = response.data.message || "Sunucudan geçersiz yanıt alındı.";
+        setError({ message: errorMsg });
+        return { success: false, message: errorMsg };
       }
     } catch (err) {
       const errorData = err.response?.data;
@@ -109,6 +107,7 @@ export const AuthProvider = ({ children }) => {
         email: errorData?.email
       });
       console.error("AuthContext: Login error:", errorMsg, errorData || err.message);
+      return { success: false, message: errorMsg, needsVerification: errorData?.needsVerification, email: errorData?.email };
     } finally {
       const elapsedTime = Date.now() - startTime;
       const remainingTime = MIN_LOADING_TIME - elapsedTime;
@@ -118,28 +117,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // GÜNCELLENDİ: register fonksiyon imzası ve payload düzeltildi
   const register = async (username, email, password, specialization) => {
     setLoading(true);
     setError(null);
-    let responseMessage = null;
     try {
-      // Backend'e gönderilecek payload'un doğru alanları içerdiğinden emin ol
       const payload = { username, email, password, specialization };
-      console.log("AuthContext -> register -> Backend'e gönderilen payload:", payload); // Kontrol logu
+      console.log("AuthContext -> register -> Backend'e gönderilen payload:", payload);
       const response = await API.post('/api/auth/register', payload);
-      // Kayıt başarılıysa, backend'den gelen mesajı alıp RegisterPage'e döndür
-      responseMessage = response.data.message || 'Kayıt başarılı. Lütfen e-postanızı kontrol edin.';
-      // navigate('/login'); // Hemen login'e yönlendirmek yerine mesaj gösterilecek RegisterPage'de
+      // navigate('/login'); // YÖNLENDİRME KALDIRILDI
+      return { success: true, message: response.data.message || 'Kayıt başarılı. Lütfen e-postanızı kontrol edin.' };
     } catch (err) {
       const errorData = err.response?.data;
       const errorMsg = errorData?.message || 'Kayıt sırasında bir hata oluştu.';
-      setError({ message: errorMsg, details: errorData }); // Hata objesini setError'a ver
+      setError({ message: errorMsg, details: errorData });
       console.error("AuthContext: Register error:", errorMsg, errorData || err.message);
+      return { success: false, message: errorMsg }; // Hata durumunda mesajı döndür
     } finally {
       setLoading(false);
     }
-    return responseMessage; // RegisterPage'in mesajı işlemesi için döndür
   };
 
   const value = {

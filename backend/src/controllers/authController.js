@@ -40,6 +40,7 @@ const registerUser = async (req, res) => {
     });
 
     try {
+      console.log("CANLI ORTAM registerUser - FRONTEND_URL:", process.env.FRONTEND_URL);
       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${emailVerificationToken}`;
       await sendVerificationEmail(newUser.email, newUser.username, verificationUrl);
     } catch (emailError) {
@@ -194,6 +195,7 @@ const resendVerificationEmail = async (req, res) => {
     await user.save();
 
     try {
+      console.log("CANLI ORTAM resendVerificationEmail - FRONTEND_URL:", process.env.FRONTEND_URL);
       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${newEmailVerificationToken}`;
       await sendVerificationEmail(user.email, user.username, verificationUrl);
     } catch (emailError) {

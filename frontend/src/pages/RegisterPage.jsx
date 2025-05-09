@@ -16,6 +16,7 @@ import {
   IconButton,
   Alert,
   AlertIcon,
+  AlertTitle,
   AlertDescription,
   Link as ChakraLink,
   Select,
@@ -26,7 +27,7 @@ import {
   ScaleFade,
   Progress,
 } from '@chakra-ui/react';
-import { FaUserPlus, FaUser, FaLock, FaEye, FaEyeSlash, FaGraduationCap, FaEnvelope } from 'react-icons/fa'; // FaEnvelope eklendi
+import { FaUserPlus, FaUser, FaLock, FaEye, FaEyeSlash, FaGraduationCap, FaEnvelope } from 'react-icons/fa';
 
 const specializations = [
     "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
@@ -45,14 +46,14 @@ const calculatePasswordStrength = (password) => {
 
 function RegisterPage() {
     const [username, setUsername] = useState('');
-    const [email, setEmail] = useState(''); // E-posta state'i eklendi
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [specialization, setSpecialization] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
-    const [registrationMessage, setRegistrationMessage] = useState(''); // Kayıt sonrası mesaj için state
+    const [registrationMessage, setRegistrationMessage] = useState('');
 
     const { register, error, setError, loading, isAuthenticated } = useAuth();
     const navigate = useNavigate();
@@ -63,7 +64,7 @@ function RegisterPage() {
         }
         return () => {
             setError(null);
-            setRegistrationMessage(''); // Component unmount olduğunda mesajı temizle
+            setRegistrationMessage('');
         }
     }, [isAuthenticated, navigate, setError]);
 
@@ -78,32 +79,30 @@ function RegisterPage() {
         setError(null);
         setRegistrationMessage('');
 
-        if (!username || !email || !password) { // E-posta kontrolü eklendi
-            setError('Kullanıcı adı, e-posta ve şifre alanları zorunludur.');
+        if (!username || !email || !password) {
+            setError({ message: 'Kullanıcı adı, e-posta ve şifre alanları zorunludur.' });
             return;
         }
-        if (!/\S+@\S+\.\S+/.test(email)) { // Basit e-posta format kontrolü
-            setError('Lütfen geçerli bir e-posta adresi girin.');
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            setError({ message: 'Lütfen geçerli bir e-posta adresi girin.' });
             return;
         }
         if (password !== confirmPassword) {
-            setError('Girilen şifreler eşleşmiyor!');
+            setError({ message: 'Girilen şifreler eşleşmiyor!' });
             return;
         }
         if (password.length < 6) {
-             setError('Şifre en az 6 karakter olmalıdır.');
+             setError({ message: 'Şifre en az 6 karakter olmalıdır.' });
              return;
         }
 
         const specToSend = specialization.trim() === '' ? null : specialization;
-        // AuthContext'teki register fonksiyonuna email parametresini gönder
-        // register fonksiyonunun (AuthContext içinde) bu yeni parametreyi alacak şekilde güncellenmesi gerekir.
-        const responseMessage = await register(username, email, password, specToSend);
+        const result = await register(username, email, password, specToSend);
 
-        if (responseMessage && responseMessage.includes('aktive edin')) {
-            setRegistrationMessage(responseMessage); // Başarı mesajını ayarla
+        if (result && result.success && result.message) {
+            setRegistrationMessage(result.message);
         }
-        // setError AuthContext tarafından yönetiliyor, burada tekrar set etmeye gerek yok
+        // Hata durumu zaten AuthContext'teki setError ile yönetiliyor ve 'error' state'ine yansıyor.
     };
 
     const handlePasswordVisibility = () => setShowPassword(!showPassword);
@@ -148,7 +147,7 @@ function RegisterPage() {
                                {error && (
                                  <Alert status="error" borderRadius="md" width="full" variant="subtle">
                                    <AlertIcon />
-                                   <AlertDescription fontSize="sm">{error}</AlertDescription>
+                                   <AlertDescription fontSize="sm">{typeof error === 'string' ? error : error.message}</AlertDescription>
                                  </Alert>
                                )}
                             </ScaleFade>
@@ -181,7 +180,7 @@ function RegisterPage() {
                                 </InputGroup>
                             </FormControl>
 
-                            <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (!!error && error.toLowerCase().includes('şifre'))}>
+                            <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (!!error && typeof error === 'object' && error.message && error.message.toLowerCase().includes('şifre'))}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
                                 <InputGroup size="md">
                                     <InputLeftElement pointerEvents="none">
@@ -204,7 +203,7 @@ function RegisterPage() {
                                 {password.length > 0 && (
                                     <Progress colorScheme={strengthColor} size="xs" value={passwordStrength} mt={2} borderRadius="sm" />
                                 )}
-                                 {error && error.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error}</FormErrorMessage>}
+                                 {error && typeof error === 'object' && error.message && error.message.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
                             </FormControl>
 
                             <FormControl id="confirmPasswordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch}>
