@@ -1,4 +1,3 @@
-// backend/models/question.js
 'use strict';
 const { Model } = require('sequelize');
 
@@ -7,6 +6,11 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Question.belongsTo(models.Topic, { foreignKey: 'topicId', as: 'topic' });
       Question.hasMany(models.QuestionAttempt, { foreignKey: 'questionId', as: 'attempts' });
+      // YENİ İLİŞKİ: Question -> ExamClassification
+      Question.belongsTo(models.ExamClassification, {
+        foreignKey: 'examClassificationId',
+        as: 'examClassification' // İlişki için takma ad
+      });
     }
   }
   Question.init({
@@ -46,7 +50,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    classification: {
+    classification: { // Bu alanın adı ExamClassification ile karışabilir. Belki "questionType" gibi bir isim daha iyi olabilirdi. Şimdilik bırakıyorum.
       type: DataTypes.STRING,
       allowNull: true,
     },
@@ -56,17 +60,33 @@ module.exports = (sequelize, DataTypes) => {
     },
     topicId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: false, // Bir konuyla ilişkili olmalı
       references: {
         model: 'Topics',
         key: 'id',
       },
       onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
+      onDelete: 'SET NULL', // Konu silinirse bu soruya ait topicId null olur.
+    },
+    // YENİ ALAN: examClassificationId
+    examClassificationId: {
+      type: DataTypes.INTEGER,
+      allowNull: false, // Her soru bir sınav sınıflandırmasına ait olmalı
+      references: {
+        model: 'ExamClassifications', // ExamClassifications tablosuna referans
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      // Sınıflandırma silinirse, o sınıflandırmaya ait sorular da silinsin mi?
+      // Genellikle bu tür bir durumda soruların da silinmesi mantıklı olabilir (CASCADE).
+      // Veya SET NULL (eğer allowNull: true yapılırsa) veya RESTRICT (silmeyi engeller).
+      // Şimdilik CASCADE varsayalım, projenizin mantığına göre değiştirebilirsiniz.
+      onDelete: 'CASCADE',
     }
   }, {
     sequelize,
     modelName: 'Question',
+    // tableName: 'Questions' // İsterseniz tablo adını açıkça belirtebilirsiniz
   });
   return Question;
 };

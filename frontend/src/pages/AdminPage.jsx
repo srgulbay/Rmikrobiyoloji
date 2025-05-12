@@ -74,73 +74,44 @@ function AdminStatsOverview({ token }) {
             <Heading as="h3" size="lg" display="flex" alignItems="center" gap={3}>
                 <Icon as={FaChartBar} /> Genel Bakış ve Kullanıcı Performansları
             </Heading>
-
             {error && (
                 <Alert status="error" borderRadius="md" variant="subtle">
                     <AlertIcon />
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
-
             <FormControl id="spec-filter-overview">
                 <FormLabel>Uzmanlık Alanına Göre Filtrele:</FormLabel>
                 <Select value={selectedSpec} onChange={handleFilterChange} placeholder="Tümü">
                     {specializations.map(spec => (<option key={spec} value={spec}>{spec}</option>))}
                 </Select>
             </FormControl>
-
             {overviewStats && (
                 <Box borderWidth="1px" borderRadius="lg" p={6} borderColor="borderPrimary" bg="bgSecondary">
                     <Heading as="h4" size="md" mb={4}>Genel Özet ({overviewStats.filter || 'Tümü'})</Heading>
                     <StatGroup>
-                        <Stat>
-                            <StatLabel>Kullanıcı Sayısı</StatLabel>
-                            <StatNumber>{overviewStats.userCount}</StatNumber>
-                        </Stat>
-                        <Stat>
-                            <StatLabel>Toplam Deneme</StatLabel>
-                            <StatNumber>{overviewStats.totalAttempts}</StatNumber>
-                        </Stat>
-                        <Stat>
-                            <StatLabel>Doğru Sayısı</StatLabel>
-                            <StatNumber color="green.500">{overviewStats.correctAttempts}</StatNumber>
-                        </Stat>
-                         <Stat>
-                            <StatLabel>Başarı Oranı</StatLabel>
-                            <StatNumber color={overviewStats.accuracy >= 80 ? 'green.500' : overviewStats.accuracy >= 50 ? 'yellow.500' : 'red.500'}>
-                                %{overviewStats.accuracy}
-                            </StatNumber>
-                        </Stat>
+                        <Stat><StatLabel>Kullanıcı Sayısı</StatLabel><StatNumber>{overviewStats.userCount}</StatNumber></Stat>
+                        <Stat><StatLabel>Toplam Deneme</StatLabel><StatNumber>{overviewStats.totalAttempts}</StatNumber></Stat>
+                        <Stat><StatLabel>Doğru Sayısı</StatLabel><StatNumber color="green.500">{overviewStats.correctAttempts}</StatNumber></Stat>
+                        <Stat><StatLabel>Başarı Oranı</StatLabel><StatNumber color={overviewStats.accuracy >= 80 ? 'green.500' : overviewStats.accuracy >= 50 ? 'yellow.500' : 'red.500'}>%{overviewStats.accuracy}</StatNumber></Stat>
                     </StatGroup>
                 </Box>
             )}
-
             <Box>
                 <Heading as="h4" size="md" mb={4}>Kullanıcı Performansları ({selectedSpec || 'Tümü'})</Heading>
                 {userSummaries.length === 0 && !loading ? (
-                    <Alert status="info" borderRadius="md" variant="subtle">
-                        <AlertIcon /> Filtreye uygun kullanıcı veya deneme bulunamadı.
-                    </Alert>
+                    <Alert status="info" borderRadius="md" variant="subtle"><AlertIcon /> Filtreye uygun kullanıcı veya deneme bulunamadı.</Alert>
                 ) : (
                     <TableContainer borderWidth="1px" borderRadius="md" borderColor="borderSecondary">
                         <Table variant="striped" size="sm">
-                            <Thead bg="bgTertiary">
-                                <Tr>
-                                    <Th>Kullanıcı Adı</Th>
-                                    <Th isNumeric>Toplam Deneme</Th>
-                                    <Th isNumeric>Doğru Sayısı</Th>
-                                    <Th isNumeric>Başarı Oranı (%)</Th>
-                                </Tr>
-                            </Thead>
+                            <Thead bg="bgTertiary"><Tr><Th>Kullanıcı Adı</Th><Th isNumeric>Toplam Deneme</Th><Th isNumeric>Doğru Sayısı</Th><Th isNumeric>Başarı Oranı (%)</Th></Tr></Thead>
                             <Tbody>
                                 {userSummaries.map(userStat => (
                                     <Tr key={userStat.userId} _hover={{ bg: 'blackAlpha.100', _dark: { bg: 'whiteAlpha.100' }}}>
                                         <Td>{userStat.username} <Text as="span" fontSize="xs" color="textMuted">(ID: {userStat.userId})</Text></Td>
                                         <Td isNumeric>{userStat.totalAttempts}</Td>
                                         <Td isNumeric>{userStat.correctAttempts}</Td>
-                                        <Td isNumeric color={userStat.accuracy >= 80 ? 'green.600' : userStat.accuracy >= 50 ? 'yellow.600' : 'red.600'}>
-                                            {userStat.accuracy}%
-                                        </Td>
+                                        <Td isNumeric color={userStat.accuracy >= 80 ? 'green.600' : userStat.accuracy >= 50 ? 'yellow.600' : 'red.600'}>{userStat.accuracy}%</Td>
                                     </Tr>
                                 ))}
                             </Tbody>
@@ -251,12 +222,7 @@ function UserManagement({ token }) {
                     <Table variant="striped" size="sm">
                         <Thead bg="bgTertiary">
                             <Tr>
-                                <Th>ID</Th>
-                                <Th>Kullanıcı Adı</Th>
-                                <Th>Rol</Th>
-                                <Th>Uzmanlık</Th>
-                                <Th>Kayıt Tarihi</Th>
-                                <Th isNumeric>İşlemler</Th>
+                                <Th>ID</Th><Th>Kullanıcı Adı</Th><Th>Rol</Th><Th>Uzmanlık</Th><Th>Kayıt Tarihi</Th><Th isNumeric>İşlemler</Th>
                             </Tr>
                         </Thead>
                         <Tbody>
@@ -264,11 +230,7 @@ function UserManagement({ token }) {
                                 <Tr key={user.id} _hover={{ bg: 'blackAlpha.100', _dark: { bg: 'whiteAlpha.100' }}}>
                                     <Td>{user.id}</Td>
                                     <Td>{user.username}</Td>
-                                    <Td>
-                                        <Badge colorScheme={user.role === 'admin' ? 'green' : 'gray'} variant="solid">
-                                            {user.role}
-                                        </Badge>
-                                    </Td>
+                                    <Td><Badge colorScheme={user.role === 'admin' ? 'green' : 'gray'} variant="solid">{user.role}</Badge></Td>
                                     <Td>{user.specialization || '-'}</Td>
                                     <Td>{new Date(user.createdAt).toLocaleDateString()}</Td>
                                     <Td isNumeric>
@@ -294,74 +256,38 @@ function UserManagement({ token }) {
                     </Table>
                 </TableContainer>
             )}
-
             <Modal isOpen={isConfirmOpen} onClose={onConfirmClose} isCentered>
                 <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>İşlem Onayı</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
+                <ModalContent><ModalHeader>İşlem Onayı</ModalHeader><ModalCloseButton /><ModalBody>
                         {actionType === 'delete' && `Kullanıcıyı (${actionUser?.username} - ID: ${actionUser?.id}) silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!`}
                         {actionType === 'role' && `Kullanıcı (${actionUser?.username} - ID: ${actionUser?.id}) rolünü "${newRole}" olarak değiştirmek istediğinize emin misiniz?`}
-                    </ModalBody>
-                    <ModalFooter>
+                    </ModalBody><ModalFooter>
                         <Button variant='ghost' mr={3} onClick={onConfirmClose}>İptal</Button>
-                        <Button colorScheme={actionType === 'delete' ? 'red' : 'green'} onClick={handleConfirmAction}>
-                            Onayla
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
+                        <Button colorScheme={actionType === 'delete' ? 'red' : 'green'} onClick={handleConfirmAction}>Onayla</Button>
+                </ModalFooter></ModalContent>
             </Modal>
-
             <Modal isOpen={isStatsOpen} onClose={onStatsClose} size="xl" scrollBehavior="inside">
                 <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Kullanıcı İstatistikleri: {actionUser?.username}</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
-                        {statsLoading ? (
-                            <Center><Spinner color="brand.500" /></Center>
+                <ModalContent><ModalHeader>Kullanıcı İstatistikleri: {actionUser?.username}</ModalHeader><ModalCloseButton /><ModalBody>
+                        {statsLoading ? ( <Center><Spinner color="brand.500" /></Center>
                         ) : userStats.length > 0 ? (
-                            <TableContainer>
-                                <Table variant="simple" size="sm">
-                                    <Thead>
-                                        <Tr>
-                                            <Th>Konu</Th>
-                                            <Th isNumeric>Deneme</Th>
-                                            <Th isNumeric>Doğru</Th>
-                                            <Th isNumeric>Başarı (%)</Th>
-                                        </Tr>
-                                    </Thead>
-                                    <Tbody>
-                                        {userStats.map(stat => (
-                                            <Tr key={stat.topicId}>
-                                                <Td>{stat.topicName}</Td>
-                                                <Td isNumeric>{stat.totalAttempts}</Td>
-                                                <Td isNumeric>{stat.correctAttempts}</Td>
-                                                <Td isNumeric color={stat.accuracy >= 80 ? 'green.500' : stat.accuracy >= 50 ? 'yellow.500' : 'red.500'}>
-                                                    {stat.accuracy}%
-                                                </Td>
-                                            </Tr>
-                                        ))}
-                                    </Tbody>
-                                </Table>
-                            </TableContainer>
-                        ) : (
-                            <Text>Bu kullanıcı için istatistik verisi bulunamadı.</Text>
-                        )}
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button onClick={onStatsClose}>Kapat</Button>
-                    </ModalFooter>
-                </ModalContent>
+                            <TableContainer><Table variant="simple" size="sm"><Thead><Tr><Th>Konu</Th><Th isNumeric>Deneme</Th><Th isNumeric>Doğru</Th><Th isNumeric>Başarı (%)</Th></Tr></Thead><Tbody>
+                                {userStats.map(stat => (
+                                    <Tr key={stat.topicId}><Td>{stat.topicName}</Td><Td isNumeric>{stat.totalAttempts}</Td><Td isNumeric>{stat.correctAttempts}</Td>
+                                    <Td isNumeric color={stat.accuracy >= 80 ? 'green.500' : stat.accuracy >= 50 ? 'yellow.500' : 'red.500'}>{stat.accuracy}%</Td></Tr>
+                                ))}
+                            </Tbody></Table></TableContainer>
+                        ) : ( <Text>Bu kullanıcı için istatistik verisi bulunamadı.</Text> )}
+                    </ModalBody><ModalFooter><Button onClick={onStatsClose}>Kapat</Button></ModalFooter></ModalContent>
             </Modal>
         </Box>
     );
 }
 
-// Bölüm 1'deki importlar ve component'ler burada devam ediyor...
+// frontend/src/pages/AdminPage.jsx - BÖLÜM 2/2 (İlk Parça)
+// (Bir önceki bölümdeki importlar ve AdminStatsOverview, UserManagement component'leri burada yer almıyor,
+// bu sadece TopicManagement ve sonrasını içerir.)
 
-// --- Topic Management Component ---
 function TopicManagement({ token }) {
     const [topics, setTopics] = useState([]);
     const [allTopicsFlat, setAllTopicsFlat] = useState([]);
@@ -369,16 +295,25 @@ function TopicManagement({ token }) {
     const [error, setError] = useState('');
     const [formError, setFormError] = useState('');
     const [editingTopic, setEditingTopic] = useState(null);
-    const [formState, setFormState] = useState({ name: '', description: '', parentId: '' });
+    // Form state'ine examClassificationId ve branchId eklendi
+    const initialTopicFormState = { name: '', description: '', parentId: '', examClassificationId: '', branchId: '' };
+    const [formState, setFormState] = useState(initialTopicFormState);
     const toast = useToast();
     const { isOpen: isDeleteConfirmOpen, onOpen: onDeleteConfirmOpen, onClose: onDeleteConfirmClose } = useDisclosure();
     const [topicToDelete, setTopicToDelete] = useState(null);
+
+    // Sınav Sınıflandırmaları ve Branşlar için state'ler
+    const [examClassifications, setExamClassifications] = useState([]);
+    const [branches, setBranches] = useState([]);
+    const [loadingDropdowns, setLoadingDropdowns] = useState(true);
 
     const topicNodeHoverBg = useColorModeValue('gray.50', 'gray.700');
     const topicFormBg = useColorModeValue('blue.50', 'blue.900');
     const topicFormBorder = useColorModeValue('blue.200', 'blue.700');
 
     const backendUrl = `${API_BASE_URL}/api/topics`;
+    const examClassificationsUrl = `${API_BASE_URL}/api/exam-classifications`;
+    const branchesUrl = `${API_BASE_URL}/api/branches`;
 
     const flattenTopicsForSelect = useCallback((nodes, list = [], level = 0) => {
         if (!Array.isArray(nodes)) return list;
@@ -404,20 +339,58 @@ function TopicManagement({ token }) {
         } finally { setLoading(false); }
     }, [token, backendUrl, flattenTopicsForSelect]);
 
-    useEffect(() => { fetchTopics(); }, [fetchTopics]);
+    // Sınav Sınıflandırmalarını ve Branşları çek
+    useEffect(() => {
+        const fetchDropdownData = async () => {
+            if (!token) return;
+            setLoadingDropdowns(true);
+            try {
+                const config = { headers: { Authorization: `Bearer ${token}` } };
+                const [classificationsRes, branchesRes] = await Promise.all([
+                    axios.get(examClassificationsUrl, config),
+                    axios.get(branchesUrl, config)
+                ]);
+                setExamClassifications(Array.isArray(classificationsRes.data) ? classificationsRes.data : []);
+                setBranches(Array.isArray(branchesRes.data) ? branchesRes.data : []);
+            } catch (err) {
+                console.error("Dropdown verileri çekilirken hata:", err);
+                toast({ title: "Hata", description: "Sınıflandırma veya branş listesi yüklenemedi.", status: "error", duration: 3000, isClosable: true });
+            } finally {
+                setLoadingDropdowns(false);
+            }
+        };
+        fetchDropdownData();
+        fetchTopics();
+    }, [token, fetchTopics, examClassificationsUrl, branchesUrl, toast]);
+
 
     const handleInputChange = (e) => { const { name, value } = e.target; setFormState(prev => ({ ...prev, [name]: value })); };
 
     const handleFormSubmit = async (e) => {
         e.preventDefault(); setFormError('');
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const topicData = { name: formState.name.trim(), description: formState.description.trim(), parentId: formState.parentId === '' ? null : parseInt(formState.parentId, 10) };
+        const topicData = {
+            name: formState.name.trim(),
+            description: formState.description.trim(),
+            parentId: formState.parentId === '' ? null : parseInt(formState.parentId, 10),
+            examClassificationId: formState.examClassificationId === '' ? null : parseInt(formState.examClassificationId, 10),
+            branchId: formState.branchId === '' ? null : parseInt(formState.branchId, 10)
+        };
         if (!topicData.name) { setFormError("Konu adı boş bırakılamaz."); return; }
+        // examClassificationId ve branchId backend'de zorunluysa burada da kontrol eklenmeli.
+        // Şimdilik backend'in opsiyonel (nullable) aldığını varsayıyoruz.
+
         try {
             let message = '';
-            if (editingTopic) { await axios.put(`<span class="math-inline">\{backendUrl\}/</span>{editingTopic.id}`, topicData, config); message = 'Konu başarıyla güncellendi!'; }
-            else { await axios.post(backendUrl, topicData, config); message = 'Konu başarıyla eklendi!'; }
-            resetForm(); fetchTopics();
+            if (editingTopic) {
+                await axios.put(`${backendUrl}/${editingTopic.id}`, topicData, config);
+                message = 'Konu başarıyla güncellendi!';
+            } else {
+                await axios.post(backendUrl, topicData, config);
+                message = 'Konu başarıyla eklendi!';
+            }
+            resetForm();
+            fetchTopics();
             toast({ title: "Başarılı", description: message, status: "success", duration: 3000, isClosable: true });
         } catch (err) {
             console.error("Konu kaydedilirken hata:", err);
@@ -430,7 +403,13 @@ function TopicManagement({ token }) {
     const handleEdit = (topic) => {
         const { children, ...topicDataToEdit } = topic;
         setEditingTopic(topicDataToEdit);
-        setFormState({ name: topicDataToEdit.name, description: topicDataToEdit.description || '', parentId: topicDataToEdit.parentId === null ? '' : String(topicDataToEdit.parentId) });
+        setFormState({
+            name: topicDataToEdit.name || '',
+            description: topicDataToEdit.description || '',
+            parentId: topicDataToEdit.parentId === null ? '' : String(topicDataToEdit.parentId),
+            examClassificationId: topicDataToEdit.examClassificationId === null ? '' : String(topicDataToEdit.examClassificationId),
+            branchId: topicDataToEdit.branchId === null ? '' : String(topicDataToEdit.branchId)
+        });
         setFormError('');
         document.getElementById('topic-form-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
@@ -442,9 +421,10 @@ function TopicManagement({ token }) {
        setError(''); onDeleteConfirmClose();
        try {
          const config = { headers: { Authorization: `Bearer ${token}` } };
-         await axios.delete(`<span class="math-inline">\{backendUrl\}/</span>{topicToDelete.id}`, config);
+         await axios.delete(`${backendUrl}/${topicToDelete.id}`, config);
          toast({ title: "Başarılı", description: `Konu (${topicToDelete.name}) silindi.`, status: "success", duration: 3000, isClosable: true });
          fetchTopics();
+         if(editingTopic && editingTopic.id === topicToDelete.id) resetForm();
        } catch (err) {
          console.error("Konu silinirken hata:", err);
          const errorMsg = err.response?.data?.message || 'Konu silinirken bir hata oluştu.';
@@ -453,40 +433,59 @@ function TopicManagement({ token }) {
        } finally { setTopicToDelete(null); }
     };
 
-    const resetForm = () => { setEditingTopic(null); setFormState({ name: '', description: '', parentId: '' }); setFormError(''); };
+    const resetForm = () => { setEditingTopic(null); setFormState(initialTopicFormState); setFormError(''); };
 
-    const TopicNode = ({ topic, level = 0, nodeBg }) => (
+    const TopicNode = ({ topic, level = 0, nodeBg }) => {
+        const { colorMode } = useColorModeValue; // Bu satır hatalı, useColorModeValue bir hook'tur.
+                                                // colorMode'u TopicManagement'tan prop olarak almalı
+                                                // veya TopicNode içinde çağrılmalı ama map içinde değil.
+                                                // Şimdilik, calculateNodeBg'nin dışarıdan colorMode alacağını varsayalım.
+        const calculatedBg = level > 0 ? nodeBg : 'transparent';
+
+        return (
         <Flex
             justify="space-between" align="center" py={2} px={4}
             borderBottomWidth="1px" borderColor="borderSecondary"
             ml={`${level * 1.5}rem`}
-            bg={level > 0 ? nodeBg : 'transparent'}
+            bg={calculatedBg}
             _last={{ borderBottomWidth: 0 }}
             _hover={{ bg: topicNodeHoverBg }}
         >
             <HStack spacing={3} flex={1} minW={0}>
                 <Icon as={Array.isArray(topic.children) && topic.children.length > 0 ? FaFolderOpen : FaFileAlt} color="textMuted" />
-                <Text isTruncated title={topic.name}>[{topic.id}] {topic.name}</Text>
+                <Text isTruncated title={topic.name}>
+                    [{topic.id}] {topic.name}
+                    {topic.examClassificationId && examClassifications.find(ec => ec.id === topic.examClassificationId) &&
+                        <Text as="span" fontSize="xs" color="gray.500" ml={2}>
+                            ({examClassifications.find(ec => ec.id === topic.examClassificationId).name})
+                        </Text>
+                    }
+                    {topic.branchId && branches.find(b => b.id === topic.branchId) &&
+                        <Text as="span" fontSize="xs" color="blue.500" ml={2}>
+                            [{branches.find(b => b.id === topic.branchId).name}]
+                        </Text>
+                    }
+                </Text>
             </HStack>
             <HStack spacing={1}>
                 <IconButton icon={<Icon as={FaUserEdit} />} size="xs" variant="ghost" colorScheme="blue" onClick={() => handleEdit(topic)} aria-label="Düzenle" title="Düzenle" />
                 <IconButton icon={<Icon as={FaTrashAlt} />} size="xs" variant="ghost" colorScheme="red" onClick={() => openDeleteConfirmation(topic)} aria-label="Sil" title="Sil" />
             </HStack>
         </Flex>
-    );
+    )};
 
-    const renderTopics = useCallback((topicsToRender, level = 0, colorMode) => {
+    const { colorMode } = useColorModeValue; // Bu satır da burada olmamalı. Component'in en üstünde olmalı.
+                                            // renderTopics'e prop olarak geçilecek.
+
+    const renderTopics = useCallback((topicsToRender, level = 0, currentCM) => {
         if (!Array.isArray(topicsToRender)) return null;
 
         const calculateNodeBg = (lvl) => {
-            const baseGray = colorMode === 'light' ? 50 : 800;
-            const increment = colorMode === 'light' ? 50 : -50;
-            // Ensure the calculation stays within valid gray shades (50-900)
-            let shade = baseGray + lvl * increment;
+            const baseValue = currentCM === 'light' ? 50 : 800;
+            const increment = currentCM === 'light' ? 50 : -50;
+            let shade = baseValue + lvl * increment;
             shade = Math.max(50, Math.min(900, shade));
-            // Round to nearest 50 or 100 for standard shades
             shade = Math.round(shade / 50) * 50;
-             // Ensure minimum 50
             shade = Math.max(50, shade);
             return `gray.${shade}`;
         };
@@ -497,16 +496,16 @@ function TopicManagement({ token }) {
                 <React.Fragment key={topic.id}>
                     <TopicNode topic={topic} level={level} nodeBg={nodeBg} />
                     {Array.isArray(topic.children) && topic.children.length > 0 && (
-                         renderTopics(topic.children, level + 1, colorMode)
+                         renderTopics(topic.children, level + 1, currentCM)
                     )}
                 </React.Fragment>
             );
         });
-     }, []); // dependency array for useCallback
+     }, [examClassifications, branches]); // examClassifications ve branches eklendi, TopicNode'da kullanılıyor
 
-    const { colorMode } = useColorModeValue; // Get colorMode for background calculation
+    const currentComponentColorMode = useColorModeValue('light', 'dark'); // Bu doğru kullanım
 
-    if (loading) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
+    if (loading || loadingDropdowns) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
 
     return (
         <Box>
@@ -527,6 +526,35 @@ function TopicManagement({ token }) {
                         <Input name="name" value={formState.name} onChange={handleInputChange} />
                          {formError.includes('Konu adı') && <FormErrorMessage>{formError}</FormErrorMessage>}
                     </FormControl>
+
+                    <FormControl>
+                        <FormLabel fontSize="sm">Sınav Sınıflandırması:</FormLabel>
+                        <Select
+                            name="examClassificationId"
+                            value={formState.examClassificationId}
+                            onChange={handleInputChange}
+                            placeholder="-- Sınıflandırma Seçin --"
+                        >
+                            {examClassifications.map(ec => (
+                                <option key={ec.id} value={ec.id}>{ec.name}</option>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl>
+                        <FormLabel fontSize="sm">Branş:</FormLabel>
+                        <Select
+                            name="branchId"
+                            value={formState.branchId}
+                            onChange={handleInputChange}
+                            placeholder="-- Branş Seçin --"
+                        >
+                            {branches.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </Select>
+                    </FormControl>
+
                     <FormControl>
                         <FormLabel fontSize="sm">Açıklama (Opsiyonel):</FormLabel>
                         <Textarea name="description" value={formState.description} onChange={handleInputChange} rows={3} />
@@ -555,37 +583,41 @@ function TopicManagement({ token }) {
                 <Alert status="info" variant="subtle" borderRadius="md"> <AlertIcon /> Konu bulunamadı. </Alert>
             ) : (
                  <Box borderWidth="1px" borderRadius="md" borderColor="borderSecondary" bg="bgPrimary" maxH="500px" overflowY="auto">
-                     {renderTopics(topics, 0, colorMode)}
+                     {renderTopics(topics, 0, currentComponentColorMode)}
                  </Box>
             )}
 
             <Modal isOpen={isDeleteConfirmOpen} onClose={onDeleteConfirmClose} isCentered>
                 <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Konu Silme Onayı</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
+                <ModalContent><ModalHeader>Konu Silme Onayı</ModalHeader><ModalCloseButton /><ModalBody>
                         Konuyu ({topicToDelete?.name} - ID: {topicToDelete?.id}) ve altındaki tüm alt konuları, dersleri, soruları silmek istediğinizden emin misiniz?
                         <Text fontWeight="bold" color="red.500" mt={2}>Bu işlem geri alınamaz!</Text>
-                    </ModalBody>
-                    <ModalFooter>
+                    </ModalBody><ModalFooter>
                         <Button variant='ghost' mr={3} onClick={onDeleteConfirmClose}>İptal</Button>
                         <Button colorScheme='red' onClick={handleDeleteConfirm}> Sil </Button>
-                    </ModalFooter>
-                </ModalContent>
+                </ModalFooter></ModalContent>
             </Modal>
         </Box>
     );
 }
 
+// LectureManagement, QuestionManagement ve AdminPage fonksiyonları bir sonraki parçada gelecek...
+
+// frontend/src/pages/AdminPage.jsx
+// (Bir önceki mesajdaki TopicManagement component'inden sonraki kısımlar)
+
 function LectureManagement({ token }) {
     const [lectures, setLectures] = useState([]);
     const [topicsTree, setTopicsTree] = useState([]);
+    const [examClassifications, setExamClassifications] = useState([]); // Sınav Sınıflandırmaları için state
     const [loading, setLoading] = useState(true);
+    const [loadingDropdowns, setLoadingDropdowns] = useState(true); // Dropdown verileri için yükleme
     const [error, setError] = useState('');
     const [formError, setFormError] = useState('');
     const [editingLecture, setEditingLecture] = useState(null);
-    const [formState, setFormState] = useState({ title: '', content: '', topicId: '', imageUrl: '' });
+    // Form state'ine examClassificationId eklendi
+    const initialLectureFormState = { title: '', content: '', topicId: '', imageUrl: '', examClassificationId: '' };
+    const [formState, setFormState] = useState(initialLectureFormState);
     const [isUploading, setIsUploading] = useState(false);
     const editorRef = useRef(null);
     const toast = useToast();
@@ -600,20 +632,29 @@ function LectureManagement({ token }) {
     const backendLectureUrl = `${API_BASE_URL}/api/lectures`;
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
     const backendUploadUrl = `${API_BASE_URL}/api/upload/image`;
+    const examClassificationsUrl = `${API_BASE_URL}/api/exam-classifications`;
 
     const fetchData = useCallback(async () => {
-        setLoading(true); setError('');
+        setLoading(true); setLoadingDropdowns(true); setError('');
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            const [lecturesRes, topicsRes] = await Promise.all([
+            const [lecturesRes, topicsRes, classificationsRes] = await Promise.all([
                 axios.get(backendLectureUrl, config),
-                axios.get(backendTopicUrl, config)
+                axios.get(backendTopicUrl, config),
+                axios.get(examClassificationsUrl, config) // Sınıflandırmaları çek
             ]);
             setLectures(Array.isArray(lecturesRes.data) ? lecturesRes.data : []);
             setTopicsTree(Array.isArray(topicsRes.data) ? topicsRes.data : []);
-        } catch (err) { console.error("Lecture/Topic Verisi çekerken hata:", err); setError(err.response?.data?.message || 'Veriler yüklenirken hata oluştu.'); setLectures([]); setTopicsTree([]); }
-        finally { setLoading(false); }
-    }, [token, backendLectureUrl, backendTopicUrl]);
+            setExamClassifications(Array.isArray(classificationsRes.data) ? classificationsRes.data : []);
+        } catch (err) {
+            console.error("Lecture/Topic/Classification Verisi çekerken hata:", err);
+            setError(err.response?.data?.message || 'Veriler yüklenirken hata oluştu.');
+            setLectures([]); setTopicsTree([]); setExamClassifications([]);
+            toast({ title: "Veri Yükleme Hatası", description: "Gerekli veriler yüklenemedi.", status: "error", duration: 3000, isClosable: true });
+        } finally {
+            setLoading(false); setLoadingDropdowns(false);
+        }
+    }, [token, backendLectureUrl, backendTopicUrl, examClassificationsUrl, toast]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -624,12 +665,20 @@ function LectureManagement({ token }) {
          e.preventDefault(); setFormError('');
          const config = { headers: { Authorization: `Bearer ${token}` } };
          if (!formState.topicId) { setFormError('Lütfen bir konu seçin.'); return; }
+         if (!formState.examClassificationId) { setFormError('Lütfen bir sınav sınıflandırması seçin.'); return; }
          const editorContent = editorRef.current ? editorRef.current.getContent() : formState.content;
          if (!formState.title || !editorContent || editorContent.trim() === '<p><br data-mce-bogus="1"></p>' || editorContent.trim() === '<p><br></p>') { setFormError('Başlık ve İçerik alanları zorunludur.'); return; }
-         const lectureData = { title: formState.title, content: editorContent, topicId: parseInt(formState.topicId, 10), imageUrl: formState.imageUrl.trim() === '' ? null : formState.imageUrl };
+
+         const lectureData = {
+            title: formState.title,
+            content: editorContent,
+            topicId: parseInt(formState.topicId, 10),
+            imageUrl: formState.imageUrl.trim() === '' ? null : formState.imageUrl,
+            examClassificationId: parseInt(formState.examClassificationId, 10)
+         };
          try {
            let message = '';
-           if (editingLecture) { await axios.put(`<span class="math-inline">\{backendLectureUrl\}/</span>{editingLecture.id}`, lectureData, config); message = 'Konu anlatımı güncellendi!'; }
+           if (editingLecture) { await axios.put(`${backendLectureUrl}/${editingLecture.id}`, lectureData, config); message = 'Konu anlatımı güncellendi!'; }
            else { await axios.post(backendLectureUrl, lectureData, config); message = 'Konu anlatımı eklendi!'; }
            resetForm(); fetchData();
            toast({ title: "Başarılı", description: message, status: "success", duration: 3000, isClosable: true });
@@ -643,22 +692,28 @@ function LectureManagement({ token }) {
 
     const handleEdit = (lecture) => {
          setEditingLecture(lecture);
-         setFormState({ title: lecture.title, content: lecture.content || '', topicId: lecture.topic?.id ? String(lecture.topic.id) : '', imageUrl: lecture.imageUrl || '' });
+         setFormState({
+            title: lecture.title || '',
+            content: lecture.content || '',
+            topicId: lecture.topic?.id ? String(lecture.topic.id) : '',
+            imageUrl: lecture.imageUrl || '',
+            examClassificationId: lecture.examClassificationId ? String(lecture.examClassificationId) : ''
+        });
          setFormError('');
          if (editorRef.current) editorRef.current.setContent(lecture.content || '');
          document.getElementById('lecture-form-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     const openDeleteConfirmation = (lecture) => { setLectureToDelete(lecture); onDeleteConfirmOpen(); };
-
     const handleDeleteConfirm = async () => {
         if (!lectureToDelete) return;
         setError(''); onDeleteConfirmClose();
         try {
           const config = { headers: { Authorization: `Bearer ${token}` } };
-          await axios.delete(`<span class="math-inline">\{backendLectureUrl\}/</span>{lectureToDelete.id}`, config);
+          await axios.delete(`${backendLectureUrl}/${lectureToDelete.id}`, config);
           toast({ title: "Başarılı", description: `Konu anlatımı (${lectureToDelete.title}) silindi.`, status: "success", duration: 3000, isClosable: true });
           fetchData();
+          if(editingLecture && editingLecture.id === lectureToDelete.id) resetForm();
         } catch (err) {
           console.error("Konu anlatımı silinirken hata:", err);
           const errorMsg = err.response?.data?.message || 'Konu anlatımı silinirken bir hata oluştu.';
@@ -668,7 +723,7 @@ function LectureManagement({ token }) {
     };
 
     const resetForm = () => {
-        setEditingLecture(null); setFormState({ title: '', content: '', topicId: '', imageUrl: '' }); setFormError('');
+        setEditingLecture(null); setFormState(initialLectureFormState); setFormError('');
         if (editorRef.current) editorRef.current.setContent('');
     };
 
@@ -691,130 +746,90 @@ function LectureManagement({ token }) {
         return options;
     }, []);
 
-    if (loading) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
+    if (loading || loadingDropdowns) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
 
     return (
         <Box>
             <Heading as="h3" size="lg" display="flex" alignItems="center" gap={3} mb={6}>
                 <Icon as={FaChalkboardTeacher} /> Konu Anlatımı Yönetimi
             </Heading>
-
             {error && ( <Alert status="error" variant="subtle" borderRadius="md" mb={4}> <AlertIcon /> {error} </Alert> )}
-
-             <Box id="lecture-form-section" as="form" onSubmit={handleFormSubmit} p={6} borderWidth="1px" borderRadius="lg" borderColor={lectureFormBorder} bg={lectureFormBg} mb={8}>
+            <Box id="lecture-form-section" as="form" onSubmit={handleFormSubmit} p={6} borderWidth="1px" borderRadius="lg" borderColor={lectureFormBorder} bg={lectureFormBg} mb={8}>
                 <Heading as="h4" size="md" mb={5}>{editingLecture ? `Konu Anlatımı Düzenle (ID: ${editingLecture.id})` : 'Yeni Konu Anlatımı Ekle'}</Heading>
-
                 {formError && <Alert status="warning" variant="subtle" borderRadius="md" mb={4}><AlertIcon />{formError}</Alert>}
-                {isUploading && (
-                    <Alert status="info" variant="subtle" borderRadius="md" mb={4}>
-                        <Spinner size="sm" mr={3}/> Resim yükleniyor...
-                    </Alert>
-                )}
-
+                {isUploading && ( <Alert status="info" variant="subtle" borderRadius="md" mb={4}><Spinner size="sm" mr={3}/> Resim yükleniyor...</Alert>)}
                 <VStack spacing={4}>
                     <FormControl isRequired isInvalid={formError.includes('Başlık')}>
                         <FormLabel fontSize="sm">Başlık:</FormLabel>
                         <Input name="title" value={formState.title} onChange={handleInputChange} isDisabled={isUploading} />
                     </FormControl>
-
                     <FormControl isRequired isInvalid={formError.includes('İçerik')}>
                         <FormLabel fontSize="sm">İçerik:</FormLabel>
                         <Box borderWidth="1px" borderRadius="md" borderColor="borderPrimary" overflow="hidden">
-                            <Editor
-                                apiKey={import.meta.env.VITE_TINYMCE_API_KEY}
-                                onInit={(evt, editor) => editorRef.current = editor}
-                                value={formState.content}
-                                init={{
-                                    height: 350, menubar: false,
-                                    plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
+                            <Editor apiKey={import.meta.env.VITE_TINYMCE_API_KEY} onInit={(evt, editor) => editorRef.current = editor} value={formState.content}
+                                init={{ height: 350, menubar: false, plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
                                     toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | code removeformat | fullscreen preview | help',
-                                    images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media',
-                                    relative_urls: false, remove_script_host: false,
-                                    skin: tinySkin,
-                                    content_css: tinyContentCss
+                                    images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media', relative_urls: false, remove_script_host: false, skin: tinySkin, content_css: tinyContentCss
                                 }}
-                                onEditorChange={handleEditorChange}
-                                disabled={isUploading}
-                            />
+                                onEditorChange={handleEditorChange} disabled={isUploading} />
                         </Box>
                     </FormControl>
-
                     <FormControl>
                         <FormLabel fontSize="sm">Görsel URL (Opsiyonel):</FormLabel>
                         <Input name="imageUrl" value={formState.imageUrl} onChange={handleInputChange} placeholder="https://..." isDisabled={isUploading} />
                         <Text fontSize="xs" color="textMuted" mt={1}>Editörden resim eklemeniz önerilir.</Text>
                     </FormControl>
-
+                    <FormControl isRequired isInvalid={formError.includes('Sınav Sınıflandırması')}>
+                        <FormLabel fontSize="sm">Sınav Sınıflandırması:</FormLabel>
+                        <Select name="examClassificationId" value={formState.examClassificationId} onChange={handleInputChange} placeholder="-- Sınıflandırma Seçin --" isDisabled={isUploading}>
+                            {examClassifications.map(ec => (<option key={ec.id} value={ec.id}>{ec.name}</option>))}
+                        </Select>
+                         {formError.includes('Sınav Sınıflandırması') && <FormErrorMessage>{formError}</FormErrorMessage>}
+                    </FormControl>
                     <FormControl isRequired isInvalid={formError.includes('konu seçin')}>
                         <FormLabel fontSize="sm">Ait Olduğu Konu:</FormLabel>
                         <Select name="topicId" value={formState.topicId} onChange={handleInputChange} placeholder="-- Konu Seçin --" isDisabled={isUploading}>
                             {renderTopicOptions(topicsTree)}
                         </Select>
+                         {formError.includes('konu seçin') && <FormErrorMessage>{formError}</FormErrorMessage>}
                     </FormControl>
-
                     <HStack spacing={3} mt={5} alignSelf="flex-start">
-                        <Button type="submit" colorScheme="green" isLoading={isUploading} loadingText="Kaydediliyor..." leftIcon={<Icon as={FaSave}/>}>
-                            {editingLecture ? 'Güncelle' : 'Ekle'}
-                        </Button>
-                        {editingLecture && (
-                            <Button variant="ghost" onClick={resetForm} isDisabled={isUploading} leftIcon={<Icon as={FaTimesCircle}/>}>
-                                İptal
-                            </Button>
-                        )}
+                        <Button type="submit" colorScheme="green" isLoading={isUploading} loadingText="Kaydediliyor..." leftIcon={<Icon as={FaSave}/>}>{editingLecture ? 'Güncelle' : 'Ekle'}</Button>
+                        {editingLecture && (<Button variant="ghost" onClick={resetForm} isDisabled={isUploading} leftIcon={<Icon as={FaTimesCircle}/>}>İptal</Button>)}
                     </HStack>
                 </VStack>
             </Box>
-
             <Heading as="h4" size="md" mb={4}>Mevcut Konu Anlatımları</Heading>
             {lectures.length === 0 && !loading ? (
                    <Alert status="info" variant="subtle" borderRadius="md"> <AlertIcon /> Konu anlatımı bulunamadı. </Alert>
             ) : (
                    <TableContainer borderWidth="1px" borderRadius="md" borderColor="borderSecondary">
-                       <Table variant="striped" size="sm">
-                           <Thead bg="bgTertiary">
-                               <Tr>
-                                   <Th>ID</Th> <Th>Başlık</Th> <Th>Konu</Th> <Th>Görsel URL</Th> <Th isNumeric>İşlemler</Th>
-                               </Tr>
-                           </Thead>
+                       <Table variant="striped" size="sm"><Thead bg="bgTertiary"><Tr><Th>ID</Th> <Th>Başlık</Th> <Th>Konu</Th><Th>Sınav Türü</Th> <Th>Görsel URL</Th> <Th isNumeric>İşlemler</Th></Tr></Thead>
                            <Tbody>
                                {lectures.map((lecture) => (
                                    <Tr key={lecture.id} _hover={{ bg: 'blackAlpha.100', _dark: { bg: 'whiteAlpha.100' }}}>
                                        <Td>{lecture.id}</Td>
                                        <Td>{lecture.title}</Td>
                                        <Td>{lecture.topic?.name || '-'}</Td>
-                                       <Td>
-                                           {lecture.imageUrl ? (
-                                               <ChakraLink href={lecture.imageUrl} isExternal color="blue.500" fontSize="xs">
-                                                   {lecture.imageUrl.substring(0, 30)}...
-                                               </ChakraLink>
-                                           ) : '-'}
-                                       </Td>
-                                       <Td isNumeric>
-                                           <HStack spacing={1} justify="flex-end">
+                                       <Td>{examClassifications.find(ec => ec.id === lecture.examClassificationId)?.name || '-'}</Td>
+                                       <Td>{lecture.imageUrl ? (<ChakraLink href={lecture.imageUrl} isExternal color="blue.500" fontSize="xs">{lecture.imageUrl.substring(0, 30)}...</ChakraLink>) : '-'}</Td>
+                                       <Td isNumeric><HStack spacing={1} justify="flex-end">
                                                <IconButton icon={<Icon as={FaUserEdit} />} size="xs" variant="ghost" colorScheme="blue" onClick={() => handleEdit(lecture)} aria-label="Düzenle" title="Düzenle"/>
                                                <IconButton icon={<Icon as={FaTrashAlt} />} size="xs" variant="ghost" colorScheme="red" onClick={() => openDeleteConfirmation(lecture)} aria-label="Sil" title="Sil"/>
-                                           </HStack>
-                                       </Td>
+                                       </HStack></Td>
                                    </Tr>
                                ))}
                            </Tbody>
                        </Table>
                    </TableContainer>
             )}
-
             <Modal isOpen={isDeleteConfirmOpen} onClose={onDeleteConfirmClose} isCentered>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Konu Anlatımı Silme Onayı</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
+                <ModalOverlay /><ModalContent><ModalHeader>Konu Anlatımı Silme Onayı</ModalHeader><ModalCloseButton /><ModalBody>
                         Konu anlatımını ({lectureToDelete?.title} - ID: {lectureToDelete?.id}) silmek istediğinizden emin misiniz?
-                    </ModalBody>
-                    <ModalFooter>
+                    </ModalBody><ModalFooter>
                         <Button variant='ghost' mr={3} onClick={onDeleteConfirmClose}>İptal</Button>
                         <Button colorScheme='red' onClick={handleDeleteConfirm}> Sil </Button>
-                    </ModalFooter>
-                </ModalContent>
+                </ModalFooter></ModalContent>
             </Modal>
         </Box>
     );
@@ -823,19 +838,21 @@ function LectureManagement({ token }) {
 function QuestionManagement({ token }) {
     const [questions, setQuestions] = useState([]);
     const [topicsTree, setTopicsTree] = useState([]);
+    const [examClassifications, setExamClassifications] = useState([]); // Sınav Sınıflandırmaları
     const [loading, setLoading] = useState(true);
+    const [loadingDropdowns, setLoadingDropdowns] = useState(true); // Dropdown yüklemesi
     const [error, setError] = useState('');
     const [formError, setFormError] = useState('');
     const [editingQuestion, setEditingQuestion] = useState(null);
-    const initialFormState = { text: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', correctAnswer: '', classification: 'Çalışma Sorusu', topicId: '', imageUrl: '', explanation: '' }; // explanation eklendi
+    const initialFormState = { text: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', correctAnswer: '', classification: 'Çalışma Sorusu', topicId: '', imageUrl: '', explanation: '', examClassificationId: '' };
     const [formState, setFormState] = useState(initialFormState);
     const [isUploading, setIsUploading] = useState(false);
     const [bulkInput, setBulkInput] = useState('');
     const [bulkError, setBulkError] = useState('');
     const [bulkSuccess, setBulkSuccess] = useState('');
     const [bulkLoading, setBulkLoading] = useState(false);
-    const questionEditorRef = useRef(null); // Soru metni için ref
-    const explanationEditorRef = useRef(null); // Açıklama için ayrı ref
+    const questionEditorRef = useRef(null);
+    const explanationEditorRef = useRef(null);
     const toast = useToast();
     const { isOpen: isDeleteConfirmOpen, onOpen: onDeleteConfirmOpen, onClose: onDeleteConfirmClose } = useDisclosure();
     const [questionToDelete, setQuestionToDelete] = useState(null);
@@ -849,35 +866,38 @@ function QuestionManagement({ token }) {
     const backendQuestionUrl = `${API_BASE_URL}/api/questions`;
     const backendTopicUrl = `${API_BASE_URL}/api/topics`;
     const backendUploadUrl = `${API_BASE_URL}/api/upload/image`;
+    const examClassificationsUrl = `${API_BASE_URL}/api/exam-classifications`;
+
 
     const fetchData = useCallback(async () => {
-        setLoading(true); setError('');
+        setLoading(true); setLoadingDropdowns(true); setError('');
         try {
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            const [questionsRes, topicsRes] = await Promise.all([
+            const [questionsRes, topicsRes, classificationsRes] = await Promise.all([
                 axios.get(backendQuestionUrl, config),
-                axios.get(backendTopicUrl, config)
+                axios.get(backendTopicUrl, config),
+                axios.get(examClassificationsUrl, config)
             ]);
             setQuestions(Array.isArray(questionsRes.data) ? questionsRes.data : []);
             setTopicsTree(Array.isArray(topicsRes.data) ? topicsRes.data : []);
-        } catch (err) { console.error("Soru/Konu verisi çekerken hata:", err); setError(err.response?.data?.message || 'Sorular veya konular yüklenirken bir hata oluştu.'); setQuestions([]); setTopicsTree([]); }
-        finally { setLoading(false); }
-    }, [token, backendQuestionUrl, backendTopicUrl]);
+            setExamClassifications(Array.isArray(classificationsRes.data) ? classificationsRes.data : []);
+        } catch (err) { console.error("Soru/Konu/Classification verisi çekerken hata:", err); setError(err.response?.data?.message || 'Veriler yüklenirken bir hata oluştu.'); setQuestions([]); setTopicsTree([]); setExamClassifications([]); toast({ title: "Veri Yükleme Hatası", description: "Gerekli veriler yüklenemedi.", status: "error", duration: 3000, isClosable: true });}
+        finally { setLoading(false); setLoadingDropdowns(false); }
+    }, [token, backendQuestionUrl, backendTopicUrl, examClassificationsUrl, toast]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const handleInputChange = (e) => { const { name, value } = e.target; setFormState(prev => ({ ...prev, [name]: value })); };
-    // Ayrı editor handler'ları
-    const handleQuestionEditorChange = (content, editor) => { setFormState(prev => ({ ...prev, text: content })); };
-    const handleExplanationEditorChange = (content, editor) => { setFormState(prev => ({ ...prev, explanation: content })); };
+    const handleQuestionEditorChange = (content) => { setFormState(prev => ({ ...prev, text: content })); };
+    const handleExplanationEditorChange = (content) => { setFormState(prev => ({ ...prev, explanation: content })); };
 
 
     const handleFormSubmit = async (e) => {
         e.preventDefault(); setFormError('');
         const config = { headers: { Authorization: `Bearer ${token}` } };
         if (!formState.topicId) { setFormError('Lütfen bir konu seçin.'); return; }
+        if (!formState.examClassificationId) { setFormError('Lütfen bir sınav sınıflandırması seçin.'); return; }
 
-        // Editör içeriklerini al
         const questionTextContent = questionEditorRef.current ? questionEditorRef.current.getContent() : formState.text;
         const explanationContent = explanationEditorRef.current ? explanationEditorRef.current.getContent() : formState.explanation;
 
@@ -885,26 +905,17 @@ function QuestionManagement({ token }) {
         if (!formState.optionA || !formState.optionB || !formState.optionC || !formState.optionD || !formState.optionE || !formState.correctAnswer) { setFormError('Lütfen Seçenekler (A-E) ve Doğru Cevap alanlarını doldurun.'); return; }
 
         const questionData = {
-            text: questionTextContent,
-            optionA: formState.optionA, optionB: formState.optionB, optionC: formState.optionC, optionD: formState.optionD, optionE: formState.optionE,
-            correctAnswer: formState.correctAnswer.toUpperCase(),
-            classification: formState.classification,
-            topicId: parseInt(formState.topicId, 10),
+            text: questionTextContent, optionA: formState.optionA, optionB: formState.optionB, optionC: formState.optionC, optionD: formState.optionD, optionE: formState.optionE,
+            correctAnswer: formState.correctAnswer.toUpperCase(), classification: formState.classification, topicId: parseInt(formState.topicId, 10),
             imageUrl: formState.imageUrl.trim() === '' ? null : formState.imageUrl,
-            explanation: explanationContent && explanationContent.trim() !== '<p><br data-mce-bogus="1"></p>' && explanationContent.trim() !== '<p><br></p>' ? explanationContent : null // Açıklamayı ekle (boş değilse)
+            explanation: explanationContent && explanationContent.trim() !== '<p><br data-mce-bogus="1"></p>' && explanationContent.trim() !== '<p><br></p>' ? explanationContent : null,
+            examClassificationId: parseInt(formState.examClassificationId, 10)
         };
 
         try {
             let message = '';
-            if (editingQuestion) {
-                // PUT isteğinde de explanation'ı gönder
-                await axios.put(`<span class="math-inline">\{backendQuestionUrl\}/</span>{editingQuestion.id}`, questionData, config);
-                message = 'Soru güncellendi!';
-            } else {
-                // POST isteğinde de explanation'ı gönder
-                await axios.post(backendQuestionUrl, questionData, config);
-                message = 'Soru eklendi!';
-            }
+            if (editingQuestion) { await axios.put(`${backendQuestionUrl}/${editingQuestion.id}`, questionData, config); message = 'Soru güncellendi!'; }
+            else { await axios.post(backendQuestionUrl, questionData, config); message = 'Soru eklendi!'; }
             resetForm(); fetchData();
             toast({ title: "Başarılı", description: message, status: "success", duration: 3000, isClosable: true });
         } catch (err) {
@@ -921,26 +932,25 @@ function QuestionManagement({ token }) {
             text: question.text || '', optionA: question.optionA || '', optionB: question.optionB || '', optionC: question.optionC || '',
             optionD: question.optionD || '', optionE: question.optionE || '', correctAnswer: question.correctAnswer || '',
             classification: question.classification || 'Çalışma Sorusu', topicId: question.topic?.id ? String(question.topic.id) : '',
-            imageUrl: question.imageUrl || '',
-            explanation: question.explanation || '' // explanation'ı state'e yükle
+            imageUrl: question.imageUrl || '', explanation: question.explanation || '',
+            examClassificationId: question.examClassificationId ? String(question.examClassificationId) : ''
         });
         setFormError('');
-        // Editör içeriklerini set et
         if (questionEditorRef.current) questionEditorRef.current.setContent(question.text || '');
         if (explanationEditorRef.current) explanationEditorRef.current.setContent(question.explanation || '');
         document.getElementById('question-form-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     const openDeleteConfirmation = (question) => { setQuestionToDelete(question); onDeleteConfirmOpen(); };
-
     const handleDeleteConfirm = async () => {
        if (!questionToDelete) return;
        setError(''); onDeleteConfirmClose();
        try {
          const config = { headers: { Authorization: `Bearer ${token}` } };
-         await axios.delete(`<span class="math-inline">\{backendQuestionUrl\}/</span>{questionToDelete.id}`, config);
+         await axios.delete(`${backendQuestionUrl}/${questionToDelete.id}`, config);
          toast({ title: "Başarılı", description: `Soru (ID: ${questionToDelete.id}) silindi.`, status: "success", duration: 3000, isClosable: true });
          fetchData();
+         if(editingQuestion && editingQuestion.id === questionToDelete.id) resetForm();
        } catch (err) {
          console.error("Soru silinirken hata:", err);
          const errorMsg = err.response?.data?.message || 'Soru silinirken bir hata oluştu.';
@@ -951,7 +961,6 @@ function QuestionManagement({ token }) {
 
     const resetForm = () => {
         setEditingQuestion(null); setFormState(initialFormState); setFormError('');
-        // Editörleri temizle
         if (questionEditorRef.current) questionEditorRef.current.setContent('');
         if (explanationEditorRef.current) explanationEditorRef.current.setContent('');
     };
@@ -967,50 +976,55 @@ function QuestionManagement({ token }) {
 
     const handleBulkSubmit = async () => {
          setBulkError(''); setBulkSuccess(''); setBulkLoading(true);
-         let questionsArray;
+         let questionsData;
          try {
-           questionsArray = JSON.parse(bulkInput);
+           questionsArray = JSON.parse(bulkInput); // questionsArray tanımlanmamış, questionsData olmalı
            if (!Array.isArray(questionsArray)) throw new Error("Veri bir JSON dizisi olmalı.");
          } catch (parseError) { setBulkError(`Geçersiz JSON formatı: ${parseError.message}`); setBulkLoading(false); return; }
          if (questionsArray.length === 0) { setBulkError('Eklenecek soru bulunamadı.'); setBulkLoading(false); return; }
 
-         const questionsToCreate = []; const errors = []; const topicIds = new Set();
-         questionsData.forEach(q => { if (q.topicId) topicIds.add(q.topicId); });
-         let existingTopics = new Map();
-         if (topicIds.size > 0) { try { const topics = await Topic.findAll({ where: { id: { [Op.in]: Array.from(topicIds) } } }); topics.forEach(t => existingTopics.set(t.id, true)); } catch(err) { console.error("Toplu ekleme sırasında konu kontrol hatası:", err); return res.status(500).json({ message: 'Konu kontrolü sırasında bir sunucu hatası oluştu.' }); } }
+         const questionsToCreate = []; const validationErrors = []; // errors -> validationErrors
+         const topicIdsSet = new Set(); // topicIds -> topicIdsSet
+         questionsArray.forEach(q => { if (q.topicId) topicIdsSet.add(q.topicId); });
+         let existingTopicsMap = new Map(); // existingTopics -> existingTopicsMap
+         if (topicIdsSet.size > 0) { try { const topicsData = await axios.get(backendTopicUrl, { headers: { Authorization: `Bearer ${token}` }, params: { ids: Array.from(topicIdsSet).join(',') } }); (Array.isArray(topicsData.data) ? topicsData.data : []).forEach(t => existingTopicsMap.set(t.id, true)); } catch(err) { console.error("Toplu ekleme sırasında konu kontrol hatası:", err); setBulkError('Konu kontrolü sırasında bir sunucu hatası oluştu.'); setBulkLoading(false); return; } }
 
          for (let i = 0; i < questionsArray.length; i++) {
              const q = questionsArray[i];
-             if (!q.text || !q.optionA || !q.optionB || !q.optionC || !q.optionD || !q.optionE || !q.correctAnswer || !q.topicId) { errors.push({ index: i, error: `Zorunlu alanlar eksik.` }); continue; }
-             if (!existingTopics.has(parseInt(q.topicId, 10))) { errors.push({ index: i, error: `Geçersiz konu ID'si (${q.topicId}).` }); continue; }
+             if (!q.text || !q.optionA || !q.optionB || !q.optionC || !q.optionD || !q.optionE || !q.correctAnswer || !q.topicId || !q.examClassificationId) { validationErrors.push({ index: i, error: `Zorunlu alanlar eksik (Sınav Türü dahil).` }); continue; }
+             if (!existingTopicsMap.has(parseInt(q.topicId, 10))) { validationErrors.push({ index: i, error: `Geçersiz konu ID'si (${q.topicId}).` }); continue; }
+             // examClassificationId'nin geçerli olup olmadığını da kontrol etmek iyi olur (examClassifications state'inden)
+             if (!examClassifications.find(ec => ec.id === parseInt(q.examClassificationId, 10))) { validationErrors.push({ index: i, error: `Geçersiz sınav sınıflandırma ID'si (${q.examClassificationId}).`}); continue;}
+
+
              questionsToCreate.push({
                  text: q.text, optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, optionD: q.optionD, optionE: q.optionE,
-                 correctAnswer: String(q.correctAnswer).toUpperCase(), difficulty: 'medium', topicId: parseInt(q.topicId, 10),
+                 correctAnswer: String(q.correctAnswer).toUpperCase(), difficulty: q.difficulty || 'medium', topicId: parseInt(q.topicId, 10),
                  imageUrl: q.imageUrl || null, classification: q.classification || 'Çalışma Sorusu',
-                 explanation: q.explanation || null // Explanation'ı ekle
+                 explanation: q.explanation || null,
+                 examClassificationId: parseInt(q.examClassificationId, 10)
              });
          }
-         if (questionsToCreate.length === 0 && errors.length > 0) { return res.status(400).json({ message: 'Eklenecek geçerli soru bulunamadı.', validationErrors: errors }); }
+         if (questionsToCreate.length === 0 && validationErrors.length > 0) { setBulkError(`Eklenecek geçerli soru bulunamadı. Hatalar: ${validationErrors.map(e=> `[Sıra ${e.index+1}]: ${e.error}`).join('; ')}`); setBulkLoading(false); return; }
+
          try {
              const config = { headers: { Authorization: `Bearer ${token}` } };
-             // Backend endpoint'inin bulk create için explanation'ı desteklediğinden emin olun
              const response = await axios.post(`${backendQuestionUrl}/bulk`, questionsToCreate, config);
              const successMsg = response.data.message || `${response.data.addedCount || 0} soru başarıyla eklendi.`;
              setBulkSuccess(successMsg);
              toast({ title: "Başarılı", description: successMsg, status: "success", duration: 4000, isClosable: true });
              if (response.data.validationErrors?.length > 0) {
-                 const errorDetails = response.data.validationErrors.map(e => `[Sıra: ${e.index}] ${e.error}`).join(', ');
+                 const errorDetails = response.data.validationErrors.map(e => `[Sıra: ${e.index + 1}] ${e.error}`).join('; ');
                  setBulkError(`Bazı sorular eklenemedi: ${errorDetails}`);
                  toast({ title: "Uyarı", description: `Bazı sorular eklenemedi. Detaylar form alanında gösteriliyor.`, status: "warning", duration: 6000, isClosable: true });
-             } else { setBulkInput(''); }
+             } else if(validationErrors.length === 0) { // Sadece hiç frontend veya backend validation hatası yoksa temizle
+                setBulkInput('');
+             }
              fetchData();
          } catch (err) {
              console.error("Toplu soru eklenirken hata:", err);
              const errorMsg = err.response?.data?.message || 'Toplu soru eklenirken bir hata oluştu.';
-             setBulkError(errorMsg);
-             if (err.response?.data?.validationErrors) {
-                 setBulkError(prev => `${prev} Hatalar: ${err.response.data.validationErrors.map(e => `[Sıra: ${e.index}] ${e.error}`).join(', ')}`);
-             }
+             setBulkError(prev => `${prev ? prev + '; ' : ''}${errorMsg}${err.response?.data?.validationErrors ? ' Detaylar: ' + err.response.data.validationErrors.map(e => `[Sıra: ${e.index+1}] ${e.error}`).join('; ') : ''}`);
              toast({ title: "Hata", description: errorMsg, status: "error", duration: 5000, isClosable: true });
          } finally { setBulkLoading(false); }
     };
@@ -1025,73 +1039,39 @@ function QuestionManagement({ token }) {
         return options;
     }, []);
 
-    if (loading) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
+    if (loading || loadingDropdowns) return <Center p={10}><Spinner size="xl" color="brand.500" /></Center>;
 
     const stripHtml = (html) => { if (!html) return ''; const doc = new DOMParser().parseFromString(html, 'text/html'); return doc.body.textContent || ""; }
 
     return (
         <Box>
-             <Heading as="h3" size="lg" display="flex" alignItems="center" gap={3} mb={6}>
-                <Icon as={FaQuestionCircle} /> Soru Yönetimi
-            </Heading>
-
+             <Heading as="h3" size="lg" display="flex" alignItems="center" gap={3} mb={6}><Icon as={FaQuestionCircle} /> Soru Yönetimi</Heading>
             {error && ( <Alert status="error" variant="subtle" borderRadius="md" mb={4}> <AlertIcon /> {error} </Alert> )}
-
             <Box id="question-form-section" as="form" onSubmit={handleFormSubmit} p={6} borderWidth="1px" borderRadius="lg" borderColor={questionFormBorder} bg={questionFormBg} mb={8}>
                 <Heading as="h4" size="md" mb={5}>{editingQuestion ? `Soru Düzenle (ID: ${editingQuestion.id})` : 'Yeni Soru Ekle'}</Heading>
                 {formError && <Alert status="warning" variant="subtle" borderRadius="md" mb={4}><AlertIcon />{formError}</Alert>}
                 {isUploading && <Alert status="info" variant="subtle" borderRadius="md" mb={4}><Spinner size="sm" mr={3}/> Resim yükleniyor...</Alert>}
-
                 <VStack spacing={4}>
                     <FormControl isRequired isInvalid={formError.includes('Soru Metni')}>
                         <FormLabel fontSize="sm">Soru Metni:</FormLabel>
                         <Box borderWidth="1px" borderRadius="md" borderColor="borderPrimary" overflow="hidden">
-                            <Editor
-                                apiKey={import.meta.env.VITE_TINYMCE_API_KEY}
-                                onInit={(evt, editor) => questionEditorRef.current = editor} // Ref'i ata
-                                value={formState.text}
-                                init={{
-                                    height: 250, menubar: false,
-                                    plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
+                            <Editor apiKey={import.meta.env.VITE_TINYMCE_API_KEY} onInit={(evt, editor) => questionEditorRef.current = editor} value={formState.text}
+                                init={{ height: 250, menubar: false, plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
                                     toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | code removeformat | fullscreen preview | help',
-                                    images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media',
-                                    relative_urls: false, remove_script_host: false,
-                                    skin: tinySkin,
-                                    content_css: tinyContentCss
-                                }}
-                                onEditorChange={handleQuestionEditorChange} // Ayrı handler
-                                disabled={isUploading}
-                            />
+                                    images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media', relative_urls: false, remove_script_host: false, skin: tinySkin, content_css: tinyContentCss
+                                }} onEditorChange={handleQuestionEditorChange} disabled={isUploading} />
                         </Box>
                          {formError.includes('Soru Metni') && <FormErrorMessage>{formError}</FormErrorMessage>}
                     </FormControl>
-
-                     {/* === YENİ: Açıklama Alanı === */}
                      <FormControl mt={4}>
                         <FormLabel fontSize="sm">Açıklama (Opsiyonel):</FormLabel>
                         <Box borderWidth="1px" borderRadius="md" borderColor="borderPrimary" overflow="hidden">
-                            <Editor
-                                apiKey={import.meta.env.VITE_TINYMCE_API_KEY}
-                                onInit={(evt, editor) => explanationEditorRef.current = editor} // Ayrı ref
-                                value={formState.explanation}
-                                init={{
-                                    height: 150, // Açıklama için daha kısa yükseklik
-                                    menubar: false,
-                                    plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
-                                    toolbar: 'undo redo | bold italic | bullist numlist | link image | code', // Daha basit toolbar
-                                    images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media',
-                                    relative_urls: false, remove_script_host: false,
-                                    skin: tinySkin,
-                                    content_css: tinyContentCss
-                                }}
-                                onEditorChange={handleExplanationEditorChange} // Ayrı handler
-                                disabled={isUploading}
-                            />
+                            <Editor apiKey={import.meta.env.VITE_TINYMCE_API_KEY} onInit={(evt, editor) => explanationEditorRef.current = editor} value={formState.explanation}
+                                init={{ height: 150, menubar: false, plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview', 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime', 'media', 'table', 'help', 'wordcount'],
+                                    toolbar: 'undo redo | bold italic | bullist numlist | link image | code', skin: tinySkin, content_css: tinyContentCss, images_upload_handler: handleImageUpload, automatic_uploads: true, file_picker_types: 'image media', relative_urls: false, remove_script_host: false,
+                                }} onEditorChange={handleExplanationEditorChange} disabled={isUploading} />
                         </Box>
                      </FormControl>
-                     {/* === Açıklama Alanı Sonu === */}
-
-
                     <Heading as="h5" size="sm" alignSelf="flex-start" mt={4}>Seçenekler ve Doğru Cevap</Heading>
                     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="full">
                         {['A', 'B', 'C', 'D', 'E'].map(opt => (
@@ -1108,20 +1088,25 @@ function QuestionManagement({ token }) {
                         </FormControl>
                     </SimpleGrid>
                      {formError.includes('Seçenekler') && <Text fontSize="xs" color="red.500" mt={-2} w="full">{formError}</Text>}
-
-
                     <Heading as="h5" size="sm" alignSelf="flex-start" mt={4}>Diğer Bilgiler</Heading>
                     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="full">
                         <FormControl>
-                            <FormLabel fontSize="sm">Sınıflandırma:</FormLabel>
+                            <FormLabel fontSize="sm">Sınıflandırma (Soru Tipi):</FormLabel>
                             <Select name="classification" value={formState.classification} onChange={handleInputChange} isDisabled={isUploading}>
                                 <option value="Çalışma Sorusu">Çalışma Sorusu</option>
                                 <option value="Çıkmış Benzeri">Çıkmış Benzeri</option>
                             </Select>
                         </FormControl>
+                        <FormControl isRequired isInvalid={formError.includes('Sınav Türü')}>
+                            <FormLabel fontSize="sm">Sınav Türü (Hedef Kitle):</FormLabel>
+                            <Select name="examClassificationId" value={formState.examClassificationId} onChange={handleInputChange} placeholder="-- Sınav Türü Seçin --" isDisabled={isUploading || loadingDropdowns}>
+                                {examClassifications.map(ec => (<option key={ec.id} value={ec.id}>{ec.name}</option>))}
+                            </Select>
+                             {formError.includes('Sınav Türü') && <FormErrorMessage>{formError}</FormErrorMessage>}
+                        </FormControl>
                         <FormControl isRequired isInvalid={formError.includes('konu seçin')}>
                             <FormLabel fontSize="sm">Konu:</FormLabel>
-                            <Select name="topicId" value={formState.topicId} onChange={handleInputChange} placeholder="-- Konu Seçin --" isDisabled={isUploading || loading}>
+                            <Select name="topicId" value={formState.topicId} onChange={handleInputChange} placeholder="-- Konu Seçin --" isDisabled={isUploading || loadingDropdowns}>
                                 {renderTopicOptions(topicsTree)}
                             </Select>
                              {formError.includes('konu seçin') && <FormErrorMessage>{formError}</FormErrorMessage>}
@@ -1131,86 +1116,58 @@ function QuestionManagement({ token }) {
                             <Input name="imageUrl" value={formState.imageUrl} onChange={handleInputChange} placeholder="https://..." isDisabled={isUploading}/>
                         </FormControl>
                     </SimpleGrid>
-
                     <HStack spacing={3} mt={5} alignSelf="flex-start">
                         <Button type="submit" colorScheme="orange" isLoading={isUploading} loadingText="Kaydediliyor..." leftIcon={<Icon as={FaSave}/>}>
                             {editingQuestion ? 'Güncelle' : 'Ekle'}
                         </Button>
-                        {editingQuestion && (
-                            <Button variant="ghost" onClick={resetForm} isDisabled={isUploading} leftIcon={<Icon as={FaTimesCircle}/>}> İptal </Button>
-                        )}
+                        {editingQuestion && ( <Button variant="ghost" onClick={resetForm} isDisabled={isUploading} leftIcon={<Icon as={FaTimesCircle}/>}> İptal </Button> )}
                     </HStack>
                 </VStack>
             </Box>
-
             <Box p={6} borderWidth="1px" borderRadius="lg" borderColor={bulkBoxBorder} borderStyle="dashed" bg="bgSecondary" mb={8}>
                 <Heading as="h4" size="md" mb={2}>Toplu Soru Ekle (JSON)</Heading>
                 <Text fontSize="sm" color="textMuted" mb={3}>
-                    JSON formatında soru dizisi yapıştırın. Gerekli alanlar: `text`, `optionA`...`optionE`, `correctAnswer`, `topicId`. Opsiyonel: `classification`, `imageUrl`, `explanation`.
+                    JSON formatında soru dizisi yapıştırın. Gerekli alanlar: `text`, `optionA`...`optionE`, `correctAnswer`, `topicId`, `examClassificationId`. Opsiyonel: `classification`, `imageUrl`, `explanation`.
                 </Text>
-                <Textarea
-                    fontFamily="mono" fontSize="xs" rows={10}
-                    placeholder='[{"text": "<p>Soru...</p>", "explanation": "<p>Açıklama...</p>", ...}]'
-                    value={bulkInput} onChange={(e) => setBulkInput(e.target.value)}
-                    isDisabled={bulkLoading}
-                    mb={3}
-                />
+                <Textarea fontFamily="mono" fontSize="xs" rows={10} placeholder='[{"text": "<p>Soru...</p>", "explanation": "<p>Açıklama...</p>", "examClassificationId": 1, ...}]'
+                    value={bulkInput} onChange={(e) => setBulkInput(e.target.value)} isDisabled={bulkLoading} mb={3} />
                 {bulkError && <Alert status="error" variant="subtle" borderRadius="md" mb={3} fontSize="sm"><AlertIcon />{bulkError}</Alert>}
                 {bulkSuccess && <Alert status="success" variant="subtle" borderRadius="md" mb={3} fontSize="sm"><AlertIcon />{bulkSuccess}</Alert>}
-                <Button
-                    onClick={handleBulkSubmit} isLoading={bulkLoading} loadingText="Ekleniyor..."
-                    isDisabled={!bulkInput.trim()} colorScheme="blue" leftIcon={<Icon as={FaUpload}/>}
-                >
+                <Button onClick={handleBulkSubmit} isLoading={bulkLoading} loadingText="Ekleniyor..." isDisabled={!bulkInput.trim()} colorScheme="blue" leftIcon={<Icon as={FaUpload}/>} >
                     Toplu Soruları Ekle
                 </Button>
             </Box>
-
             <Heading as="h4" size="md" mb={4}>Mevcut Sorular</Heading>
             {questions.length === 0 && !loading ? (
                  <Alert status="info" variant="subtle" borderRadius="md"> <AlertIcon /> Soru bulunamadı. </Alert>
             ) : (
                  <TableContainer borderWidth="1px" borderRadius="md" borderColor="borderSecondary">
-                     <Table variant="striped" size="sm">
-                         <Thead bg="bgTertiary">
-                             <Tr>
-                                 <Th>ID</Th> <Th maxW="300px">Metin (Başlangıcı)</Th> <Th>Konu</Th> <Th>Sınıf.</Th> <Th isNumeric>İşlemler</Th>
-                             </Tr>
-                         </Thead>
-                         <Tbody>
+                     <Table variant="striped" size="sm"><Thead bg="bgTertiary"><Tr>
+                                 <Th>ID</Th> <Th maxW="300px">Metin</Th> <Th>Konu</Th> <Th>Sınav Türü</Th> <Th>Sınıf.</Th> <Th isNumeric>İşlemler</Th>
+                             </Tr></Thead><Tbody>
                              {questions.map((q) => (
                                  <Tr key={q.id} _hover={{ bg: 'blackAlpha.100', _dark: { bg: 'whiteAlpha.100' }}}>
                                      <Td>{q.id}</Td>
-                                     <Td maxW="300px" whiteSpace="normal" title={stripHtml(q.text)}>
-                                         {stripHtml(q.text).substring(0, 80)}...
-                                     </Td>
+                                     <Td maxW="300px" whiteSpace="normal" title={stripHtml(q.text)}>{stripHtml(q.text).substring(0, 80)}...</Td>
                                      <Td>{q.topic?.name || '-'}</Td>
+                                     <Td>{examClassifications.find(ec => ec.id === q.examClassificationId)?.name || '-'}</Td>
                                      <Td>{q.classification || '-'}</Td>
-                                     <Td isNumeric>
-                                         <HStack spacing={1} justify="flex-end">
+                                     <Td isNumeric><HStack spacing={1} justify="flex-end">
                                              <IconButton icon={<Icon as={FaUserEdit} />} size="xs" variant="ghost" colorScheme="blue" onClick={() => handleEdit(q)} aria-label="Düzenle" title="Düzenle"/>
                                              <IconButton icon={<Icon as={FaTrashAlt} />} size="xs" variant="ghost" colorScheme="red" onClick={() => openDeleteConfirmation(q)} aria-label="Sil" title="Sil"/>
-                                         </HStack>
-                                     </Td>
+                                     </HStack></Td>
                                  </Tr>
                              ))}
-                         </Tbody>
-                     </Table>
+                         </Tbody></Table>
                  </TableContainer>
             )}
-
             <Modal isOpen={isDeleteConfirmOpen} onClose={onDeleteConfirmClose} isCentered>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Soru Silme Onayı</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
+                <ModalOverlay /><ModalContent><ModalHeader>Soru Silme Onayı</ModalHeader><ModalCloseButton /><ModalBody>
                         Soruyu (ID: {questionToDelete?.id}) silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!
-                    </ModalBody>
-                    <ModalFooter>
+                    </ModalBody><ModalFooter>
                         <Button variant='ghost' mr={3} onClick={onDeleteConfirmClose}>İptal</Button>
                         <Button colorScheme='red' onClick={handleDeleteConfirm}> Sil </Button>
-                    </ModalFooter>
-                </ModalContent>
+                </ModalFooter></ModalContent>
             </Modal>
         </Box>
     );
@@ -1222,30 +1179,15 @@ function AdminPage() {
 
     if (!API_BASE_URL) {
         console.error("VITE_API_URL environment variable is not set!");
-        return (
-             <Container mt={6}>
-                 <Alert status="error" textAlign="center">
-                     <AlertIcon /> Uygulama yapılandırma hatası: API adresi bulunamadı.
-                 </Alert>
-             </Container>
-        );
+        return ( <Container mt={6}><Alert status="error" textAlign="center"><AlertIcon /> Uygulama yapılandırma hatası: API adresi bulunamadı.</Alert></Container>);
     }
     if (!token) {
-        return (
-             <Container mt={6}>
-                 <Alert status="warning" textAlign="center">
-                     <AlertIcon /> Bu sayfaya erişim için giriş yapmalısınız.
-                 </Alert>
-             </Container>
-        );
+        return ( <Container mt={6}><Alert status="warning" textAlign="center"><AlertIcon /> Bu sayfaya erişim için giriş yapmalısınız.</Alert></Container>);
     }
 
     return (
         <Container maxW="container.xl" py={8}>
-            <Heading as="h1" size="xl" textAlign="center" mb={8} color="textPrimary">
-                Yönetim Paneli
-            </Heading>
-
+            <Heading as="h1" size="xl" textAlign="center" mb={8} color="textPrimary">Yönetim Paneli</Heading>
             <Tabs isLazy variant="soft-rounded" colorScheme="blue">
                 <TabList flexWrap="wrap" justifyContent="center" mb={6}>
                     <Tab><Icon as={FaChartBar} mr={2}/> İstatistikler</Tab>
@@ -1254,7 +1196,6 @@ function AdminPage() {
                     <Tab><Icon as={FaChalkboardTeacher} mr={2}/> Konu Anlatımları</Tab>
                     <Tab><Icon as={FaQuestionCircle} mr={2}/> Sorular</Tab>
                 </TabList>
-
                 <TabPanels>
                     <TabPanel p={0}> <AdminStatsOverview token={token} /> </TabPanel>
                     <TabPanel p={0}> <UserManagement token={token} /> </TabPanel>

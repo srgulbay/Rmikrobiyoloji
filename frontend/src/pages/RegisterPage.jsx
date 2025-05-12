@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import axios from 'axios'; // axios import edildi
 import {
   Box,
   Flex,
@@ -26,8 +27,11 @@ import {
   FormErrorMessage,
   ScaleFade,
   Progress,
+  Spinner, // Sınıflandırma yüklenirken
 } from '@chakra-ui/react';
-import { FaUserPlus, FaUser, FaLock, FaEye, FaEyeSlash, FaGraduationCap, FaEnvelope } from 'react-icons/fa';
+import { FaUserPlus, FaUser, FaLock, FaEye, FaEyeSlash, FaGraduationCap, FaEnvelope, FaTasks } from 'react-icons/fa';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const specializations = [
     "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
@@ -50,6 +54,10 @@ function RegisterPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [specialization, setSpecialization] = useState('');
+    const [defaultClassificationId, setDefaultClassificationId] = useState(''); // Yeni state
+    const [examClassifications, setExamClassifications] = useState([]); // Sınav sınıflandırmaları için
+    const [loadingClassifications, setLoadingClassifications] = useState(true);
+
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState(0);
@@ -68,6 +76,26 @@ function RegisterPage() {
         }
     }, [isAuthenticated, navigate, setError]);
 
+    // Sınav Sınıflandırmalarını Çek
+    useEffect(() => {
+        const fetchClassifications = async () => {
+            setLoadingClassifications(true);
+            try {
+                // Bu endpoint'in public olması veya token gerektirmemesi gerekebilir.
+                // Şimdilik token olmadan deniyoruz, gerekirse AuthContext'ten token alınabilir veya endpoint public yapılabilir.
+                const response = await axios.get(`${API_BASE_URL}/api/exam-classifications`);
+                setExamClassifications(Array.isArray(response.data) ? response.data : []);
+            } catch (err) {
+                console.error("Sınav sınıflandırmaları çekilirken hata:", err);
+                setError({ message: "Sınav türleri yüklenemedi. Lütfen daha sonra tekrar deneyin." });
+            } finally {
+                setLoadingClassifications(false);
+            }
+        };
+        fetchClassifications();
+    }, []);
+
+
     const handlePasswordChange = (e) => {
         const newPassword = e.target.value;
         setPassword(newPassword);
@@ -79,8 +107,8 @@ function RegisterPage() {
         setError(null);
         setRegistrationMessage('');
 
-        if (!username || !email || !password) {
-            setError({ message: 'Kullanıcı adı, e-posta ve şifre alanları zorunludur.' });
+        if (!username || !email || !password || !defaultClassificationId) { // defaultClassificationId kontrolü eklendi
+            setError({ message: 'Kullanıcı adı, e-posta, şifre ve hedef sınav türü alanları zorunludur.' });
             return;
         }
         if (!/\S+@\S+\.\S+/.test(email)) {
@@ -97,14 +125,12 @@ function RegisterPage() {
         }
 
         const specToSend = specialization.trim() === '' ? null : specialization;
-        const result = await register(username, email, password, specToSend);
+        // AuthContext'teki register fonksiyonuna defaultClassificationId parametresini gönder
+        const result = await register(username, email, password, specToSend, defaultClassificationId);
 
         if (result && result.success && result.message) {
             setRegistrationMessage(result.message);
         }
-        // Hata durumu AuthContext'teki `error` state'i ile yönetiliyor.
-        // `setError` zaten AuthContext içinde çağrılıyor,
-        // ve `error` prop'u bu sayfada `useAuth`'dan alınıyor.
     };
 
     const handlePasswordVisibility = () => setShowPassword(!showPassword);
@@ -154,109 +180,75 @@ function RegisterPage() {
                                )}
                             </ScaleFade>
 
-                            <FormControl id="usernameReg" isRequired isDisabled={loading}>
+                            <FormControl id="usernameReg" isRequired isDisabled={loading || loadingClassifications}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Kullanıcı Adı</FormLabel>
                                 <InputGroup>
-                                    <InputLeftElement pointerEvents="none">
-                                        <Icon as={FaUser} color="gray.400" />
-                                    </InputLeftElement>
-                                    <Input
-                                        type="text" value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
-                                        placeholder='Kullanıcı adınızı belirleyin'
-                                    />
+                                    <InputLeftElement pointerEvents="none" children={<Icon as={FaUser} color="gray.400" />} />
+                                    <Input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Kullanıcı adınızı belirleyin'/>
                                 </InputGroup>
                             </FormControl>
 
-                            <FormControl id="emailReg" isRequired isDisabled={loading}>
+                            <FormControl id="emailReg" isRequired isDisabled={loading || loadingClassifications}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">E-posta Adresi</FormLabel>
                                 <InputGroup>
-                                    <InputLeftElement pointerEvents="none">
-                                        <Icon as={FaEnvelope} color="gray.400" />
-                                    </InputLeftElement>
-                                    <Input
-                                        type="email" value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder='E-posta adresiniz'
-                                    />
+                                    <InputLeftElement pointerEvents="none" children={<Icon as={FaEnvelope} color="gray.400" />} />
+                                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder='E-posta adresiniz'/>
                                 </InputGroup>
                             </FormControl>
 
-                            <FormControl id="passwordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch || (error?.message && error.message.toLowerCase().includes('şifre'))}>
+                            <FormControl id="passwordReg" isRequired isDisabled={loading || loadingClassifications} isInvalid={isPasswordMismatch || (error?.message && error.message.toLowerCase().includes('şifre'))}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre</FormLabel>
                                 <InputGroup size="md">
-                                    <InputLeftElement pointerEvents="none">
-                                        <Icon as={FaLock} color="gray.400" />
-                                    </InputLeftElement>
-                                    <Input
-                                        pr="4.5rem" type={showPassword ? 'text' : 'password'}
-                                        value={password} onChange={handlePasswordChange}
-                                        placeholder='En az 6 karakter'
-                                    />
+                                    <InputLeftElement pointerEvents="none" children={<Icon as={FaLock} color="gray.400" />} />
+                                    <Input pr="4.5rem" type={showPassword ? 'text' : 'password'} value={password} onChange={handlePasswordChange} placeholder='En az 6 karakter'/>
                                     <InputRightElement width="4.5rem">
-                                        <IconButton
-                                            h="1.75rem" size="sm" variant="ghost"
-                                            onClick={handlePasswordVisibility}
-                                            aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                                            icon={showPassword ? <Icon as={FaEyeSlash} /> : <Icon as={FaEye} />}
-                                        />
+                                        <IconButton h="1.75rem" size="sm" variant="ghost" onClick={handlePasswordVisibility} icon={showPassword ? <Icon as={FaEyeSlash} /> : <Icon as={FaEye} />} aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}/>
                                     </InputRightElement>
                                 </InputGroup>
-                                {password.length > 0 && (
-                                    <Progress colorScheme={strengthColor} size="xs" value={passwordStrength} mt={2} borderRadius="sm" />
-                                )}
-                                 {error?.message && error.message.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
-                                 {error?.message && error.message.toLowerCase().includes('eşleşmiyor') && isPasswordMismatch && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
+                                {password.length > 0 && (<Progress colorScheme={strengthColor} size="xs" value={passwordStrength} mt={2} borderRadius="sm" />)}
+                                {error?.message && error.message.toLowerCase().includes('6 karakter') && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
+                                {error?.message && error.message.toLowerCase().includes('eşleşmiyor') && isPasswordMismatch && <FormErrorMessage fontSize="xs">{error.message}</FormErrorMessage>}
                             </FormControl>
 
-                            <FormControl id="confirmPasswordReg" isRequired isDisabled={loading} isInvalid={isPasswordMismatch}>
+                            <FormControl id="confirmPasswordReg" isRequired isDisabled={loading || loadingClassifications} isInvalid={isPasswordMismatch}>
                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Şifre Tekrar</FormLabel>
                                 <InputGroup size="md">
-                                     <InputLeftElement pointerEvents="none">
-                                        <Icon as={FaLock} color="gray.400" />
-                                     </InputLeftElement>
-                                    <Input
-                                        pr="4.5rem" type={showConfirmPassword ? 'text' : 'password'}
-                                        value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder='Şifrenizi tekrar girin'
-                                    />
+                                     <InputLeftElement pointerEvents="none" children={<Icon as={FaLock} color="gray.400" />} />
+                                    <Input pr="4.5rem" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder='Şifrenizi tekrar girin'/>
                                     <InputRightElement width="4.5rem">
-                                        <IconButton
-                                            h="1.75rem" size="sm" variant="ghost"
-                                            onClick={handleConfirmPasswordVisibility}
-                                            aria-label={showConfirmPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                                            icon={showConfirmPassword ? <Icon as={FaEyeSlash} /> : <Icon as={FaEye} />}
-                                        />
+                                        <IconButton h="1.75rem" size="sm" variant="ghost" onClick={handleConfirmPasswordVisibility} icon={showConfirmPassword ? <Icon as={FaEyeSlash} /> : <Icon as={FaEye} />} aria-label={showConfirmPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}/>
                                     </InputRightElement>
                                 </InputGroup>
-                                {isPasswordMismatch && (
-                                    <FormErrorMessage fontSize="xs">Girilen şifreler eşleşmiyor!</FormErrorMessage>
-                                )}
+                                {isPasswordMismatch && (<FormErrorMessage fontSize="xs">Girilen şifreler eşleşmiyor!</FormErrorMessage>)}
                             </FormControl>
 
-                            <FormControl id="specialization" isDisabled={loading}>
+                            <FormControl id="defaultClassificationId" isRequired isDisabled={loading || loadingClassifications}>
+                                 <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Hedef Sınav Türü</FormLabel>
+                                 <InputGroup>
+                                     <InputLeftElement pointerEvents='none' children={<Icon as={FaTasks} color='gray.400' />} />
+                                     <Select placeholder="-- Sınav Türü Seçiniz --" value={defaultClassificationId} onChange={(e) => setDefaultClassificationId(e.target.value)} isDisabled={loadingClassifications}>
+                                        {loadingClassifications ? <option>Yükleniyor...</option> : examClassifications.map(ec => (
+                                            <option key={ec.id} value={ec.id}>{ec.name}</option>
+                                        ))}
+                                    </Select>
+                                </InputGroup>
+                            </FormControl>
+
+                            <FormControl id="specialization" isDisabled={loading || loadingClassifications}>
                                  <FormLabel fontSize="sm" fontWeight="medium" color="textSecondary">Uzmanlık Alanı (İsteğe Bağlı)</FormLabel>
                                  <InputGroup>
-                                     <InputLeftElement pointerEvents='none'>
-                                         <Icon as={FaGraduationCap} color='gray.400' />
-                                     </InputLeftElement>
-                                     <Select
-                                        placeholder="-- Alan Seçiniz --"
-                                        value={specialization}
-                                        onChange={(e) => setSpecialization(e.target.value)}
-                                    >
-                                        {specializations.map(spec => (
-                                            <option key={spec} value={spec}>{spec}</option>
-                                        ))}
+                                     <InputLeftElement pointerEvents='none' children={<Icon as={FaGraduationCap} color='gray.400' />} />
+                                     <Select placeholder="-- Alan Seçiniz --" value={specialization} onChange={(e) => setSpecialization(e.target.value)}>
+                                        {specializations.map(spec => ( <option key={spec} value={spec}>{spec}</option>))}
                                     </Select>
                                 </InputGroup>
                             </FormControl>
 
                             <Button
                                 type="submit" colorScheme="brand" size="lg" width="full" mt={4}
-                                isLoading={loading} loadingText="Kayıt Olunuyor..."
+                                isLoading={loading || loadingClassifications} loadingText="Kayıt Olunuyor..."
                                 spinnerPlacement="start"
-                                leftIcon={!loading ? <Icon as={FaUserPlus} /> : undefined}
+                                leftIcon={!(loading || loadingClassifications) ? <Icon as={FaUserPlus} /> : undefined}
                             >
                                 Kayıt Ol
                             </Button>

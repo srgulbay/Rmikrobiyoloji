@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!token);
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [error, setError] = useState(null); // Hata artık bir obje olabilir: { message, needsVerification, email }
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const logout = useCallback(() => {
@@ -59,7 +59,9 @@ export const AuthProvider = ({ children }) => {
             id: decoded.id,
             username: decoded.username,
             role: decoded.role,
-            specialization: decoded.specialization
+            specialization: decoded.specialization,
+            // JWT payload'ına defaultClassificationId eklendiyse buradan da alınabilir
+            defaultClassificationId: decoded.defaultClassificationId
           });
         }
       } catch (e) {
@@ -77,7 +79,7 @@ export const AuthProvider = ({ children }) => {
       delete API.defaults.headers.common['Authorization'];
     }
     setAuthLoading(false);
-  }, [token]);
+  }, [token]); // logout bağımlılığını kaldırdık, çünkü logout token'ı null'a set ediyor, bu da bu useEffect'i tekrar tetikliyor
 
   const login = async (username, password) => {
     setError(null);
@@ -91,9 +93,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('rmikro_token', response.data.token);
         setToken(response.data.token);
         navigate('/browse', { replace: true });
-        return { success: true, user: response.data.user }; // Başarılı giriş bilgisini döndür
+        return { success: true, user: response.data.user };
       } else {
-        // Backend'den token gelmedi ama 2xx yanıtı geldiyse (beklenmedik durum)
         const errorMsg = response.data.message || "Sunucudan geçersiz yanıt alındı.";
         setError({ message: errorMsg });
         return { success: false, message: errorMsg };
@@ -117,21 +118,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password, specialization) => {
+  const register = async (username, email, password, specialization, defaultClassificationId) => {
     setLoading(true);
     setError(null);
     try {
-      const payload = { username, email, password, specialization };
+      const payload = { username, email, password, specialization, defaultClassificationId };
       console.log("AuthContext -> register -> Backend'e gönderilen payload:", payload);
       const response = await API.post('/api/auth/register', payload);
-      // navigate('/login'); // YÖNLENDİRME KALDIRILDI
       return { success: true, message: response.data.message || 'Kayıt başarılı. Lütfen e-postanızı kontrol edin.' };
     } catch (err) {
       const errorData = err.response?.data;
       const errorMsg = errorData?.message || 'Kayıt sırasında bir hata oluştu.';
       setError({ message: errorMsg, details: errorData });
       console.error("AuthContext: Register error:", errorMsg, errorData || err.message);
-      return { success: false, message: errorMsg }; // Hata durumunda mesajı döndür
+      return { success: false, message: errorMsg };
     } finally {
       setLoading(false);
     }

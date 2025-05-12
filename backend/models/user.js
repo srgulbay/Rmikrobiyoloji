@@ -12,6 +12,11 @@ module.exports = (sequelize, DataTypes) => {
           foreignKey: 'userId',
           as: 'lectureViews'
       });
+      User.belongsTo(models.ExamClassification, {
+        foreignKey: 'defaultClassificationId',
+        as: 'defaultClassification',
+        allowNull: true
+      });
     }
   }
   User.init({
@@ -63,6 +68,16 @@ module.exports = (sequelize, DataTypes) => {
     passwordResetTokenExpires: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    defaultClassificationId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'ExamClassifications',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
     }
   }, {
     sequelize,

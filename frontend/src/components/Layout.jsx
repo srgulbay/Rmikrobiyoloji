@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Link as RouterLink, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import InstallPrompt from './InstallPrompt';
 import {
   Box,
   Flex,
@@ -287,6 +288,7 @@ function Layout() {
         </Container>
       </Box>
       */}
+      <InstallPrompt />
     </Flex>
   );
 }

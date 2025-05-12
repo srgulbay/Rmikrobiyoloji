@@ -1,12 +1,14 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { User } = require('../../models');
-const { sendVerificationEmail } = require('../utils/emailService');
+const { User, ExamClassification } = require('../../models');
+// sendPasswordResetEmail fonksiyonunu da emailService'den alacağız (bir sonraki adımda oluşturulacak)
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { Op } = require('sequelize'); // Op importu eksik olabilir, ekleyelim
 
 const registerUser = async (req, res) => {
   console.log("authController -> registerUser -> Gelen req.body:", req.body);
-  const { username, email, password, role, specialization } = req.body;
+  const { username, email, password, role, specialization, defaultClassificationId } = req.body;
 
   if (!username || !password || !email) {
     return res.status(400).json({ message: 'Kullanıcı adı, e-posta ve şifre zorunludur.' });
@@ -20,6 +22,18 @@ const registerUser = async (req, res) => {
     existingUser = await User.findOne({ where: { email: email } });
     if (existingUser) {
       return res.status(409).json({ message: 'Bu e-posta adresi zaten kayıtlı.' });
+    }
+
+    let parsedDefaultClassificationId = null;
+    if (defaultClassificationId !== undefined && defaultClassificationId !== null && defaultClassificationId !== '') {
+        parsedDefaultClassificationId = parseInt(defaultClassificationId, 10);
+        if (isNaN(parsedDefaultClassificationId)) {
+            return res.status(400).json({ message: 'Geçersiz varsayılan sınav sınıflandırma ID formatı.' });
+        }
+        const classificationExists = await ExamClassification.findByPk(parsedDefaultClassificationId);
+        if (!classificationExists) {
+            return res.status(400).json({ message: `Geçersiz varsayılan sınav sınıflandırma ID'si: ${parsedDefaultClassificationId}` });
+        }
     }
 
     const saltRounds = 10;
@@ -36,7 +50,8 @@ const registerUser = async (req, res) => {
       specialization: specialization || null,
       isEmailVerified: false,
       emailVerificationToken: emailVerificationToken,
-      emailVerificationTokenExpires: emailVerificationTokenExpires
+      emailVerificationTokenExpires: emailVerificationTokenExpires,
+      defaultClassificationId: parsedDefaultClassificationId
     });
 
     try {
@@ -94,7 +109,8 @@ const loginUser = async (req, res) => {
       id: user.id,
       username: user.username,
       role: user.role,
-      specialization: user.specialization
+      specialization: user.specialization,
+      defaultClassificationId: user.defaultClassificationId
     };
 
     const secret = process.env.JWT_SECRET;
@@ -117,7 +133,8 @@ const loginUser = async (req, res) => {
         username: user.username,
         role: user.role,
         specialization: user.specialization,
-        isEmailVerified: user.isEmailVerified
+        isEmailVerified: user.isEmailVerified,
+        defaultClassificationId: user.defaultClassificationId
       }
     });
 
@@ -211,9 +228,79 @@ const resendVerificationEmail = async (req, res) => {
   }
 };
 
+const requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "E-posta adresi zorunludur." });
+  }
+
+  try {
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(200).json({ message: "Eğer bu e-posta adresi kayıtlıysa, şifre sıfırlama talimatları gönderilmiştir." });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.passwordResetToken = resetToken;
+    user.passwordResetTokenExpires = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 saat geçerli
+    await user.save();
+
+    try {
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+      await sendPasswordResetEmail(user.email, user.username, resetUrl); // Bu fonksiyon emailService.js'de oluşturulacak
+    } catch (emailError) {
+      console.error('Şifre sıfırlama e-postası gönderilirken hata:', emailError.message);
+      return res.status(500).json({ message: 'Şifre sıfırlama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.' });
+    }
+
+    return res.status(200).json({ message: "Eğer bu e-posta adresi kayıtlıysa, şifre sıfırlama talimatları gönderilmiştir." });
+  } catch (error) {
+    console.error("Şifre sıfırlama isteği sırasında hata:", error);
+    return res.status(500).json({ message: "Sunucu hatası. Şifre sıfırlama isteği işlenemedi." });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  if (!password || password.length < 6) {
+    return res.status(400).json({ message: "Yeni şifre en az 6 karakter olmalıdır." });
+  }
+
+  try {
+    const user = await User.findOne({
+      where: {
+        passwordResetToken: token,
+        passwordResetTokenExpires: { [Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Geçersiz veya süresi dolmuş şifre sıfırlama tokenı." });
+    }
+
+    const saltRounds = 10;
+    user.password = await bcrypt.hash(password, saltRounds);
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpires = null;
+    user.isEmailVerified = true; // Şifre sıfırlama e-postayı da doğrular
+    await user.save();
+
+    res.status(200).json({ message: "Şifreniz başarıyla sıfırlandı. Şimdi yeni şifrenizle giriş yapabilirsiniz." });
+  } catch (error) {
+    console.error("Şifre sıfırlama sırasında hata:", error);
+    res.status(500).json({ message: "Sunucu hatası. Şifre sıfırlanamadı." });
+  }
+};
+
+
 module.exports = {
   registerUser,
   loginUser,
   verifyEmail,
-  resendVerificationEmail
+  resendVerificationEmail,
+  requestPasswordReset,
+  resetPassword
 };

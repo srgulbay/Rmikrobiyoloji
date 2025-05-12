@@ -1,6 +1,6 @@
-// backend/src/controllers/questionController.js
-const { Question, Topic, sequelize, QuestionAttempt } = require('../../models'); // ../../ olarak düzeltildiconst { Op } = require("sequelize");
-const { Op } = require('sequelize');
+const { Question, Topic, ExamClassification, sequelize, QuestionAttempt } = require('../../models');
+const { Op, fn, col, literal } = require("sequelize");
+
 const getDescendantTopicIds = async (topicId) => {
     if (!topicId) return [];
     const parsedTopicId = parseInt(topicId, 10);
@@ -22,21 +22,39 @@ const getDescendantTopicIds = async (topicId) => {
 };
 
 const getAllQuestions = async (req, res) => {
-    const { topicId } = req.query;
+    const { topicId, examClassificationId } = req.query;
     try {
         const queryOptions = {
-          include: [{ model: Topic, as: 'topic', attributes: ['id', 'name'] }],
+          include: [
+            { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+            { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] }
+          ],
           attributes: { exclude: ['createdAt', 'updatedAt'] },
-          order: !topicId ? sequelize.random() : [['id', 'ASC']]
+          order: !topicId && !examClassificationId ? sequelize.random() : [['id', 'ASC']]
         };
+
+        queryOptions.where = {};
 
         if (topicId) {
           const topicIdsToFilter = await getDescendantTopicIds(topicId);
           if (topicIdsToFilter.length > 0) {
-              queryOptions.where = { topicId: { [Op.in]: topicIdsToFilter } };
+              queryOptions.where.topicId = { [Op.in]: topicIdsToFilter };
           } else {
                return res.status(200).json([]);
           }
+        }
+
+        if (examClassificationId) {
+            const parsedEcId = parseInt(examClassificationId, 10);
+            if (!isNaN(parsedEcId)) {
+                queryOptions.where.examClassificationId = parsedEcId;
+            } else {
+                 return res.status(400).json({ message: 'Geçersiz sınav sınıflandırma ID formatı.' });
+            }
+        }
+
+        if (Object.keys(queryOptions.where).length === 0) {
+            delete queryOptions.where;
         }
 
         const questions = await Question.findAll(queryOptions);
@@ -50,7 +68,10 @@ const getAllQuestions = async (req, res) => {
 const getQuestionById = async (req, res) => {
     try {
         const question = await Question.findByPk(req.params.id, {
-            include: [{ model: Topic, as: 'topic', attributes: ['id', 'name'] }],
+            include: [
+                { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+                { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] }
+            ],
             attributes: { exclude: ['createdAt', 'updatedAt'] }
         });
         if (!question) { return res.status(404).json({ message: 'Soru bulunamadı.' }); }
@@ -64,38 +85,44 @@ const getQuestionById = async (req, res) => {
 const createQuestion = async (req, res) => {
   const {
       text, optionA, optionB, optionC, optionD, optionE,
-      correctAnswer, topicId, imageUrl, classification, explanation
+      correctAnswer, topicId, imageUrl, classification, explanation, examClassificationId
   } = req.body;
 
-  if (!text || !optionA || !optionB || !optionC || !optionD || !optionE || !correctAnswer || !topicId) {
-      return res.status(400).json({ message: 'Lütfen tüm zorunlu alanları doldurun (text, optionA-E, correctAnswer, topicId).' });
+  if (!text || !optionA || !optionB || !optionC || !optionD || !optionE || !correctAnswer || !topicId || !examClassificationId) {
+      return res.status(400).json({ message: 'Lütfen tüm zorunlu alanları doldurun (text, seçenekler, doğru cevap, konu ID ve sınav sınıflandırma ID).' });
   }
 
   try {
-    const topicExists = await Topic.findByPk(topicId);
+    const parsedTopicId = parseInt(topicId, 10);
+    const parsedEcId = parseInt(examClassificationId, 10);
+
+    if (isNaN(parsedTopicId)) return res.status(400).json({message: 'Geçersiz konu ID formatı.'});
+    if (isNaN(parsedEcId)) return res.status(400).json({message: 'Geçersiz sınav sınıflandırma ID formatı.'});
+
+    const topicExists = await Topic.findByPk(parsedTopicId);
     if (!topicExists) {
-        return res.status(400).json({ message: `Geçersiz konu ID'si: ${topicId}.` });
+        return res.status(400).json({ message: `Geçersiz konu ID'si: ${parsedTopicId}.` });
+    }
+    const classificationExists = await ExamClassification.findByPk(parsedEcId);
+    if (!classificationExists) {
+        return res.status(400).json({ message: `Geçersiz sınav sınıflandırma ID'si: ${parsedEcId}.` });
     }
 
     const newQuestion = await Question.create({
-        text,
-        optionA,
-        optionB,
-        optionC,
-        optionD,
-        optionE,
+        text, optionA, optionB, optionC, optionD, optionE,
         correctAnswer: String(correctAnswer).toUpperCase(),
         difficulty: 'medium',
-        topicId: parseInt(topicId, 10),
+        topicId: parsedTopicId,
         imageUrl: imageUrl || null,
         classification: classification || 'Çalışma Sorusu',
-        explanation: explanation || null
+        explanation: explanation || null,
+        examClassificationId: parsedEcId
     });
 
     res.status(201).json(newQuestion);
   } catch (error) {
     console.error('Soru oluştururken hata:', error);
-    if (error.name === 'SequelizeValidationError') {
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
        const messages = error.errors.map(err => err.message).join('. ');
        return res.status(400).json({ message: `Doğrulama hatası: ${messages}` });
     }
@@ -107,7 +134,7 @@ const updateQuestion = async (req, res) => {
   const { id } = req.params;
   const {
       text, optionA, optionB, optionC, optionD, optionE,
-      correctAnswer, topicId, imageUrl, classification, explanation // explanation eklendi
+      correctAnswer, topicId, imageUrl, classification, explanation, examClassificationId
   } = req.body;
 
   try {
@@ -117,20 +144,21 @@ const updateQuestion = async (req, res) => {
     }
 
     if (topicId !== undefined) {
+        const parsedTopicId = parseInt(topicId, 10);
+        if (isNaN(parsedTopicId) && topicId !== null) return res.status(400).json({message: 'Geçersiz konu ID formatı.'});
         if (topicId !== null) {
-             // Topic ID null değilse varlığını kontrol et
-             const topicExists = await Topic.findByPk(topicId);
-             if (!topicExists) {
-                 return res.status(400).json({ message: `Geçersiz konu ID'si: ${topicId}` });
-             }
-             question.topicId = parseInt(topicId, 10);
-        } else {
-             // Topic ID null gelirse, null olarak set et (eğer model izin veriyorsa)
-             // question.topicId = null; // Modelde allowNull: false olduğu için bu genelde istenmez
+             const topicExists = await Topic.findByPk(parsedTopicId);
+             if (!topicExists) return res.status(400).json({ message: `Geçersiz konu ID'si: ${parsedTopicId}` });
         }
+        question.topicId = topicId === null ? null : parsedTopicId; // Modelde allowNull: false olduğu için null olamaz.
     }
-
-    // Diğer alanları güncelle (undefined değilse)
+    if (examClassificationId !== undefined) {
+        const parsedEcId = parseInt(examClassificationId, 10);
+        if (isNaN(parsedEcId)) return res.status(400).json({message: 'Geçersiz sınav sınıflandırma ID formatı.'});
+        const classificationExists = await ExamClassification.findByPk(parsedEcId);
+        if (!classificationExists) return res.status(400).json({ message: `Geçersiz sınav sınıflandırma ID'si: ${parsedEcId}` });
+        question.examClassificationId = parsedEcId;
+    }
     if (text !== undefined) question.text = text;
     if (optionA !== undefined) question.optionA = optionA;
     if (optionB !== undefined) question.optionB = optionB;
@@ -140,13 +168,16 @@ const updateQuestion = async (req, res) => {
     if (correctAnswer !== undefined) question.correctAnswer = String(correctAnswer).toUpperCase();
     if (classification !== undefined) question.classification = classification;
     if (imageUrl !== undefined) question.imageUrl = imageUrl || null;
-    // explanation alanını güncelle (undefined değilse)
-    if (explanation !== undefined) {
-        question.explanation = explanation || null; // Boş string gelirse null yap
-    }
+    if (explanation !== undefined) question.explanation = explanation || null;
 
     await question.save();
-    res.status(200).json(question);
+    const updatedQuestion = await Question.findByPk(id, {
+        include: [
+            { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+            { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] }
+        ]
+    });
+    res.status(200).json(updatedQuestion);
   } catch (error) {
     console.error('Soru güncellenirken hata:', error);
      if (error.name === 'SequelizeValidationError') {
@@ -172,39 +203,77 @@ const deleteQuestion = async (req, res) => {
 const createBulkQuestions = async (req, res) => {
      const questionsData = req.body;
      if (!Array.isArray(questionsData) || questionsData.length === 0) { return res.status(400).json({ message: 'Lütfen eklenecek soruları bir dizi formatında gönderin.' }); }
-     const questionsToCreate = []; const errors = []; const topicIds = new Set();
-     questionsData.forEach(q => { if (q.topicId) topicIds.add(parseInt(q.topicId, 10)); }); // ID'leri number olarak ekle
-     let existingTopics = new Map();
-     if (topicIds.size > 0) { try { const topics = await Topic.findAll({ where: { id: { [Op.in]: Array.from(topicIds) } } }); topics.forEach(t => existingTopics.set(t.id, true)); } catch(err) { console.error("Toplu ekleme sırasında konu kontrol hatası:", err); return res.status(500).json({ message: 'Konu kontrolü sırasında bir sunucu hatası oluştu.' }); } }
+
+     const questionsToCreate = [];
+     const validationErrors = [];
+     const topicIdsSet = new Set();
+     const classificationIdsSet = new Set();
+
+     questionsData.forEach(q => {
+         if (q.topicId) topicIdsSet.add(parseInt(q.topicId, 10));
+         if (q.examClassificationId) classificationIdsSet.add(parseInt(q.examClassificationId, 10));
+     });
+
+     let existingTopicsMap = new Map();
+     let existingClassificationsMap = new Map();
+
+     try {
+        if (topicIdsSet.size > 0) {
+            const topics = await Topic.findAll({ where: { id: { [Op.in]: Array.from(topicIdsSet) } } });
+            topics.forEach(t => existingTopicsMap.set(t.id, true));
+        }
+        if (classificationIdsSet.size > 0) {
+            const classifications = await ExamClassification.findAll({ where: { id: { [Op.in]: Array.from(classificationIdsSet) } } });
+            classifications.forEach(c => existingClassificationsMap.set(c.id, true));
+        }
+     } catch (dbError) {
+         console.error("Toplu ekleme sırasında ID kontrol hatası:", dbError);
+         return res.status(500).json({ message: 'ID kontrolü sırasında bir sunucu hatası oluştu.' });
+     }
+
 
      for (let i = 0; i < questionsData.length; i++) {
          const q = questionsData[i];
-         const currentTopicId = parseInt(q.topicId, 10); // topicId'yi integer yap
+         const currentTopicId = parseInt(q.topicId, 10);
+         const currentEcId = parseInt(q.examClassificationId, 10);
 
-         if (!q.text || !q.optionA || !q.optionB || !q.optionC || !q.optionD || !q.optionE || !q.correctAnswer || !q.topicId) {
-             errors.push({ index: i, error: `Zorunlu alanlar eksik.` }); continue;
+         if (!q.text || !q.optionA || !q.optionB || !q.optionC || !q.optionD || !q.optionE || !q.correctAnswer || !q.topicId || !q.examClassificationId) {
+             validationErrors.push({ index: i, error: `Zorunlu alanlar eksik (Sınav Sınıflandırma ID dahil).` }); continue;
          }
-         if (isNaN(currentTopicId) || !existingTopics.has(currentTopicId)) { // Integer kontrolü ve map kontrolü
-             errors.push({ index: i, error: `Geçersiz konu ID'si (${q.topicId}).` }); continue;
+         if (isNaN(currentTopicId) || !existingTopicsMap.has(currentTopicId)) {
+             validationErrors.push({ index: i, error: `Geçersiz konu ID'si (${q.topicId}).` }); continue;
          }
+         if (isNaN(currentEcId) || !existingClassificationsMap.has(currentEcId)) {
+            validationErrors.push({ index: i, error: `Geçersiz sınav sınıflandırma ID'si (${q.examClassificationId}).`}); continue;
+         }
+
          questionsToCreate.push({
              text: q.text, optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, optionD: q.optionD, optionE: q.optionE,
-             correctAnswer: String(q.correctAnswer).toUpperCase(), difficulty: 'medium', topicId: currentTopicId,
+             correctAnswer: String(q.correctAnswer).toUpperCase(), difficulty: q.difficulty || 'medium', topicId: currentTopicId,
              imageUrl: q.imageUrl || null, classification: q.classification || 'Çalışma Sorusu',
-             explanation: q.explanation || null // explanation alanını ekle
+             explanation: q.explanation || null,
+             examClassificationId: currentEcId
          });
      }
 
-     if (questionsToCreate.length === 0 && errors.length > 0) { return res.status(400).json({ message: 'Eklenecek geçerli soru bulunamadı.', validationErrors: errors }); }
+     if (questionsToCreate.length === 0 && validationErrors.length > 0) {
+         return res.status(400).json({ message: 'Eklenecek geçerli soru bulunamadı.', validationErrors });
+     }
+     if (questionsToCreate.length === 0 && validationErrors.length === 0) { // Hiç soru gelmediyse
+        return res.status(400).json({ message: 'Eklenecek soru bulunmuyor.' });
+    }
+
 
      try {
-         const createdQuestions = await Question.bulkCreate(questionsToCreate);
-         // Başarılı eklenenlerin yanında hataları da döndür
-         res.status(201).json({ message: `${createdQuestions.length} soru başarıyla eklendi.`, addedCount: createdQuestions.length, validationErrors: errors });
+         const createdQuestions = await Question.bulkCreate(questionsToCreate, { validate: true });
+         res.status(201).json({ message: `${createdQuestions.length} soru başarıyla eklendi.`, addedCount: createdQuestions.length, validationErrors });
      } catch (error) {
          console.error('Toplu soru eklenirken hata:', error);
-         // Hata durumunda da validationErrors'u (eğer varsa) döndürelim
-         res.status(500).json({ message: 'Sunucu hatası. Sorular eklenemedi.', validationErrors: errors });
+         if (error.name === 'SequelizeValidationError') {
+            const messages = error.errors.map(e => `[${e.instance.text.substring(0,20)}...]: ${e.message}`).join(', ');
+            validationErrors.push({index: -1, error: 'Veritabanı doğrulama hatası: ' + messages});
+         }
+         res.status(500).json({ message: 'Sunucu hatası. Sorular eklenemedi.', validationErrors });
      }
 };
 
@@ -217,7 +286,7 @@ const getWordPracticeQuestions = async (req, res) => {
         allQuestions.forEach(question => {
             const correctAnswerLetter = question.correctAnswer?.toUpperCase();
             if (!correctAnswerLetter || !['A', 'B', 'C', 'D', 'E'].includes(correctAnswerLetter)) { return; }
-            const potentialAnswer = question[`option${correctAnswerLetter}`];
+            const potentialAnswer = question['option' + correctAnswerLetter];
             if ( potentialAnswer && typeof potentialAnswer === 'string' && potentialAnswer.trim().length > 0 && potentialAnswer.trim().length <= 9 && !potentialAnswer.includes(' ') && !potentialAnswer.toUpperCase().endsWith('LER') && !potentialAnswer.toUpperCase().endsWith('LAR')) {
                 suitableQuestions.push({ id: question.id, text: question.text, answerWord: potentialAnswer.trim().toUpperCase() });
             }
