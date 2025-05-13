@@ -10,14 +10,14 @@ import { ChakraProvider } from '@chakra-ui/react';
 import theme from './theme'; // Modüler tema yapısının ana dosyasını import edin
 
 ReactDOM.createRoot(document.getElementById('root')).render(
+  // ChakraProvider'a oluşturduğunuz temayı verin
   <React.StrictMode>
-    {/* ChakraProvider'a oluşturduğunuz temayı verin */}
-    <ChakraProvider theme={theme}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
-    </ChakraProvider>
-  </React.StrictMode>,
+  <ChakraProvider theme={theme}>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
+  </ChakraProvider>
+  </React.StrictMode>  
 );

@@ -3,21 +3,17 @@ import {
   Box,
   Flex,
   Heading,
-  Text, // Açıklama için (opsiyonel)
+  Text, 
   Icon,
-  Circle, // İkon arka planı için
-  // useStyleConfig kaldırıldı, doğrudan stil props kullanıyoruz
-  useColorModeValue, // Spesifik renkler ve _hover/_active/_focus için
-  VStack, // Dikey hizalama için
-  // Spacer kaldırıldı, Flex ile yönetiliyor
+  Circle,
+  useColorModeValue,
+  VStack,
 } from '@chakra-ui/react';
-// İkonlar
 import {
   FaMicroscope, FaShieldAlt, FaBacteria, FaVirus, FaFlask,
   FaBug, FaBiohazard, FaFolder, FaChevronRight, FaFolderOpen
 } from 'react-icons/fa';
 
-// Konu -> İkon Eşleştirmesi (Aynı kalabilir)
 const topicIconMap = {
   "Genel Mikrobiyoloji": FaMicroscope,
   "İmmünoloji": FaShieldAlt,
@@ -27,111 +23,94 @@ const topicIconMap = {
   "Parazitoloji": FaBug,
   "Enfeksiyon Hastalıkları": FaBiohazard,
   "Laboratuvar Uygulamaları": FaFlask,
-  "default": FaFolder // Varsayılan ikon
+  "default": FaFolder
 };
 
-// TopicCard Component'i (Tema ile Uyumlu ve Gelişmiş Tasarım)
 function TopicCard({ topic, onSelectTopic, ...props }) {
-
   const hasChildren = topic.children && topic.children.length > 0;
-  // İkonu belirle: Eşleşme varsa onu, yoksa alt konu durumuna göre klasör ikonunu kullan
   const IconComponent = topicIconMap[topic.name] || (hasChildren ? FaFolderOpen : topicIconMap["default"]);
 
   const handleClick = () => {
     onSelectTopic(topic);
   };
 
-  // --- Tema Değerlerini veya Özel Renkleri Al ---
-  // Kartın ana arkaplanı ve kenarlığı için semantic token'ları kullan
-  // bg="bgPrimary" veya bg="bgSecondary" olabilir. 'bgPrimary' (white/gray.800) daha yaygın kart arkaplanı.
-  // borderColor="borderPrimary" veya "borderSecondary".
-  // Not: Eğer tema dosyasında Card component'i için varsayılan stil tanımladıysanız (örn: variant="elevated"),
-  // bu bg ve borderColor'ı burada tekrar belirtmek yerine Card component'ini kullanmak daha iyi olabilir.
-  // Şimdilik Box ile devam ediyoruz ve semantic token kullanıyoruz.
-  const cardBg = "bgPrimary"; // Semantic Token
-  const borderColor = "borderPrimary"; // Semantic Token
-
-  // Hover ve Active durumları için özel renkler (useColorModeValue ile)
-  // Bunları temanıza özel semantic token'lar olarak da tanımlayabilirsiniz.
-  const hoverBg = useColorModeValue('gray.50', 'gray.700'); // Veya bgSecondary
+  // Stil Hook'ları ve Değişkenleri
+  const cardBg = useColorModeValue('white', 'gray.750'); // Açık modda beyaz, koyu modda gray.750
+  const cardBorderColor = useColorModeValue('gray.200', 'gray.600'); // Kenarlık rengi
+  
+  const hoverBg = useColorModeValue('gray.50', 'gray.700'); 
   const activeBg = useColorModeValue('gray.100', 'gray.600');
-  const hoverBorderColor = useColorModeValue('brand.300', 'brand.500'); // Hover kenarlık rengi
-  const focusBorderColor = useColorModeValue('brand.400', 'brand.400'); // Focus kenarlık rengi
-  const focusBoxShadow = useColorModeValue('0 0 0 3px var(--chakra-colors-brand-200)', '0 0 0 3px var(--chakra-colors-brand-700)'); // Focus gölgesi
+  const hoverBorderColor = useColorModeValue('brand.300', 'brand.500'); 
+  const focusBorderColor = useColorModeValue('brand.400', 'brand.400'); 
+  const focusBoxShadow = useColorModeValue('0 0 0 2px var(--chakra-colors-brand-300)', '0 0 0 2px var(--chakra-colors-brand-600)'); // Focus gölgesi inceltildi
 
-  // İkon alanı için özel renkler (useColorModeValue ile)
   const iconBg = useColorModeValue('brand.100', 'brand.800');
   const iconColor = useColorModeValue('brand.600', 'brand.200');
+  const chevronColor = useColorModeValue('gray.500', 'gray.400'); // Chevron ikonu için renk
 
   return (
     <Box
-      as="button" // Erişilebilirlik ve tıklanabilirlik
+      as="button"
       onClick={handleClick}
-      p={5} // Temadan space.5
-      bg={cardBg} // Semantic Token
+      p={4} // Padding biraz azaltıldı (5 -> 4)
+      bg={cardBg}
       borderWidth="1px"
-      borderColor={borderColor} // Semantic Token
-      borderRadius="lg" // Temadan radii.lg
-      boxShadow="base" // Temadan shadows.base (veya md)
+      borderColor={cardBorderColor}
+      borderRadius="lg"
+      boxShadow="base"
       textAlign="left"
       w="100%"
-      transition="all 0.2s ease-in-out" // Temadan alınabilir veya sabit
-      // Tema hover/active/focus stilleri özelleştirildi
+      transition="all 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out" // Geçişlere borderColor ve boxShadow eklendi
       _hover={{
-        transform: 'translateY(-4px)',
-        boxShadow: 'lg', // Temadan shadows.lg
-        borderColor: hoverBorderColor, // Özel hover kenarlık rengi
-        bg: hoverBg // Özel hover arkaplanı
+        transform: 'translateY(-3px)', // Daha hassas bir hover efekti
+        boxShadow: 'md', // Gölge biraz daha belirgin
+        borderColor: hoverBorderColor,
+        bg: hoverBg 
       }}
       _active={{
         transform: 'translateY(-1px)',
-        boxShadow: 'md', // Temadan shadows.md
-        bg: activeBg // Özel active arkaplanı
+        boxShadow: 'sm', // Aktifken gölge biraz daha az
+        bg: activeBg
       }}
-      _focusVisible={{ // Klavye ile focus
+      _focusVisible={{ 
+        outline: "none", // Tarayıcı varsayılan outline'ını kaldır
         borderColor: focusBorderColor,
-        boxShadow: focusBoxShadow // Özel focus gölgesi
+        boxShadow: focusBoxShadow
       }}
-      {...props} // Diğer props'ları (örn: key) aktar
+      {...props}
     >
       <Flex align="center">
-        {/* İkon Alanı */}
-        <Circle size="44px" bg={iconBg} color={iconColor} mr={4}>
-          <Icon as={IconComponent} boxSize="20px" />
+        <Circle size="40px" bg={iconBg} color={iconColor} mr={3}> {/* Boyut ve margin ayarlandı */}
+          <Icon as={IconComponent} boxSize="18px" /> {/* İkon boyutu ayarlandı */}
         </Circle>
 
-        {/* Başlık Alanı */}
         <VStack align="flex-start" spacing={0} flex="1" minW={0}>
-           {/* Heading tema boyutunu (sm) ve font ağırlığını (semibold) kullanır */}
           <Heading
             as="h3"
             size="sm"
-            fontWeight="semibold"
+            fontWeight="medium" // semibold -> medium (daha yumuşak)
             noOfLines={2}
-            // Renk belirtilmediği için varsayılan metin rengini (textPrimary) alır
+            color="textPrimary" // Varsayılan metin rengi için (temanızda tanımlıysa)
           >
             {topic.name}
           </Heading>
-          {/* Opsiyonel Açıklama (Yorumda) */}
-          {/* {topic.description && (
-            <Text fontSize="xs" color="textMuted" noOfLines={1}> // textMuted semantic token kullanır
+          {topic.description && ( // Açıklama varsa göster
+            <Text fontSize="xs" color="textMuted" noOfLines={1} mt={0.5}>
               {topic.description}
             </Text>
-          )} */}
+          )}
         </VStack>
 
-        {/* Chevron (Alt konu varsa) */}
-        {/* Icon semantic token (textMuted) kullanır */}
         <Icon
             as={FaChevronRight}
-            color="textMuted"
-            opacity={hasChildren ? 0.8 : 0}
+            color={chevronColor} // textMuted yerine tanımlı değişken
+            opacity={hasChildren ? 0.7 : 0} // Opaklık biraz artırıldı
             transition="transform 0.2s ease, opacity 0.2s ease"
             ml={3}
-             // _groupHover yerine _hover (Box 'button' olduğu için grup gibi davranır)
-            _hover={{
-              transform: hasChildren ? 'translateX(4px)' : 'none',
-            }}
+            boxSize="1em"
+            // _hover Box'ın _hover'ı tarafından tetikleneceği için burada ayrıca _hover'a gerek olmayabilir,
+            // ancak istenirse eklenebilir.
+            // _groupHover (eğer bir üst Flex/Box'a .group class'ı verilirse) daha kontrollü olabilir.
             aria-hidden={!hasChildren}
           />
       </Flex>
