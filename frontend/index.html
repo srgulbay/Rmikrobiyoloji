@@ -2,25 +2,87 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
+    <!-- PWA Capable Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" /> <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+    <!-- Icons & Manifest -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Viewport and Theme -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3182CE" />
 
-    <meta name="theme-color" content="#3182CE"> 
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180"> 
-    <meta name="apple-mobile-web-app-capable" content="yes"> 
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> 
-    <link rel="manifest" href="/manifest.webmanifest">
+    <!-- Fonts & Styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
 
     <title>Rmikrobiyoloji Platformu</title>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- PWA Install Button -->
+    <button
+      id="btnInstall"
+      style="
+        display: none;
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        padding: 8px 12px;
+        background: #1976d2;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        z-index: 9999;
+      "
+    >
+      Uygulamayı Yükle
+    </button>
+
+    <!-- PWA Install Script -->
+    <script>
+      (function () {
+        const btnInstall = document.getElementById('btnInstall');
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          if (!localStorage.getItem('installPromptShown')) {
+            deferredPrompt = e;
+            btnInstall.style.display = 'block';
+          }
+        });
+
+        btnInstall.addEventListener('click', async () => {
+          btnInstall.style.display = 'none';
+          if (!deferredPrompt) return;
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          localStorage.setItem('installPromptShown', 'true');
+          deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+          btnInstall.style.display = 'none';
+          localStorage.setItem('installPromptShown', 'true');
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
