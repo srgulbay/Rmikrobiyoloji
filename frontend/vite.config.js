@@ -9,7 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: false // Geliştirme ortamında true yapılabilir
+        // Geliştirme ortamında da PWA işlevselliğini test etmek için true yapın
+        enabled: true
       },
       manifest: {
         name: 'Rmikrobiyoloji Platformu',
@@ -40,6 +41,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Cache'lemek istediğiniz dosya kalıpları
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}']
       }
     })

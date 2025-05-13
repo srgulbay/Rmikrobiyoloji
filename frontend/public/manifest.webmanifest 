@@ -1,11 +1,11 @@
 {
-  "name": "Rmikrobiyoloji",
+  "name": "Rmikrobiyoloji Platformu",
   "short_name": "Rmikro",
+  "description": "Mikrobiyoloji eğitim platformu",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3182CE",
-  "description": "Mikrobiyoloji eğitim platformu",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
