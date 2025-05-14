@@ -18,13 +18,13 @@ import {
 import { FiActivity, FiTarget, FiZap, FiTrendingUp, FiTrendingDown, FiCheckCircle, FiMinusCircle, FiCpu } from "react-icons/fi";
 import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip as ChartTooltip, Legend, TimeScale, Filler
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, BarController, PointElement, LineElement, Title, Tooltip as ChartTooltip, Legend, TimeScale, Filler
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { tr } from 'date-fns/locale';
 
 ChartJS.register(
-  CategoryScale, LinearScale,  BarElement, PointElement, LineElement, Title, ChartTooltip, Legend, TimeScale, Filler
+  CategoryScale, LinearScale,  BarElement, BarController, PointElement, LineElement, Title, ChartTooltip, Legend, TimeScale, Filler
 );
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
