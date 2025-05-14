@@ -42,26 +42,32 @@
           e.preventDefault();
           if (!localStorage.getItem('installPromptShown')) {
             deferredPrompt = e;
-            btnInstall?.style.display = 'block';
+            if (btnInstall) {
+              btnInstall.style.display = 'block';
+            }
           }
         });
     
-        btnInstall?.addEventListener('click', async () => {
-          btnInstall.style.display = 'none';
-          if (!deferredPrompt) return;
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          localStorage.setItem('installPromptShown', 'true');
-          deferredPrompt = null;
-        });
+        // btnInstall varsa tıklama dinleyicisi ekle
+        if (btnInstall) {
+          btnInstall.addEventListener('click', async () => {
+            btnInstall.style.display = 'none';
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            localStorage.setItem('installPromptShown', 'true');
+            deferredPrompt = null;
+          });
+        }
     
         window.addEventListener('appinstalled', () => {
-          btnInstall?.style.display = 'none';
+          if (btnInstall) {
+            btnInstall.style.display = 'none';
+          }
           localStorage.setItem('installPromptShown', 'true');
         });
       })();
     </script>
-
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
