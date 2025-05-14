@@ -37,16 +37,16 @@
       (function () {
         const btnInstall = document.getElementById('btnInstall');
         let deferredPrompt = null;
-
+    
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           if (!localStorage.getItem('installPromptShown')) {
             deferredPrompt = e;
-            btnInstall.style.display = 'block';
+            btnInstall?.style.display = 'block';
           }
         });
-
-        btnInstall.addEventListener('click', async () => {
+    
+        btnInstall?.addEventListener('click', async () => {
           btnInstall.style.display = 'none';
           if (!deferredPrompt) return;
           deferredPrompt.prompt();
@@ -54,9 +54,9 @@
           localStorage.setItem('installPromptShown', 'true');
           deferredPrompt = null;
         });
-
+    
         window.addEventListener('appinstalled', () => {
-          btnInstall.style.display = 'none';
+          btnInstall?.style.display = 'none';
           localStorage.setItem('installPromptShown', 'true');
         });
       })();
