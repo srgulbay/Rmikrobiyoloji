@@ -174,7 +174,7 @@ async function sendNotificationsForAnnouncement(announcement) {
       console.error(`[NotificationSender] Kullanıcı ${user.id} için in-app bildirim oluşturulurken hata:`, inAppError.name, inAppError.message);
     }
 
-    if (!process.env.PUBLIC_VAPID_KEY || !process.env.PRIVATE_VAPID_KEY || !process.env.VAPID_SUBJECT) {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_SUBJECT) {
       console.warn(`[NotificationSender] Kullanıcı ${user.id} için VAPID anahtarları eksik, push bildirimi atlanıyor.`);
       return;
     }
