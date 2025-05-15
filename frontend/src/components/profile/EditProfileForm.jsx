@@ -18,11 +18,11 @@ import {
   AlertIcon,
   Spinner,
   useColorModeValue,
-  Text
+  Text,
+  FormHelperText
 } from '@chakra-ui/react';
-import { FaSave, FaTimesCircle, FaUserEdit, FaGraduationCap, FaBriefcase } from 'react-icons/fa';
+import { FaSave, FaTimesCircle, FaUserEdit, FaEnvelope } from 'react-icons/fa'; // FaEnvelope eklendi
 
-// RegisterPage'deki uzmanlık alanlarını burada da kullanabiliriz veya constants dosyasından import edebiliriz.
 const specializationsArray = [
   "YDUS", "TUS", "DUS", "Tıp Fakültesi Dersleri", "Diş Hekimliği Fakültesi Dersleri", "Diğer"
 ];
@@ -33,34 +33,43 @@ function EditProfileForm({
     onSubmit, 
     onCancel, 
     isLoading, 
-    formError // ProfilePage'den gelen genel form hatası
+    formError
 }) {
   const [formData, setFormData] = useState({
     username: '',
+    email: '', // E-posta alanı eklendi
     specialization: '',
     defaultClassificationId: '',
   });
   const [currentFormError, setCurrentFormError] = useState('');
+  const [emailChanged, setEmailChanged] = useState(false);
 
 
   useEffect(() => {
     if (currentUser) {
       setFormData({
         username: currentUser.username || '',
+        email: currentUser.email || '', // E-posta state'i dolduruluyor
         specialization: currentUser.specialization || '',
         defaultClassificationId: currentUser.defaultClassificationId ? String(currentUser.defaultClassificationId) : '',
       });
+      setEmailChanged(false); // Form her dolduğunda e-posta değişikliği flag'ini sıfırla
     }
   }, [currentUser]);
 
   useEffect(() => {
-    if(formError) setCurrentFormError(formError); // Dışarıdan gelen hatayı göster
+    if(formError) setCurrentFormError(formError);
   }, [formError]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setCurrentFormError(''); // Kullanıcı yazmaya başlayınca hatayı temizle
+    setCurrentFormError(''); 
+    if (name === 'email' && currentUser && value !== currentUser.email) {
+        setEmailChanged(true);
+    } else if (name === 'email' && currentUser && value === currentUser.email) {
+        setEmailChanged(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -70,19 +79,26 @@ function EditProfileForm({
       setCurrentFormError("Kullanıcı adı boş bırakılamaz.");
       return;
     }
-    // Diğer validasyonlar eklenebilir.
-    onSubmit(formData); // Güncellenecek veriyi ana component'e gönder
+    if (!formData.email.trim()) {
+      setCurrentFormError("E-posta alanı boş bırakılamaz.");
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setCurrentFormError("Lütfen geçerli bir e-posta adresi girin.");
+      return;
+    }
+    onSubmit(formData); 
   };
 
   const cardBg = useColorModeValue("white", "gray.750");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   const headingColor = useColorModeValue("gray.700", "gray.100");
   const textColor = useColorModeValue("gray.600", "gray.300");
-  const inputSelectBg = useColorModeValue("white", "gray.600");
+  const inputSelectBg = useColorModeValue("whiteAlpha.800", "gray.700"); // Hafif transparanlık eklendi
 
 
   return (
-    <Card variant="outline" bg={cardBg} borderColor={borderColor} boxShadow="lg" borderRadius="xl" p={6} mt={8}>
+    <Card variant="outline" bg={cardBg} borderColor={borderColor} boxShadow="xl" borderRadius="xl" p={{base:4, md:6}} mt={8}>
       <Heading as="h2" size="lg" color={headingColor} mb={6} display="flex" alignItems="center">
         <Icon as={FaUserEdit} mr={3} color="brand.500" /> Profilimi Düzenle
       </Heading>
@@ -95,7 +111,7 @@ function EditProfileForm({
             </Alert>
           )}
 
-          <FormControl id="usernameEdit" isRequired isInvalid={!!currentFormError && currentFormError.includes('Kullanıcı adı')}>
+          <FormControl id="usernameEdit" isRequired isInvalid={!!currentFormError && currentFormError.toLowerCase().includes('kullanıcı adı')}>
             <FormLabel fontSize="sm" color={textColor} fontWeight="medium">Kullanıcı Adı</FormLabel>
             <Input
               name="username"
@@ -106,7 +122,25 @@ function EditProfileForm({
               _hover={{ borderColor: useColorModeValue("gray.300", "gray.500") }}
               _focus={{ borderColor: "brand.400", boxShadow: `0 0 0 1px var(--chakra-colors-brand-400)` }}
             />
-            {/* Username için hata mesajı (varsa) */}
+          </FormControl>
+
+          <FormControl id="emailEdit" isRequired isInvalid={!!currentFormError && currentFormError.toLowerCase().includes('e-posta')}>
+            <FormLabel fontSize="sm" color={textColor} fontWeight="medium">E-posta Adresi</FormLabel>
+            <Input
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              bg={inputSelectBg}
+              borderColor={borderColor}
+              _hover={{ borderColor: useColorModeValue("gray.300", "gray.500") }}
+              _focus={{ borderColor: "brand.400", boxShadow: `0 0 0 1px var(--chakra-colors-brand-400)` }}
+            />
+            {emailChanged && (
+                <FormHelperText fontSize="xs" color="orange.500">
+                    E-posta adresinizi değiştirirseniz, yeni adresinize bir doğrulama bağlantısı gönderilecektir. Mevcut oturumunuzu etkilemez ancak yeni e-postanız doğrulanana kadar "Doğrulanmamış" olarak görünecektir.
+                </FormHelperText>
+            )}
           </FormControl>
 
           <FormControl id="specializationEdit">
