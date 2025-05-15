@@ -147,53 +147,73 @@ async function sendNotificationsForAnnouncement(announcement) {
   try {
     const validAllUserTargets = ['all', 'all_users', 'registered_users'];
     if (validAllUserTargets.includes(announcement.targetAudience)) {
-      targetUsers = await User.findAll({ where: {} }); 
+      targetUsers = await User.findAll({ where: {} });
       console.log(`[NotificationSender] User.findAll sonucu (${targetUsers.length} kullanıcı)`);
     }
   } catch (userError) {
     console.error('[NotificationSender] Hedef kullanıcılar çekilirken hata:', userError);
-    return; 
+    return;
   }
+
   if (!targetUsers || targetUsers.length === 0) {
     console.log('[NotificationSender] Bildirim gönderilecek hedef kullanıcı bulunamadı.');
     return;
   }
   console.log(`[NotificationSender] ${targetUsers.length} kullanıcıya bildirim gönderilecek.`);
-  const notificationLink = `/announcements/${announcement.id}`; 
+  const notificationLink = `/announcements-view/${announcement.id}`; // Frontend linkinizi buraya göre ayarlayın
+
   const notificationCreationPromises = targetUsers.map(async (user) => {
     try {
       await Notification.create({
         userId: user.id, type: 'announcement', title: announcement.title,
-        message: `Yeni duyuru: "${announcement.title.substring(0, 100)}${announcement.title.length > 100 ? '...' : ''}"`,
-        link: notificationLink 
+        message: `Yeni duyuru: "<span class="math-inline">\{announcement\.title\.substring\(0, 100\)\}</span>{announcement.title.length > 100 ? '...' : ''}"`,
+        link: notificationLink
       });
+      console.log(`[NotificationSender] Kullanıcı ${user.id} için in-app bildirim oluşturuldu.`); // Logu açtım
     } catch (inAppError) {
       console.error(`[NotificationSender] Kullanıcı ${user.id} için in-app bildirim oluşturulurken hata:`, inAppError.name, inAppError.message);
     }
-    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) { return; }
+
+    if (!process.env.PUBLIC_VAPID_KEY || !process.env.PRIVATE_VAPID_KEY || !process.env.VAPID_SUBJECT) {
+      console.warn(`[NotificationSender] Kullanıcı ${user.id} için VAPID anahtarları eksik, push bildirimi atlanıyor.`);
+      return;
+    }
+
     try {
       const userSubscriptions = await UserPushSubscription.findAll({ where: { userId: user.id } });
       if (userSubscriptions.length > 0) {
         const payload = JSON.stringify({
-          title: announcement.title, body: `Yeni duyuru: ${announcement.title.substring(0, 50)}...`,
-          icon: '/pwa-192x192.png', badge: '/pwa-badge-96x96.png', data: { url: notificationLink }
+          title: `📢 ${announcement.title}`, // Başlığa ikon eklendi
+          body: `${announcement.content.substring(0, 70)}...`, // İçerikten kısa bir bölüm
+          icon: '/pwa-192x192.png',
+          badge: '/pwa-badge-96x96.png',
+          data: { url: notificationLink, announcementId: announcement.id } // Ekstra veri
         });
+
         const pushPromises = userSubscriptions.map(subscription => {
           const subAsJson = { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } };
+          console.log(`[NotificationSender] Push denemesi: K-<span class="math-inline">\{user\.id\}, E\-</span>{subscription.endpoint.substring(0,30)}... Payload: ${payload}`);
           return webpush.sendNotification(subAsJson, payload)
+            .then(sendResult => {
+                console.log(`[NotificationSender] Push gönderimi BAŞARILI: K-<span class="math-inline">\{user\.id\}, E\-</span>{subscription.endpoint.substring(0,30)}... Sonuç:`, sendResult.statusCode);
+            })
             .catch(pushError => {
-              console.error(`[NotificationSender] Push hatası (K: ${user.id}, E: ${subscription.endpoint.substring(0,20)}...): ${pushError.statusCode} - ${pushError.body || pushError.message}`);
+              console.error(`[NotificationSender] Push gönderimi HATASI (K: ${user.id}, E: ${subscription.endpoint.substring(0,30)}...):`, pushError);
               if (pushError.statusCode === 404 || pushError.statusCode === 410) {
+                console.log(`[NotificationSender] Geçersiz abonelik (Endpoint: ${subscription.endpoint.substring(0,30)}...), siliniyor.`);
                 return subscription.destroy().catch(delErr => console.error("Geçersiz abonelik silinirken hata:", delErr));
               }
             });
         });
         await Promise.allSettled(pushPromises);
+      } else {
+        // console.log(`[NotificationSender] Kullanıcı ${user.id} için aktif push aboneliği bulunamadı.`);
       }
     } catch (pushSetupError) {
       console.error(`[NotificationSender] Kullanıcı ${user.id} için push abonelikleri/gönderim hatası:`, pushSetupError);
     }
   });
+
   await Promise.allSettled(notificationCreationPromises);
   console.log(`[NotificationSender] "${announcement.title}" için bildirim gönderme denemeleri tamamlandı.`);
 }
