@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const VAPID_PUBLIC_KEY_FROM_ENV = import.meta.env.VITE_PUBLIC_VAPID_KEY;
+const PUBLIC_VAPID_KEY_FROM_ENV = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 const arr = urlBase64ToUint8Array(import.meta.env.VITE_PUBLIC_VAPID_KEY);
 
 function urlBase64ToUint8Array(base64String) {
@@ -97,10 +97,10 @@ function usePushNotifications() {
 
   const subscribeUser = useCallback(async () => {
     console.log("📢 subscribeUser çağrıldı.");
-    console.log("ENV'den okunan VITE_PUBLIC_VAPID_KEY:", VAPID_PUBLIC_KEY_FROM_ENV);
+    console.log("ENV'den okunan VITE_PUBLIC_VAPID_KEY:", PUBLIC_VAPID_KEY_FROM_ENV);
 
-    if (!VAPID_PUBLIC_KEY_FROM_ENV || typeof VAPID_PUBLIC_KEY_FROM_ENV !== 'string' || VAPID_PUBLIC_KEY_FROM_ENV.trim() === '') {
-      const errMsg = 'HATA: VAPID_PUBLIC_KEY ortam değişkeni bulunamadı, tanımsız veya boş. Lütfen .env dosyanızı ve Vite ayarlarınızı kontrol edin.';
+    if (!PUBLIC_VAPID_KEY_FROM_ENV || typeof PUBLIC_VAPID_KEY_FROM_ENV !== 'string' || PUBLIC_VAPID_KEY_FROM_ENV.trim() === '') {
+      const errMsg = 'HATA: PUBLIC_VAPID_KEY ortam değişkeni bulunamadı, tanımsız veya boş. Lütfen .env dosyanızı ve Vite ayarlarınızı kontrol edin.';
       console.error(errMsg);
       setSubscriptionError(errMsg);
       return false;
@@ -138,7 +138,7 @@ function usePushNotifications() {
       }
       console.log("Bildirim izni verildi.");
 
-      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY_FROM_ENV);
+      const applicationServerKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY_FROM_ENV);
       if (!applicationServerKey) {
           throw new Error('VAPID public key Uint8Array formatına dönüştürülemedi.');
       }

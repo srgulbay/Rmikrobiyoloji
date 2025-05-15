@@ -1,12 +1,12 @@
 const { UserPushSubscription } = require('../../models');
 const webpush = require('web-push');
 
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT) {
+if (process.env.PUBLIC_VAPID_KEY && process.env.PRIVATE_VAPID_KEY && process.env.VAPID_SUBJECT) {
   // getVapidDetails kontrolü kaldırıldı
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
+    process.env.PUBLIC_VAPID_KEY,
+    process.env.PRIVATE_VAPID_KEY
   );
   console.log("Push Subscription Controller: VAPID details set for web-push.");
 } else {
