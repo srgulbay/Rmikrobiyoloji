@@ -4,9 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const PUBLIC_VAPID_KEY_FROM_ENV = import.meta.env.VITE_PUBLIC_VAPID_KEY;
-console.log("🔑 VAPID Key string uzunluğu:", import.meta.env.VITE_PUBLIC_VAPID_KEY.length);
 const arr = urlBase64ToUint8Array(import.meta.env.VITE_PUBLIC_VAPID_KEY);
-console.log("🧩 applicationServerKey byte uzunluğu:", arr.byteLength);
 
 function urlBase64ToUint8Array(base64String) {
   if (!base64String) return null;
