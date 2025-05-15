@@ -3,13 +3,13 @@ const webpush = require('web-push');
 const { Op } = require('sequelize');
 
 // VAPID anahtarlarını ayarla (eğer ortam değişkenleri mevcutsa)
-if (process.env.PUBLIC_VAPID_KEY && process.env.PRIVATE_VAPID_KEY && process.env.VAPID_SUBJECT) {
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT) {
   // getVapidDetails kontrolü kaldırıldı, setVapidDetails doğrudan çağrılıyor.
   // Birden fazla çağrılmasında bir sakınca yoktur, son ayar geçerli olur.
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT,
-    process.env.PUBLIC_VAPID_KEY,
-    process.env.PRIVATE_VAPID_KEY
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
   );
   console.log("Duyuru Controller: VAPID details set for web-push (eğer daha önce ayarlanmadıysa veya güncelleniyorsa).");
 } else {
@@ -174,7 +174,7 @@ async function sendNotificationsForAnnouncement(announcement) {
       console.error(`[NotificationSender] Kullanıcı ${user.id} için in-app bildirim oluşturulurken hata:`, inAppError.name, inAppError.message);
     }
 
-    if (!process.env.PUBLIC_VAPID_KEY || !process.env.PRIVATE_VAPID_KEY || !process.env.VAPID_SUBJECT) {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_SUBJECT) {
       console.warn(`[NotificationSender] Kullanıcı ${user.id} için VAPID anahtarları eksik, push bildirimi atlanıyor.`);
       return;
     }
