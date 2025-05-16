@@ -12,8 +12,8 @@ import {
   Divider, Collapse, Progress, useColorModeValue,
   Select, FormControl, FormLabel, Radio, RadioGroup, Stack, ScaleFade
 } from '@chakra-ui/react';
-import { 
-    FaArrowLeft, FaArrowRight, FaCheck, FaFlagCheckered, FaRedo, 
+import {
+    FaArrowLeft, FaArrowRight, FaCheck, FaFlagCheckered, FaRedo,
     FaExclamationTriangle, FaInfoCircle, FaLightbulb, FaQuestion, FaClock, FaStopwatch,
     FaPencilAlt, FaFilter, FaPlay, FaBrain
 } from 'react-icons/fa';
@@ -24,6 +24,7 @@ import QuizActiveInterface from '../components/solve/QuizActiveInterface';
 import QuizFinishedScreen from '../components/solve/QuizFinishedScreen';
 import SolvePageLoadingScreen from '../components/solve/SolvePageLoadingScreen';
 import SolvePageErrorState from '../components/solve/SolvePageErrorState';
+
 const initialLoadingMessages = [
   "Soru çözme motoru başlatılıyor...",
   "Kaynaklar taranıyor...",
@@ -53,12 +54,15 @@ const initialQuizState = {
     isCorrect: null,
     score: 0,
     isQuizFinished: false,
-    timeElapsed: 0, 
+    timeElapsed: 0,
     questionStartTime: null,
     showExplanation: false,
-    quizMode: 'practice', 
+    quizMode: 'practice',
     quizTitle: 'Soru Çözme Alanı',
     quizFixedDurationSeconds: null,
+    srsEntryId: null,
+    srsReturnPath: null,
+    isSrsMode: false
 };
 
 const initialSetupFilters = {
@@ -69,11 +73,11 @@ const initialSetupFilters = {
 };
 
 function SolvePage() {
-  const [pageStep, setPageStep] = useState('loading'); 
+  const [pageStep, setPageStep] = useState('loading');
   const [quizState, setQuizState] = useState(initialQuizState);
-  const [setupMode, setSetupMode] = useState(''); 
+  const [setupMode, setSetupMode] = useState('');
   const [setupFilters, setSetupFilters] = useState(initialSetupFilters);
-  
+
   const [examClassifications, setExamClassifications] = useState([]);
   const [branchesForSetup, setBranchesForSetup] = useState([]);
   const [topicsForSetup, setTopicsForSetup] = useState([]);
@@ -81,14 +85,14 @@ function SolvePage() {
   const [loadingMessage, setLoadingMessage] = useState('Sayfa ve kaynaklar hazırlanıyor...');
   const [error, setError] = useState('');
   const [isFetchingFilters, setIsFetchingFilters] = useState(false);
-  
+
   const { user, token } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
 
   const timerRef = useRef(null);
-  const quizSessionIdRef = useRef(Date.now()); 
+  const quizSessionIdRef = useRef(Date.now());
   const setupLoadingMessages = useMemo(() => [
     "Sınav türleri yükleniyor...", "Branşlar filtreleniyor...", "Konular listeleniyor...", "Neredeyse hazır!"
   ], []);
@@ -96,8 +100,6 @@ function SolvePage() {
   const quizLoadingMessages = useMemo(() => [
     "Quiz parametreleriniz işleniyor...", "Uygun sorular taranıyor...", "Soru seti derleniyor...", "Başlatılıyor!"
   ], []);
-  const [currentLoadingMessage, setCurrentLoadingMessage] = useState(initialLoadingMessages[0]);
-
 
   const progressBarColor = useColorModeValue("brand.500", "brand.300");
   const timerInfoColor = useColorModeValue("gray.600", "gray.300");
@@ -107,7 +109,6 @@ function SolvePage() {
   const headingColor = useColorModeValue('gray.700', 'gray.100');
   const textColor = useColorModeValue('gray.600', 'gray.300');
   const textMutedColor = useColorModeValue("gray.500", "gray.400");
-  const stepIndicatorColor = useColorModeValue('brand.500', 'brand.300');
   const setupBoxBg = useColorModeValue("white", "gray.750");
   const inputSelectBg = useColorModeValue("white", "gray.600");
 
@@ -118,12 +119,13 @@ function SolvePage() {
         setCurrentSetupLoadingMsgIdx(prev => (prev + 1) % setupLoadingMessages.length);
         setLoadingMessage(setupLoadingMessages[currentSetupLoadingMsgIdx]);
     } else if (pageStep === 'quiz_loading' && quizLoadingMessages.length > 0) {
-        setCurrentSetupLoadingMsgIdx(prev => (prev + 1) % quizLoadingMessages.length);
+        setCurrentSetupLoadingMsgIdx(prev => (prev + 1) % quizLoadingMessages.length); // Use same index for simplicity or create a new one
         setLoadingMessage(quizLoadingMessages[currentSetupLoadingMsgIdx]);
     } else if (pageStep === 'setup' && isFetchingFilters) {
         setLoadingMessage("Filtre seçenekleri güncelleniyor...");
     }
   }, (pageStep === 'loading' || pageStep === 'quiz_loading' || (pageStep === 'setup' && isFetchingFilters)) ? LOADING_MESSAGE_INTERVAL_SETUP : null);
+
 
   const fetchFilterData = useCallback(async (dataType, params = {}) => {
     if (!token) return;
@@ -143,9 +145,9 @@ function SolvePage() {
             const relevantBranchIds = new Set();
             topicsDataForBranchFilter.forEach(topic => { if (topic.branchId) relevantBranchIds.add(topic.branchId); });
             setBranchesForSetup(allBranchesData.filter(branch => relevantBranchIds.has(branch.id)));
-        } catch (err) { toast({ title: "Hata", description: `Branşlar yüklenemedi.`, status: "error", duration: 3000 });} 
+        } catch (err) { toast({ title: "Hata", description: `Branşlar yüklenemedi.`, status: "error", duration: 3000 });}
         finally { setIsFetchingFilters(false); }
-        return; 
+        return;
       case 'topic':
         if (!params.examClassificationId || !params.branchId) { setIsFetchingFilters(false); return; }
         url = `${API_BASE_URL}/api/topics?examClassificationId=${params.examClassificationId}&branchId=${params.branchId}`;
@@ -158,10 +160,10 @@ function SolvePage() {
       const data = Array.isArray(response.data) ? response.data : [];
       if (dataType === 'exam') setExamClassifications(data);
       else if (dataType === 'topic') setTopicsForSetup(data.filter(t => !t.parentId));
-    } catch (err) { toast({ title: "Hata", description: `${dataType} yüklenemedi.`, status: "error", duration: 3000 });} 
+    } catch (err) { toast({ title: "Hata", description: `${dataType} yüklenemedi.`, status: "error", duration: 3000 });}
     finally { setIsFetchingFilters(false); }
   }, [token, toast]);
-  
+
   useEffect(() => { fetchFilterData('exam'); }, [fetchFilterData]);
 
   useEffect(() => {
@@ -174,22 +176,22 @@ function SolvePage() {
 
   useEffect(() => {
     if (setupFilters.branchId) {
-      setTopicsForSetup([]); 
+      setTopicsForSetup([]);
       setSetupFilters(prev => ({...prev, topicId: ''}));
       fetchFilterData('topic', { examClassificationId: setupFilters.examClassificationId, branchId: setupFilters.branchId });
     } else { setTopicsForSetup([]); }
   }, [setupFilters.branchId, setupFilters.examClassificationId, fetchFilterData]);
 
-  const initializeQuiz = useCallback(async (mode, filters) => {
-    setPageStep('quiz_loading'); 
-    setCurrentSetupLoadingMsgIdx(0); // quizLoadingMessages için indeksi sıfırla
+  const initializeQuiz = useCallback(async (mode, filters, srsEntryId = null, srsReturnPath = null, directQuestionData = null) => {
+    setPageStep('quiz_loading');
+    setCurrentSetupLoadingMsgIdx(0);
     setLoadingMessage(quizLoadingMessages[0]);
-    setQuizState(initialQuizState); // Önce quiz state'ini tamamen sıfırla
+    setQuizState({...initialQuizState, isSrsMode: !!srsEntryId, srsEntryId, srsReturnPath });
     setError(''); clearInterval(timerRef.current); timerRef.current = null;
     quizSessionIdRef.current = Date.now();
 
     if (!token) { setError('Soruları çözebilmek için giriş yapmalısınız.'); setPageStep('setup'); return; }
-    
+
     let fetchedQuestions = [];
     let newQuizTitle = 'Soru Çözme';
     let newQuizMode = mode;
@@ -200,110 +202,160 @@ function SolvePage() {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       let questionsUrl = `${API_BASE_URL}/api/questions`;
       const queryParamsForAPI = new URLSearchParams();
-      
+
       await new Promise(resolve => setTimeout(resolve, QUIZ_INIT_MESSAGE_DELAY));
-      setCurrentLoadingMessage(quizLoadingMessages[1]);
+      setLoadingMessage(quizLoadingMessages[1]);
 
-      const currentExamClassifications = examClassifications.length > 0 ? examClassifications : ((await axios.get(`${API_BASE_URL}/api/exam-classifications`, config)).data || []);
-      const currentBranches = branchesForSetup.length > 0 ? branchesForSetup : (filters.examClassificationId ? ((await axios.get(`${API_BASE_URL}/api/branches`, config)).data || []) : []);
-      const currentTopics = topicsForSetup.length > 0 ? topicsForSetup : (filters.branchId ? ((await axios.get(`${API_BASE_URL}/api/topics?examClassificationId=${filters.examClassificationId}&branchId=${filters.branchId}`, config)).data.filter(t => !t.parentId) || []) : []);
-      
-      const examName = currentExamClassifications.find(ec => ec.id === parseInt(filters.examClassificationId))?.name || '';
-      const branchName = currentBranches.find(b => b.id === parseInt(filters.branchId))?.name || '';
-      const topicName = currentTopics.find(t => t.id === parseInt(filters.topicId))?.name || '';
-
-      if (filters.topicId) queryParamsForAPI.append('topicId', filters.topicId);
-      else if (filters.branchId) queryParamsForAPI.append('branchId', filters.branchId);
-      if (filters.examClassificationId) queryParamsForAPI.append('examClassificationId', filters.examClassificationId);
-      else if (newQuizMode === 'deneme' && !filters.topicId && !filters.branchId) {
-           questionSourceError = "Deneme modu için en azından bir sınav tipi seçilmelidir.";
-      }
-
-      if (newQuizMode === 'deneme') {
-        let titleParts = [];
-        if(examName) titleParts.push(examName);
-        if(branchName) titleParts.push(branchName);
-        newQuizTitle = titleParts.length > 0 ? `${titleParts.join(" > ")} Denemesi` : "Genel Deneme";
-      } else {
-        let titleParts = [];
-        if (examName) titleParts.push(examName);
-        if (branchName) titleParts.push(branchName);
-        if (topicName) titleParts.push(topicName);
-        newQuizTitle = titleParts.length > 0 ? `${titleParts.join(" > ")} Pratiği` : "Genel Karma Pratik";
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, QUIZ_INIT_MESSAGE_DELAY));
-      setCurrentLoadingMessage(quizLoadingMessages[2]);
-      
-      const queryString = queryParamsForAPI.toString();
-      if (!questionSourceError && queryString) { questionsUrl += `?${queryString}`; }
-      else if (!questionSourceError && newQuizMode === 'practice' && !queryString) { /* Genel pratik */ }
-      else if (!questionSourceError) { questionSourceError = "Soruları filtrelemek için yeterli kriter seçilmedi."; }
-
-      if (!questionSourceError) {
-        const qRes = await axios.get(questionsUrl, config);
-        const questionsData = Array.isArray(qRes.data) ? qRes.data : [];
-        if (questionsData.length > 0) {
-            fetchedQuestions = [...questionsData].sort(() => Math.random() - 0.5); 
-            if (newQuizMode === 'deneme') {
-                newQuizFixedDurationSeconds = fetchedQuestions.length * DEFAULT_DENEME_DURATION_SECONDS_PER_QUESTION;
-            }
+      if (srsEntryId && directQuestionData) {
+        newQuizMode = 'srs_practice';
+        newQuizTitle = 'Dijital Antrenör - Soru Tekrarı';
+        fetchedQuestions = [directQuestionData]; // Doğrudan gelen soruyu kullan
+        console.log("SRS Modu - Soru state'ten yüklendi:", directQuestionData);
+      } else if (srsEntryId && !directQuestionData) {
+        // Bu durum, SRSReviewSessionPage'den state ile veri aktarımı başarısız olduysa veya
+        // doğrudan SolvePage'e srsEntryId ile gelindiyse oluşur.
+        // Backend'den srsEntryId veya ilişkili questionId ile tek soru çekilmeli.
+        newQuizMode = 'srs_practice';
+        newQuizTitle = 'Dijital Antrenör - Soru Tekrarı';
+        const questionIdForSrs = filters.topicId; // Varsayım: filters.topicId SRS'de questionId'yi tutuyor
+                                                 // Veya srsEntryId'den questionId'yi backend'de çözümle
+        if (questionIdForSrs) {
+             questionsUrl = `${API_BASE_URL}/api/questions/${questionIdForSrs}`;
         } else {
-          questionSourceError = queryString ? 'Bu kriterlere uygun soru bulunamadı.' : 'Soru havuzunda hiç soru bulunamadı.';
+            questionSourceError = "SRS tekrarı için soru ID bilgisi eksik.";
         }
+        console.log("SRS Modu (veri state'ten gelmedi) - Soru Yükleme URL'i:", questionsUrl);
+
+      } else {
+        const currentExamClassifications = examClassifications.length > 0 ? examClassifications : ((await axios.get(`${API_BASE_URL}/api/exam-classifications`, config)).data || []);
+        const currentBranches = branchesForSetup.length > 0 ? branchesForSetup : (filters.examClassificationId ? ((await axios.get(`${API_BASE_URL}/api/branches`, config)).data || []) : []);
+        const currentTopics = topicsForSetup.length > 0 ? topicsForSetup : (filters.branchId ? ((await axios.get(`${API_BASE_URL}/api/topics?examClassificationId=${filters.examClassificationId}&branchId=${filters.branchId}`, config)).data.filter(t => !t.parentId) || []) : []);
+
+        const examName = currentExamClassifications.find(ec => ec.id === parseInt(filters.examClassificationId))?.name || '';
+        const branchName = currentBranches.find(b => b.id === parseInt(filters.branchId))?.name || '';
+        const topicName = currentTopics.find(t => t.id === parseInt(filters.topicId))?.name || '';
+
+        if (filters.topicId) queryParamsForAPI.append('topicId', filters.topicId);
+        else if (filters.branchId) queryParamsForAPI.append('branchId', filters.branchId);
+        if (filters.examClassificationId) queryParamsForAPI.append('examClassificationId', filters.examClassificationId);
+        else if (newQuizMode === 'deneme' && !filters.topicId && !filters.branchId) {
+             questionSourceError = "Deneme modu için en azından bir sınav tipi seçilmelidir.";
+        }
+
+        if (newQuizMode === 'deneme') {
+          let titleParts = [];
+          if(examName) titleParts.push(examName);
+          if(branchName) titleParts.push(branchName);
+          newQuizTitle = titleParts.length > 0 ? `${titleParts.join(" > ")} Denemesi` : "Genel Deneme";
+        } else {
+          let titleParts = [];
+          if (examName) titleParts.push(examName);
+          if (branchName) titleParts.push(branchName);
+          if (topicName) titleParts.push(topicName);
+          newQuizTitle = titleParts.length > 0 ? `${titleParts.join(" > ")} Pratiği` : "Genel Karma Pratik";
+        }
+        const queryString = queryParamsForAPI.toString();
+        if (!questionSourceError && queryString) { questionsUrl += `?${queryString}`; }
+        else if (!questionSourceError && newQuizMode === 'practice' && !queryString) { /* Genel pratik */ }
+        else if (!questionSourceError) { questionSourceError = "Soruları filtrelemek için yeterli kriter seçilmedi."; }
       }
+
       await new Promise(resolve => setTimeout(resolve, QUIZ_INIT_MESSAGE_DELAY));
-      setCurrentLoadingMessage(quizLoadingMessages[3]);
+      setLoadingMessage(quizLoadingMessages[2]);
+
+      if (!questionSourceError && (!srsEntryId || (srsEntryId && !directQuestionData))) { // Eğer SRS ve directQuestionData yoksa API'den çek
+        const qRes = await axios.get(questionsUrl, config);
+        const questionsDataFromApi = Array.isArray(qRes.data) ? qRes.data : (qRes.data ? [qRes.data] : []);
+        if (questionsDataFromApi.length > 0) {
+            fetchedQuestions = srsEntryId ? questionsDataFromApi : [...questionsDataFromApi].sort(() => Math.random() - 0.5);
+        } else {
+          questionSourceError = srsEntryId ? "SRS için belirtilen soru yüklenemedi (API)." : (queryParamsForAPI.toString() ? 'Bu kriterlere uygun soru bulunamadı.' : 'Soru havuzunda hiç soru bulunamadı.');
+        }
+      } else if (questionSourceError && srsEntryId && directQuestionData) {
+        // directQuestionData zaten fetchedQuestions'a atandı. Hata yok.
+        questionSourceError = '';
+      }
+
+
+      if (newQuizMode === 'deneme' && !srsEntryId && fetchedQuestions.length > 0) {
+        newQuizFixedDurationSeconds = fetchedQuestions.length * DEFAULT_DENEME_DURATION_SECONDS_PER_QUESTION;
+      }
+
+
+      await new Promise(resolve => setTimeout(resolve, QUIZ_INIT_MESSAGE_DELAY));
+      setLoadingMessage(quizLoadingMessages[3]);
 
       if (questionSourceError) {
         setError(questionSourceError);
-        setQuizState(prev => ({ ...initialQuizState, quizTitle: newQuizTitle, quizMode: newQuizMode, quizFixedDurationSeconds: newQuizFixedDurationSeconds }));
-        setPageStep('setup'); 
+        setQuizState(prev => ({ ...initialQuizState, quizTitle: newQuizTitle, quizMode: newQuizMode, quizFixedDurationSeconds: newQuizFixedDurationSeconds, isSrsMode: !!srsEntryId, srsEntryId, srsReturnPath }));
+        setPageStep('setup');
       } else {
         setQuizState(prev => ({
-          ...initialQuizState, // Önceki state'i değil, initial'ı baz alarak sıfırla
+          ...initialQuizState,
           questions: fetchedQuestions, currentQuestion: fetchedQuestions[0], currentQuestionIndex: 0,
           questionStartTime: Date.now(), quizTitle: newQuizTitle, quizMode: newQuizMode,
           quizFixedDurationSeconds: newQuizFixedDurationSeconds,
-          timeElapsed: newQuizMode === 'deneme' && newQuizFixedDurationSeconds ? newQuizFixedDurationSeconds : 0,
+          timeElapsed: (newQuizMode === 'deneme' && !srsEntryId && newQuizFixedDurationSeconds) ? newQuizFixedDurationSeconds : 0,
+          isSrsMode: !!srsEntryId, srsEntryId, srsReturnPath
         }));
-        setTimeout(() => setPageStep('quiz'), 300); 
+        setTimeout(() => setPageStep('quiz'), 300);
       }
     } catch (err) {
       console.error("Quiz başlatılırken hata:", err);
       setError(err.response?.data?.message || 'Sorular yüklenirken bir hata oluştu.');
-      setPageStep('setup'); 
+      setPageStep('setup');
     }
-  }, [token, examClassifications, branchesForSetup, topicsForSetup, quizLoadingMessages, navigate]); // navigate kaldırıldı, gereksizdi.
+  }, [token, examClassifications, branchesForSetup, topicsForSetup, quizLoadingMessages]);
 
   useEffect(() => {
     const queryParams = parseQueryParams();
-    const modeFromUrl = queryParams.get('mode');
-    const examIdFromUrl = queryParams.get('examClassificationId') || queryParams.get('examId');
-    const branchIdFromUrl = queryParams.get('branchId');
-    const topicIdFromUrl = queryParams.get('topicId');
+    const srsEntryIdFromUrl = queryParams.get('srsEntryId');
+    const srsReturnPathFromUrl = queryParams.get('srsReturnPath');
+    const srsReviewItemFromState = location.state?.srsReviewItem; // SRSReviewSessionPage'den gelen soru objesi
 
     if (!token) { setPageStep('setup'); setError("Lütfen giriş yapın."); return; }
 
-    if (examIdFromUrl || branchIdFromUrl || topicIdFromUrl) { 
-      const directFilters = {
-        examClassificationId: examIdFromUrl, branchId: branchIdFromUrl, topicId: topicIdFromUrl,
-      };
-      const directMode = modeFromUrl === 'deneme' ? 'deneme' : 'practice';
-      setSetupMode(directMode); 
-      setSetupFilters(directFilters); 
-      initializeQuiz(directMode, directFilters);
+    if (srsEntryIdFromUrl && srsReviewItemFromState) {
+      console.log("SRS Modu Algılandı (state ile). srsEntryId:", srsEntryIdFromUrl, "Soru:", srsReviewItemFromState);
+      initializeQuiz('srs_practice', {}, srsEntryIdFromUrl, srsReturnPathFromUrl, srsReviewItemFromState);
+    } else if (srsEntryIdFromUrl && !srsReviewItemFromState) {
+      // State ile gelmediyse, URL'deki topicId'yi (aslında questionId olmalı) kullanarak API'den çekmeyi deneyebiliriz.
+      // Bu durum, kullanıcı sayfayı yenilediyse veya doğrudan linkle geldiyse oluşur.
+      const questionIdForSrs = queryParams.get('topicId'); // SRSReviewSessionPage'in topicId'ye questionId koyduğu varsayılıyor
+      console.log("SRS Modu Algılandı (state YOK, URL ile). srsEntryId:", srsEntryIdFromUrl, "Soru ID (topicId üzerinden):", questionIdForSrs);
+      if (questionIdForSrs) {
+        initializeQuiz('srs_practice', { topicId: questionIdForSrs }, srsEntryIdFromUrl, srsReturnPathFromUrl, null);
+      } else {
+        setError("SRS tekrarı için soru bilgisi eksik. Lütfen antrenör sayfasından tekrar deneyin.");
+        setPageStep('error'); // veya 'setup'
+      }
     } else {
-      setPageStep('setup');
-      setLoadingMessage(initialLoadingMessages[initialLoadingMessages.length-1]); 
+      // Normal quiz akışı (URL'deki diğer parametrelerle)
+      const modeFromUrl = queryParams.get('mode');
+      const examIdFromUrl = queryParams.get('examClassificationId') || queryParams.get('examId');
+      const branchIdFromUrl = queryParams.get('branchId');
+      const topicIdFromUrl = queryParams.get('topicId');
+
+      if (examIdFromUrl || branchIdFromUrl || topicIdFromUrl) {
+        const directFilters = {
+          examClassificationId: examIdFromUrl, branchId: branchIdFromUrl, topicId: topicIdFromUrl,
+        };
+        const directMode = modeFromUrl === 'deneme' ? 'deneme' : 'practice';
+        setSetupMode(directMode);
+        setSetupFilters(directFilters);
+        initializeQuiz(directMode, directFilters);
+      } else {
+        setPageStep('setup');
+        setLoadingMessage(initialLoadingMessages[initialLoadingMessages.length-1]);
+      }
     }
-  }, [location.search, token, initializeQuiz, parseQueryParams, initialLoadingMessages]); 
+  }, [location.search, location.state, token, initializeQuiz, parseQueryParams, initialLoadingMessages]);
 
 
-  useEffect(() => { 
-    const { questions, isQuizFinished, quizMode, quizFixedDurationSeconds } = quizState;
+  useEffect(() => {
+    const { questions, isQuizFinished, quizMode, quizFixedDurationSeconds, isSrsMode } = quizState;
     if (pageStep === 'quiz' && questions.length > 0 && !isQuizFinished) {
-      if (quizMode === 'deneme' && quizFixedDurationSeconds != null) {
+      if (quizMode === 'deneme' && !isSrsMode && quizFixedDurationSeconds != null) {
         if (!timerRef.current) {
           timerRef.current = setInterval(() => {
             setQuizState(prev => {
@@ -317,7 +369,7 @@ function SolvePage() {
             });
           }, 1000);
         }
-      } else if (quizMode === 'practice') {
+      } else if (quizMode === 'practice' || isSrsMode) {
         if (!timerRef.current) {
           timerRef.current = setInterval(() => {
             setQuizState(prev => ({ ...prev, timeElapsed: prev.timeElapsed + 1 }));
@@ -328,9 +380,9 @@ function SolvePage() {
       clearInterval(timerRef.current); timerRef.current = null;
     }
     return () => { clearInterval(timerRef.current); timerRef.current = null; };
-  }, [pageStep, quizState.questions, quizState.isQuizFinished, quizState.quizMode, quizState.quizFixedDurationSeconds, toast]);
+  }, [pageStep, quizState.questions, quizState.isQuizFinished, quizState.quizMode, quizState.quizFixedDurationSeconds, quizState.isSrsMode, toast]);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (quizState.currentQuestion && !quizState.isQuizFinished && !quizState.isAnswerChecked) {
       setQuizState(prev => ({ ...prev, questionStartTime: Date.now() }));
     }
@@ -343,16 +395,18 @@ function SolvePage() {
   }, [quizState.isAnswerChecked]);
 
   const checkAnswer = useCallback(async () => {
-    const { selectedAnswer, currentQuestion, questionStartTime, score } = quizState;
+    const { selectedAnswer, currentQuestion, questionStartTime, score, isSrsMode, srsEntryId, srsReturnPath } = quizState;
     if (!selectedAnswer || !currentQuestion) return;
     const endTime = Date.now();
     const timeDiffSeconds = questionStartTime ? Math.max(0, Math.round((endTime - questionStartTime) / 1000)) : null;
     const correct = selectedAnswer === currentQuestion.correctAnswer;
+
     setQuizState(prev => ({
       ...prev, isAnswerChecked: true, isCorrect: correct,
       score: correct ? score + 1 : score, questionStartTime: null,
     }));
-    if (token) {
+
+    if (token && !isSrsMode) {
         try {
             await axios.post(
               `${API_BASE_URL}/api/attempts`,
@@ -361,7 +415,18 @@ function SolvePage() {
             );
           } catch (err) { console.error("Deneme kaydedilirken hata:", err); }
     }
-  }, [quizState.selectedAnswer, quizState.currentQuestion, quizState.questionStartTime, quizState.score, token]);
+
+    if (isSrsMode && srsReturnPath && srsEntryId) {
+        clearInterval(timerRef.current); timerRef.current = null;
+        const feedbackParams = new URLSearchParams();
+        feedbackParams.append('srsFeedback', correct ? 'correct' : 'incorrect');
+        feedbackParams.append('srsEntryId', srsEntryId);
+        const finalReturnPath = `${srsReturnPath}?${feedbackParams.toString()}`;
+        console.log("SRS - SolvePage'den geri yönlendirme (checkAnswer):", finalReturnPath);
+        navigate(finalReturnPath, { replace: true });
+    }
+
+  }, [quizState, token, navigate]);
 
   const goTo = useCallback((index) => {
     const { questions } = quizState;
@@ -370,22 +435,36 @@ function SolvePage() {
       ...prev, currentQuestion: questions[index], currentQuestionIndex: index,
       selectedAnswer: '', isAnswerChecked: false, isCorrect: null, showExplanation: false,
     }));
-    setError(''); 
+    setError('');
   }, [quizState.questions]);
 
   const prevQuestion = useCallback(() => goTo(quizState.currentQuestionIndex - 1), [goTo, quizState.currentQuestionIndex]);
   const nextQuestion = useCallback(() => goTo(quizState.currentQuestionIndex + 1), [goTo, quizState.currentQuestionIndex]);
-  
+
   const finishQuiz = useCallback(() => {
+    if (quizState.isSrsMode) {
+        const { srsReturnPath, srsEntryId, isCorrect, isAnswerChecked } = quizState;
+        if (srsReturnPath && srsEntryId) {
+            clearInterval(timerRef.current); timerRef.current = null;
+            const feedbackParams = new URLSearchParams();
+            const feedback = isAnswerChecked ? (isCorrect ? 'correct' : 'incorrect') : 'incorrect';
+            feedbackParams.append('srsFeedback', feedback);
+            feedbackParams.append('srsEntryId', srsEntryId);
+            console.log("SRS - SolvePage'den geri yönlendirme (finishQuiz):", `${srsReturnPath}?${feedbackParams.toString()}`);
+            navigate(`${srsReturnPath}?${feedbackParams.toString()}`, { replace: true });
+            return;
+        }
+    }
+
     if (window.confirm('Testi bitirmek istediğinizden emin misiniz?')) {
       setQuizState(prev => ({ ...prev, isQuizFinished: true }));
-      setPageStep('finished'); 
+      setPageStep('finished');
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, [setPageStep]); 
+  }, [quizState, navigate, setPageStep]);
   const toggleExplanation = () => setQuizState(prev => ({ ...prev, showExplanation: !prev.showExplanation }));
-  
+
   const progressPercentage = useMemo(() => {
       if (!quizState.questions || quizState.questions.length === 0) return 0;
       return ((quizState.currentQuestionIndex + 1) / quizState.questions.length) * 100;
@@ -407,15 +486,13 @@ function SolvePage() {
       return;
     }
     if (setupMode === 'deneme' && !setupFilters.examClassificationId && !setupFilters.branchId && !setupFilters.topicId) {
-        if(!setupFilters.examClassificationId){ // Deneme için en azından sınav tipi seçilmeli
+        if(!setupFilters.examClassificationId){
             toast({ title: "Uyarı", description: "Deneme modu için lütfen en azından bir Sınav Türü seçin.", status: "warning", duration: 4000, position:"top" });
             return;
         }
     }
     initializeQuiz(setupMode, setupFilters);
   };
-
-  // ----- RENDER KISMI -----
 
   if (pageStep === 'initial_loading' || pageStep === 'quiz_loading') {
     return <SolvePageLoadingScreen loadingMessage={loadingMessage} />;
@@ -433,7 +510,7 @@ function SolvePage() {
         topicsForSetup={topicsForSetup}
         onStartQuiz={handleStartQuizFromSetup}
         isFetchingFilters={isFetchingFilters}
-        isLoadingQuiz={pageStep === 'quiz_loading'} 
+        isLoadingQuiz={pageStep === 'quiz_loading'}
         generalError={error && (!quizState.questions || quizState.questions.length === 0) ? error : null}
         setupBoxBg={setupBoxBg}
         borderColor={borderColor}
@@ -444,21 +521,21 @@ function SolvePage() {
       />
     );
   }
-  
+
   if (pageStep === 'quiz' && error && (!quizState.questions || quizState.questions.length === 0)) {
     return (
-      <SolvePageErrorState 
+      <SolvePageErrorState
         error={error}
         onGoToSetup={() => {
-            quizSessionIdRef.current = Date.now(); 
-            setPageStep('setup'); 
-            setError(''); 
+            quizSessionIdRef.current = Date.now();
+            setPageStep('setup');
+            setError('');
         }}
         token={token}
       />
     );
   }
-  
+
   if (pageStep === 'quiz' && !quizState.currentQuestion && !error) {
      return (
        <Container centerContent py={10}>
@@ -497,27 +574,26 @@ function SolvePage() {
     );
   }
 
-  if (pageStep === 'finished') { 
+  if (pageStep === 'finished') {
     return (
       <QuizFinishedScreen
         quizState={quizState}
         onRestartQuizSetup={() => {
           quizSessionIdRef.current = Date.now();
           setPageStep('setup');
-          setSetupFilters(initialSetupFilters); 
-          setSetupMode(''); 
-          setQuizState(initialQuizState); 
+          setSetupFilters(initialSetupFilters);
+          setSetupMode('');
+          setQuizState(initialQuizState);
         }}
         formatTime={formatTime}
         cardBg={cardBg}
         borderColor={borderColor}
-        stepIndicatorColor={stepIndicatorColor}
         textColor={textColor}
         textMutedColor={textMutedColor}
       />
     );
   }
-  
+
   return (
     <Container centerContent py={10}>
         <Alert status="info" variant="subtle" borderRadius="lg">

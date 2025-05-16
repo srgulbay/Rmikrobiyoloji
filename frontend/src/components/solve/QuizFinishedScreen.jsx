@@ -7,13 +7,18 @@ import {
   Icon,
   Card,
   CardBody,
+  CardHeader, // CardHeader eklendi
   List,
   ListItem,
   HStack,
-  VStack, // VStack eklendi
+  VStack,
   useColorModeValue,
+  Divider, // Divider eklendi
+  Box,    // Box eklendi
+  Flex    // Flex eklendi
 } from '@chakra-ui/react';
-import { FaRedo, FaListAlt, FaTrophy } from 'react-icons/fa'; // FaTrophy eklendi
+import { FaRedo, FaListAlt, FaTrophy, FaCheckCircle, FaTimesCircle, FaQuestionCircle, FaClock } from 'react-icons/fa';
+import { FiAward } from 'react-icons/fi'; // Daha modern bir kupa ikonu
 import { Link as RouterLink } from 'react-router-dom';
 
 const formatTime = totalSeconds => {
@@ -27,95 +32,150 @@ const formatTime = totalSeconds => {
 
 function QuizFinishedScreen({
   quizState,
-  onRestartQuizSetup, // Yeniden kurulum için handler
-  // Stil Propları
-  cardBg,
-  borderColor,
-  stepIndicatorColor, // Başlık için
-  textColor,
-  textMutedColor,
+  onRestartQuizSetup,
+  // Stil propları artık içeride useColorModeValue ile alınacak
 }) {
-  const { questions, score, quizMode, quizFixedDurationSeconds, timeElapsed, quizTitle } = quizState;
+  const { questions, score, quizMode, quizFixedDurationSeconds, timeElapsed, quizTitle, isSrsMode } = quizState;
   
   const accuracy = questions.length > 0 ? ((score / questions.length) * 100) : 0;
-  const accuracyColorScheme = accuracy >= 80 ? 'green' : accuracy >= 50 ? 'yellow' : 'red';
-  const timeTakenOrRemaining = quizMode === 'deneme' && quizFixedDurationSeconds != null 
+  const accuracyColorScheme = accuracy >= 85 ? 'green' : accuracy >= 60 ? 'yellow' : 'red';
+  const timeTakenOrRemaining = (quizMode === 'deneme' && !isSrsMode && quizFixedDurationSeconds != null)
     ? quizFixedDurationSeconds - timeElapsed 
     : timeElapsed;
 
-  const headingColorResolved = stepIndicatorColor || useColorModeValue('brand.600', 'brand.300');
-  const cardBgResolved = cardBg || useColorModeValue("white", "gray.750");
-  const borderColorResolved = borderColor || useColorModeValue("gray.200", "gray.600");
-  const textColorResolved = textColor || useColorModeValue("gray.700", "gray.200");
-  const textMutedColorResolved = textMutedColor || useColorModeValue("gray.500", "gray.400");
+  // Layout ile tutarlı stil değişkenleri
+  const mainBg = useColorModeValue('gray.100', 'gray.900');
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+  const textColor = useColorModeValue('gray.600', 'gray.300');
+  const textMutedColor = useColorModeValue('gray.500', 'gray.400');
+  const accentColor = useColorModeValue('brand.500', 'brand.300');
+  const trophyIconColor = useColorModeValue('yellow.400', 'yellow.300'); // Kupa ikonu için
 
+  const resultTitle = isSrsMode 
+    ? "Tekrar Tamamlandı!" 
+    : (quizMode === 'deneme' ? 'Deneme Tamamlandı!' : 'Pratik Tamamlandı!');
 
   return (
-    <Container maxW="container.md" centerContent py={{base: 8, md: 10}}>
-      <Card textAlign="center" p={{base:4, md:8}} variant="outline" w="full" bg={cardBgResolved} borderColor={borderColorResolved} boxShadow="xl" borderRadius="xl">
-        <CardBody>
-          <Icon as={FaTrophy} boxSize="48px" color={headingColorResolved} mb={4}/>
-          <Heading as="h2" size="2xl" mb={3} color={headingColorResolved}>
-            {quizMode === 'deneme' ? 'Deneme Tamamlandı!' : 'Pratik Tamamlandı!'}
-          </Heading>
-          <Text fontSize="lg" color={textColorResolved} mb={6}>
-            {quizTitle}
-          </Text>
-          <List spacing={3} my={6} py={5} borderTopWidth="1px" borderBottomWidth="1px" borderColor={borderColorResolved} textAlign="left" fontSize={{base:"sm", md:"md"}}>
-            <ListItem display="flex" justifyContent="space-between">
-              <Text as="span" color={textMutedColorResolved}>
-                  {quizMode === 'deneme' && quizFixedDurationSeconds != null ? 'Kullanılan Süre:' : 'Harcanan Süre:'}
-              </Text>
-              <Text as="span" fontWeight="semibold" color={textColorResolved}>{formatTime(timeTakenOrRemaining < 0 ? 0 : timeTakenOrRemaining)}</Text>
-            </ListItem>
-            {quizMode === 'deneme' && quizFixedDurationSeconds != null && 
-              <ListItem display="flex" justifyContent="space-between">
-                  <Text as="span" color={textMutedColorResolved}>Toplam Süre:</Text>
-                  <Text as="span" fontWeight="semibold" color={textColorResolved}>{formatTime(quizFixedDurationSeconds)}</Text>
-              </ListItem>
-            }
-            <ListItem display="flex" justifyContent="space-between">
-                <Text as="span" color={textMutedColorResolved}>Toplam Soru:</Text>
-                <Text as="span" fontWeight="semibold" color={textColorResolved}>{questions.length}</Text>
-            </ListItem>
-            <ListItem display="flex" justifyContent="space-between">
-                <Text as="span" color={textMutedColorResolved}>Doğru Cevap:</Text>
-                <Text as="span" fontWeight="semibold" color="green.500">{score}</Text>
-            </ListItem>
-            <ListItem display="flex" justifyContent="space-between">
-                <Text as="span" color={textMutedColorResolved}>Yanlış Cevap:</Text>
-                <Text as="span" fontWeight="semibold" color="red.500">{questions.length - score}</Text>
-            </ListItem>
-          </List>
-          <VStack spacing={2} mb={6}>
-            <Text fontSize={{base:"md", md:"lg"}} fontWeight="semibold" color={textColorResolved}>Başarı Oranınız:</Text>
-            <Text fontSize={{base:"4xl", md:"5xl"}} fontWeight="bold" color={`${accuracyColorScheme}.500`}>
-              %{accuracy.toFixed(0)} 
-              {/* .toFixed(0) eklendi, ondalıksız göstermek için */}
+    <Container maxW="container.lg" py={{base: 6, md: 10}} centerContent>
+      <Card 
+        textAlign="center" 
+        p={{base:5, md:8}} 
+        variant="outline" 
+        w="full" 
+        maxW="xl" // Kartı biraz daha genişletebiliriz
+        bg={cardBg} 
+        borderColor={borderColor} 
+        boxShadow="xl" // Daha belirgin gölge
+        borderRadius="xl" // Daha yuvarlak köşeler
+      >
+        <CardHeader pb={3}>
+          <VStack spacing={3}>
+            <Icon as={FiAward} boxSize={{base:"48px", md:"64px"}} color={trophyIconColor} />
+            <Heading as="h2" size={{base:"xl", md:"2xl"}} color={headingColor} fontWeight="bold">
+              {resultTitle}
+            </Heading>
+            <Text fontSize={{base:"md", md:"lg"}} color={textColor} fontStyle="italic">
+              "{quizTitle}"
             </Text>
           </VStack>
-          <HStack spacing={4} justifyContent="center" mt={8} direction={{base:"column", sm:"row"}} w="full">
-              <Button 
-                colorScheme="brand" 
-                size="lg" 
-                onClick={onRestartQuizSetup} 
-                leftIcon={<Icon as={FaRedo} />}
-                w={{base:"full", sm:"auto"}}
-                boxShadow="md" _hover={{boxShadow:"lg"}}
-              >
-                Yeni Test Kur
-              </Button>
-              <Button 
-                as={RouterLink} 
-                to="/browse" 
-                variant="outline" 
-                size="lg"
-                w={{base:"full", sm:"auto"}}
-                leftIcon={<Icon as={FaListAlt} />}
-              >
-                Konu Seçimine Dön
-              </Button>
-          </HStack>
+        </CardHeader>
+        <Divider my={6} borderColor={borderColor} />
+        <CardBody>
+          <List spacing={4} my={6} fontSize={{base:"sm", md:"md"}} textAlign="left">
+            { (quizMode === 'deneme' && !isSrsMode && quizFixedDurationSeconds != null) &&
+              <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                  <HStack color={textMutedColor}><Icon as={FaClock} /> <Text>Kullanılan Süre:</Text></HStack>
+                  <Text fontWeight="semibold" color={textColor}>{formatTime(timeTakenOrRemaining < 0 ? 0 : timeTakenOrRemaining)}</Text>
+              </ListItem>
+            }
+             { (quizMode === 'deneme' && !isSrsMode && quizFixedDurationSeconds != null) &&
+              <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                  <HStack color={textMutedColor}><Icon as={FaStopwatch} /> <Text>Toplam Süre:</Text></HStack>
+                  <Text fontWeight="semibold" color={textColor}>{formatTime(quizFixedDurationSeconds)}</Text>
+              </ListItem>
+            }
+            { quizMode === 'practice' && !isSrsMode &&
+                <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                    <HStack color={textMutedColor}><Icon as={FaClock} /> <Text>Harcanan Süre:</Text></HStack>
+                    <Text fontWeight="semibold" color={textColor}>{formatTime(timeElapsed)}</Text>
+                </ListItem>
+            }
+            {!isSrsMode && ( // SRS modunda Toplam Soru, Doğru, Yanlış göstermeyelim, tek soru vardı.
+                <>
+                    <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                        <HStack color={textMutedColor}><Icon as={FaQuestionCircle} /> <Text>Toplam Soru:</Text></HStack>
+                        <Text fontWeight="semibold" color={textColor}>{questions.length}</Text>
+                    </ListItem>
+                    <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                        <HStack color="green.500"><Icon as={FaCheckCircle} /> <Text>Doğru Cevap:</Text></HStack>
+                        <Text fontWeight="semibold" color="green.500">{score}</Text>
+                    </ListItem>
+                    <ListItem display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                        <HStack color="red.500"><Icon as={FaTimesCircle} /> <Text>Yanlış Cevap:</Text></HStack>
+                        <Text fontWeight="semibold" color="red.500">{questions.length - score}</Text>
+                    </ListItem>
+                </>
+            )}
+          </List>
+          
+          {!isSrsMode && (
+            <VStack spacing={2} my={8}>
+              <Text fontSize={{base:"lg", md:"xl"}} fontWeight="semibold" color={textColor}>Başarı Oranınız:</Text>
+              <Text fontSize={{base:"4xl", md:"5xl"}} fontWeight="bold" color={`${accuracyColorScheme}.500`}>
+                %{accuracy.toFixed(0)}
+              </Text>
+            </VStack>
+          )}
+
+          {isSrsMode && (
+            <Text fontSize="lg" color={textColor} my={8}>
+                Bu soru için değerlendirmeniz kaydedildi. Antrenör seansınıza devam edebilirsiniz.
+            </Text>
+          )}
+
+          <VStack spacing={4} justifyContent="center" mt={8} w="full">
+              {isSrsMode ? (
+                <Button 
+                    colorScheme="brand" 
+                    size="lg" 
+                    onClick={() => navigate(quizState.srsReturnPath || '/digital-coach')} // quizState'ten srsReturnPath'i al
+                    leftIcon={<Icon as={FaArrowLeft} />}
+                    w={{base:"full", sm:"auto"}}
+                    px={10} py={7}
+                    boxShadow="lg" _hover={{boxShadow:"xl", transform:"translateY(-1px)"}}
+                >
+                    Antrenör Seansına Dön
+                </Button>
+              ) : (
+                <HStack spacing={4} direction={{base:"column", sm:"row"}} w="full" justifyContent="center">
+                    <Button 
+                        colorScheme="brand" 
+                        size="lg" 
+                        onClick={onRestartQuizSetup} 
+                        leftIcon={<Icon as={FaRedo} />}
+                        w={{base:"full", sm:"auto"}}
+                        px={8} py={6}
+                        boxShadow="lg" _hover={{boxShadow:"xl", transform:"translateY(-1px)"}}
+                    >
+                        Yeni Test Kur
+                    </Button>
+                    <Button 
+                        as={RouterLink} 
+                        to="/browse" 
+                        variant="outline" 
+                        colorScheme="gray" // Daha nötr bir görünüm
+                        size="lg"
+                        w={{base:"full", sm:"auto"}}
+                        px={8} py={6}
+                        leftIcon={<Icon as={FaListAlt} />}
+                    >
+                        Konu Seçimine Dön
+                    </Button>
+                </HStack>
+              )}
+          </VStack>
         </CardBody>
       </Card>
     </Container>

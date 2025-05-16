@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Container,
-  Alert,
+  Alert, // Alert'i Vstack ve Card ile değiştirebiliriz
   AlertIcon,
   AlertTitle,
   AlertDescription,
@@ -9,60 +9,79 @@ import {
   Icon,
   useColorModeValue,
   VStack,
-  Text // Text importu eklendi
+  Text,
+  Heading, // Heading eklendi
+  Box // Box eklendi
 } from '@chakra-ui/react';
-import { FaInfoCircle, FaPencilAlt } from 'react-icons/fa';
+import { FaInfoCircle, FaPencilAlt, FaRocket } from 'react-icons/fa'; // FaRocket eklendi
+import { FiZap } from 'react-icons/fi'; // Daha modern bir ikon
 import { Link as RouterLink } from 'react-router-dom';
 
 function DashboardNoDataState() {
-  const alertBg = useColorModeValue("blue.50", "rgba(49,130,206,0.1)");
-  const alertBorderColor = useColorModeValue("blue.200", "blue.700");
-  const titleColor = useColorModeValue("blue.700", "blue.200");
-  const descriptionColor = useColorModeValue("blue.600", "blue.200");
-  const textColor = useColorModeValue("gray.600", "gray.300"); // Normal metinler için
+  // Layout ile tutarlı stil değişkenleri
+  const mainBg = useColorModeValue('gray.100', 'gray.900'); // Sayfa arkaplanı
+  const cardBg = useColorModeValue('white', 'gray.800'); // Kart arkaplanı
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+  const textColor = useColorModeValue('gray.600', 'gray.400'); // Normal metinler için
+  const accentColor = useColorModeValue('brand.500', 'brand.300');
+  const infoIconColor = useColorModeValue("blue.500", "blue.300");
+  const infoCardBorderColor = useColorModeValue("blue.300", "blue.600");
+  const infoCardBg = useColorModeValue("blue.50", "rgba(49, 130, 206, 0.1)");
+
 
   return (
-    <Container maxW="container.lg" mt={6} py={10}>
-      <Alert
-        status="info"
-        variant="subtle"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        textAlign="center"
-        py={{ base: 8, md: 10 }}
+    <Container 
+      maxW="container.md" // Biraz daha odaklı
+      py={{ base: 8, md: 16 }} 
+      centerContent 
+      minH={{base:"60vh", md:"70vh"}}
+      display="flex" 
+      flexDirection="column" 
+      justifyContent="center"
+      bg={mainBg}
+    >
+      <VStack
+        spacing={6}
+        p={{base: 8, md: 12}} // Daha fazla padding
+        bg={cardBg}
         borderRadius="xl"
-        bg={alertBg}
-        borderColor={alertBorderColor}
+        boxShadow="2xl" // Daha belirgin gölge
         borderWidth="1px"
-        boxShadow="lg"
+        borderColor={infoCardBorderColor} // Bilgi temalı kenarlık
+        textAlign="center"
         w="full"
-        maxW="xl" // Daha geniş bir kart için
+        maxW="lg" // Kartın maksimum genişliği
       >
-        <Icon as={FaInfoCircle} boxSize={{ base: "32px", md: "48px" }} color="blue.400" />
-        <AlertTitle mt={4} mb={2} fontSize={{ base: "lg", md: "2xl" }} fontWeight="bold" color={titleColor}>
-          Stratejik Verileriniz Henüz Oluşmadı
-        </AlertTitle>
-        <AlertDescription maxWidth="lg" mb={6} color={textColor} lineHeight="tall" fontSize={{ base: "sm", md: "md" }}>
-          Dijital Mentorunuzun size özel analizler ve kişiselleştirilmiş öneriler sunabilmesi için platformda biraz daha aktif olmanız (soru çözmeniz, dersleri incelemeniz) gerekmektedir.
-          <Text mt={2}>Başarıya giden yolda ilk adımı atın ve potansiyelinizi keşfedin!</Text>
-        </AlertDescription>
+        <Icon as={FiZap} boxSize={{ base: "48px", md: "64px" }} color={accentColor} /> 
+        <Heading as="h2" size={{base: "lg", md: "xl"}} color={headingColor} fontWeight="bold">
+          Potansiyeliniz Keşfedilmeyi Bekliyor!
+        </Heading>
+        <Text fontSize={{base: "md", md: "lg"}} color={textColor} lineHeight="tall" maxW="md">
+          Dijital Mentorunuz, öğrenme yolculuğunuzda size rehberlik etmek için hazır. Özel analizler ve kişiselleştirilmiş öneriler sunabilmesi için platformda biraz daha aktif olmanız yeterli.
+        </Text>
+        <Text fontSize="md" color={textColor} fontWeight="medium">
+          Başarıya giden yolda ilk adımı atın!
+        </Text>
         <Button
           as={RouterLink}
           to="/solve"
-          colorScheme="brand"
+          colorScheme="brand" // Tema rengi
           size="lg"
-          mt={4}
-          px={8}
-          py={6}
-          leftIcon={<Icon as={FaPencilAlt} />}
-          boxShadow="md"
-          _hover={{ boxShadow: "xl", transform: "translateY(-2px)" }}
-          transition="all 0.2s ease-out"
+          mt={6} // Üst boşluk
+          px={10} // Daha geniş buton
+          py={7}  // Daha yüksek buton
+          leftIcon={<Icon as={FaRocket} boxSize={5}/>} // Farklı bir ikon
+          boxShadow="lg" // Gölge
+          _hover={{ boxShadow: "xl", transform: "translateY(-3px) scale(1.02)" }} // Hover efekti
+          transition="all 0.25s ease-out"
+          borderRadius="lg" // Yuvarlak köşeler
+          letterSpacing="wide"
+          fontWeight="bold"
         >
-          Hemen Soru Çözmeye Başla!
+          Hemen Pratik Yapmaya Başla!
         </Button>
-      </Alert>
+      </VStack>
     </Container>
   );
 }

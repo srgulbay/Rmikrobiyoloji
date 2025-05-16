@@ -9,101 +9,112 @@ import {
   Icon,
   Box,
   useColorModeValue,
-  VStack, // VStack eklendi
-  Text // Text eklendi
+  VStack,
+  Text, // Text importu zaten vardı
+  Heading // Heading eklendi
 } from '@chakra-ui/react';
-import { FaExclamationTriangle, FaRedo, FaSignInAlt, FaHome } from 'react-icons/fa';
+import { FaExclamationTriangle, FaRedo, FaSignInAlt, FaHome, FaWrench } from 'react-icons/fa'; // FaWrench eklendi
+import { FiAlertTriangle } from 'react-icons/fi'; // Daha modern bir ikon
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
-function SolvePageErrorState({ 
-    error, 
-    onRetry, // Genel bir tekrar deneme fonksiyonu (örn: initializeQuiz'i tekrar çağırmak)
-    onGoToSetup, // Kurulum ekranına geri dönme fonksiyonu
-    token 
+function SolvePageErrorState({
+    error,
+    onRetry,
+    onGoToSetup,
+    token
 }) {
-  const alertBg = useColorModeValue("red.50", "rgba(224, 49, 49, 0.15)");
-  const alertBorderColor = useColorModeValue("red.200", "red.700");
-  const titleColor = useColorModeValue("red.700", "red.100");
-  const descriptionColor = useColorModeValue("red.600", "red.200");
+  const cardBg = useColorModeValue("white", "gray.800"); // Layout.jsx'teki header gibi
+  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+  const textColor = useColorModeValue('gray.600', 'gray.400'); // Hata metni için biraz daha soluk
+  const errorIconColor = useColorModeValue("red.500", "red.300");
+  const errorAlertBg = useColorModeValue("red.50", "rgba(254, 178, 178, 0.1)"); // Hafif kırmızımsı arkaplan
+
   const navigate = useNavigate();
 
   const isAuthError = !token && (typeof error === 'string' && (error.toLowerCase().includes("giriş yap") || error.toLowerCase().includes("yetkilendirme")));
 
   return (
-    <Container maxW="container.md" mt={{ base: 6, md: 10 }} py={10}>
-      <Alert
-        status="error"
-        variant="subtle"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        textAlign="center"
-        py={{ base: 8, md: 10 }}
-        px={{ base: 4, md: 6 }}
+    <Container maxW="container.md" py={{ base: 8, md: 16 }} centerContent>
+      <VStack
+        spacing={6}
+        p={{base: 6, md: 10}}
+        bg={cardBg}
         borderRadius="xl"
-        bg={alertBg}
-        borderColor={alertBorderColor}
+        boxShadow="xl"
         borderWidth="1px"
-        boxShadow="lg"
+        borderColor={borderColor}
+        textAlign="center"
         w="full"
       >
-        <Icon as={FaExclamationTriangle} boxSize={{ base: "32px", md: "40px" }} color="red.400" />
-        <AlertTitle mt={4} mb={2} fontSize={{ base: "lg", md: "xl" }} fontWeight="bold" color={titleColor}>
-          {isAuthError ? "Erişim Hatası" : "Bir Sorun Oluştu!"}
-        </AlertTitle>
-        <AlertDescription maxWidth="lg" mb={6} color={descriptionColor} lineHeight="tall">
-          {error || "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin."}
-        </AlertDescription>
-        
-        <VStack spacing={4} mt={4} w="full" maxW="xs">
+        <Icon as={FiAlertTriangle} boxSize={{ base: "48px", md: "64px" }} color={errorIconColor} />
+        <Heading as="h2" size={{base: "lg", md: "xl"}} color={headingColor} fontWeight="bold">
+          {isAuthError ? "Erişim Hatası Oluştu" : "Beklenmedik Bir Sorun!"}
+        </Heading>
+        <Text fontSize={{base: "md", md: "lg"}} color={textColor} lineHeight="tall" maxW="lg">
+          {error || "Soru çözme alanında beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin veya ayarlarınızı kontrol edin."}
+        </Text>
+
+        <VStack spacing={4} mt={6} w="full" maxW="sm">
           {isAuthError ? (
             <Button
               as={RouterLink}
               to="/login"
-              colorScheme="blue"
+              colorScheme="blue" // Giriş butonu için standart renk
               leftIcon={<Icon as={FaSignInAlt} />}
-              size="md"
+              size="lg"
               w="full"
+              py={6}
+              borderRadius="lg"
+              boxShadow="md"
+              _hover={{boxShadow: "lg", transform: "translateY(-2px)"}}
             >
               Giriş Yap
             </Button>
           ) : (
             onRetry && (
               <Button
-                colorScheme="red"
-                variant="outline"
+                colorScheme="red" // Hata ile ilişkili renk
+                variant="solid" // Daha belirgin
                 onClick={onRetry}
                 leftIcon={<Icon as={FaRedo} />}
-                size="md"
+                size="lg"
                 w="full"
+                py={6}
+                borderRadius="lg"
+                boxShadow="md"
+                _hover={{boxShadow: "lg", transform: "translateY(-2px)"}}
               >
                 Tekrar Dene
               </Button>
             )
           )}
           {onGoToSetup && !isAuthError && (
-             <Button 
-                colorScheme="gray" 
-                variant="ghost" 
-                onClick={onGoToSetup} 
-                size="sm"
+             <Button
+                variant="outline"
+                colorScheme="gray"
+                onClick={onGoToSetup}
+                leftIcon={<Icon as={FaWrench} />}
+                size="md" // Diğer ana aksiyon butonundan biraz daha küçük
                 w="full"
+                borderRadius="lg"
             >
-                Test Kurulumuna Geri Dön
+                Test Ayarlarına Dön
             </Button>
           )}
-           <Button 
-                as={RouterLink} 
-                to="/browse" 
-                variant="link" 
-                colorScheme="blue" 
-                size="sm"
+           <Button
+                as={RouterLink}
+                to="/browse"
+                variant="link" // Daha az dikkat çekici
+                colorScheme="blue" // Tema ile uyumlu link rengi
+                size="md"
                 mt={2}
+                leftIcon={<Icon as={FaHome} />}
             >
-                Konulara Göz At
+                Konu Tarayıcıya Dön
             </Button>
         </VStack>
-      </Alert>
+      </VStack>
     </Container>
   );
 }

@@ -28,6 +28,8 @@ const examClassificationRoutes = require('./routes/examClassificationRoutes');
 const branchRoutes = require('./routes/branchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const announcementAdminRoutes = require('./routes/announcementAdminRoutes'); // YENİ: Admin duyuru rotaları
+const srsRoutes = require('./routes/srsRoutes'); // YENİ: SRS rotaları
+const flashcardAdminRoutes = require('./routes/flashcardAdminRoutes'); // YENİ
 
 dotenv.config();
 const app = express();
@@ -43,6 +45,7 @@ app.use('/uploads', express.static(uploadsPath));
 app.get('/', (req, res) => { res.send('Rmikrobiyoloji Backend Sunucusu Çalışıyor! Güncel Sürüm.'); });
 
 // API Rotaları
+app.use('/api/srs', srsRoutes); // YENİ: SRS rotaları eklendi
 app.use('/api/auth', authRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/questions', questionRoutes);
@@ -58,6 +61,7 @@ app.use('/api/branches', branchRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/announcements', announcementAdminRoutes); // YENİ: Admin duyuru rotaları eklendi
 app.use('/api/push', pushSubscriptionRoutes);
+app.use('/api/admin/flashcards', flashcardAdminRoutes); // YENİ
 
 app.use((req, res, next) => { 
   res.status(404).json({ message: "Üzgünüz, aradığınız kaynak bulunamadı!" }); 

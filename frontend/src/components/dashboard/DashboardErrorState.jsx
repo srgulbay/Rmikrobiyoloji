@@ -11,78 +11,104 @@ import {
   useColorModeValue,
   Text,
   VStack,
-  Heading
+  Heading,
+  Flex // Flex eklendi
 } from '@chakra-ui/react';
-import { FaExclamationTriangle, FaRedo, FaSignInAlt } from 'react-icons/fa';
+import { FaExclamationTriangle, FaRedo, FaSignInAlt, FaHome } from 'react-icons/fa';
+import { FiAlertOctagon } from 'react-icons/fi'; // Daha modern bir hata ikonu
 import { Link as RouterLink } from 'react-router-dom';
 
 function DashboardErrorState({ error, onRetry, token }) {
-  const alertBg = useColorModeValue("red.50", "red.900");
-  const alertBorderColor = useColorModeValue("red.200", "red.700");
-  const titleColor = useColorModeValue("red.700", "red.100");
-  const descriptionColor = useColorModeValue("red.600", "red.200");
-  const headingColor = useColorModeValue("gray.700", "gray.100");
-
+  // Layout ile tutarlı stil değişkenleri
+  const mainBg = useColorModeValue('gray.100', 'gray.900'); // Sayfa arkaplanı
+  const cardBg = useColorModeValue('white', 'gray.800'); // Hata kartı arkaplanı
+  const borderColor = useColorModeValue('red.300', 'red.600'); // Hata için kenarlık rengi
+  const headingColor = useColorModeValue('red.600', 'red.200'); // Hata başlığı için
+  const textColor = useColorModeValue('gray.700', 'gray.300'); // Genel metinler
+  const errorIconColor = useColorModeValue("red.500", "red.300");
 
   if (!error) return null;
 
-  // Token yoksa ve hata mesajı girişle ilgiliyse farklı bir mesaj ve buton gösterilebilir.
-  const isAuthError = !token && (error.toLowerCase().includes("giriş yap") || error.toLowerCase().includes("yetkilendirme"));
+  const isAuthError = !token && (typeof error === 'string' && (error.toLowerCase().includes("giriş yap") || error.toLowerCase().includes("yetkilendirme")));
 
   return (
-    <Container maxW="container.lg" py={{ base: 6, md: 10 }} centerContent minH="60vh" display="flex" flexDirection="column" justifyContent="center">
-      <Alert
-        status="error"
-        variant="subtle"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        textAlign="center"
-        py={10}
-        borderRadius="xl"
-        bg={alertBg}
-        borderColor={alertBorderColor}
+    <Container 
+      maxW="container.md" // Biraz daha daraltıldı
+      py={{ base: 8, md: 16 }} 
+      centerContent 
+      minH={{base:"60vh", md:"70vh"}} // Yükseklik biraz ayarlandı
+      display="flex" 
+      flexDirection="column" 
+      justifyContent="center"
+      bg={mainBg} // Ana sayfa arkaplanı
+    >
+      <VStack
+        spacing={6}
+        p={{base: 6, md: 10}}
+        bg={cardBg}
+        borderRadius="xl" // Daha yuvarlak köşeler
+        boxShadow="2xl" // Daha belirgin gölge
         borderWidth="1px"
-        boxShadow="lg"
+        borderColor={borderColor} // Hata temalı kenarlık
+        textAlign="center"
         w="full"
-        maxW="lg"
+        maxW="lg" // Kartın maksimum genişliği
       >
-        <AlertIcon as={FaExclamationTriangle} boxSize="40px" color="red.400" />
-        <AlertTitle mt={4} mb={2} fontSize="xl" fontWeight="bold" color={titleColor}>
-          {isAuthError ? "Erişim Reddedildi" : "Bir Hata Oluştu!"}
-        </AlertTitle>
-        <AlertDescription maxWidth="md" mb={6} color={descriptionColor}>
-          {error}
-        </AlertDescription>
-        {isAuthError ? (
-          <Button
-            as={RouterLink}
-            to="/login"
-            colorScheme="blue"
-            leftIcon={<Icon as={FaSignInAlt} />}
-            size="lg"
-            px={8}
-            boxShadow="md"
-            _hover={{boxShadow:"lg"}}
-          >
-            Giriş Yap
-          </Button>
-        ) : (
-          onRetry && (
+        <Icon as={FiAlertOctagon} boxSize={{ base: "48px", md: "64px" }} color={errorIconColor} />
+        <Heading as="h2" size={{base: "lg", md: "xl"}} color={headingColor} fontWeight="bold">
+          {isAuthError ? "Erişim Reddedildi" : "Bir Sorun Oluştu!"}
+        </Heading>
+        <Text fontSize={{base: "md", md: "lg"}} color={textColor} lineHeight="tall" maxW="md">
+          {error || "Beklenmedik bir hata oluştu. Lütfen daha sonra tekrar deneyin veya sistem yöneticisi ile iletişime geçin."}
+        </Text>
+        
+        <VStack spacing={4} mt={6} w="full" maxW="sm">
+          {isAuthError ? (
             <Button
-              colorScheme="red"
-              variant="outline"
-              onClick={onRetry}
-              leftIcon={<Icon as={FaRedo} />}
+              as={RouterLink}
+              to="/login"
+              colorScheme="blue" // Giriş butonu için standart
+              leftIcon={<Icon as={FaSignInAlt} />}
               size="lg"
-              px={8}
-              _hover={{bg: useColorModeValue("red.100", "red.800")}}
+              w="full"
+              py={6} // Buton yüksekliği
+              borderRadius="lg" // Buton köşeleri
+              boxShadow="lg"
+              _hover={{boxShadow:"xl", transform: "translateY(-2px)"}}
             >
-              Tekrar Dene
+              Giriş Yap
             </Button>
-          )
-        )}
-      </Alert>
+          ) : (
+            onRetry && (
+              <Button
+                colorScheme="red" // Hata ile ilişkili ana aksiyon
+                variant="solid" // Daha belirgin
+                onClick={onRetry}
+                leftIcon={<Icon as={FaRedo} />}
+                size="lg"
+                w="full"
+                py={6}
+                borderRadius="lg"
+                boxShadow="lg"
+                _hover={{boxShadow:"xl", transform: "translateY(-2px)"}}
+              >
+                Tekrar Dene
+              </Button>
+            )
+          )}
+          <Button 
+            as={RouterLink} 
+            to="/" 
+            variant="link" // Daha az dikkat çekici
+            colorScheme="gray" // Nötr renk
+            size="md"
+            mt={2} // Diğer butonlardan sonra biraz boşluk
+            leftIcon={<Icon as={FaHome} />}
+          >
+            Ana Sayfaya Dön
+          </Button>
+        </VStack>
+      </VStack>
     </Container>
   );
 }

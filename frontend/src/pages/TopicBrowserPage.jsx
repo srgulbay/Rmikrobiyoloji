@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import TopicCard from '../components/TopicCard';
 import ExamCard from '../components/ExamCard';
@@ -9,19 +9,20 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, SimpleGrid, Heading,
   Text, Spinner, Alert, AlertIcon, AlertTitle, AlertDescription,
   Icon, HStack, Center, useColorModeValue, VStack,
-  Tag, Divider, Modal, ModalOverlay, ModalContent, ModalHeader,
+  Divider, Modal, ModalOverlay, ModalContent, ModalHeader,
   ModalFooter, ModalBody, ModalCloseButton, useDisclosure,
-  Progress, ScaleFade, useInterval // Progress, ScaleFade, useInterval eklendi
+  Progress, ScaleFade, useInterval
 } from '@chakra-ui/react';
-import { 
-  FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle, 
+import {
+  FaArrowLeft, FaBookOpen, FaPencilAlt, FaExclamationTriangle,
   FaInfoCircle, FaFolder, FaUniversity, FaAngleRight, FaTags, FaFolderOpen,
-  FaListUl, FaPlayCircle, FaStopwatch, FaSitemap, FaNetworkWired // FaSitemap, FaNetworkWired eklendi
+  FaListUl, FaPlayCircle, FaStopwatch, FaSitemap, FaNetworkWired, FaChevronRight, FaHome
 } from 'react-icons/fa';
+import { FiGrid, FiFilter, FiLayers, FiCpu } from 'react-icons/fi'; // Daha modern ikonlar
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-const LOADING_MESSAGE_INTERVAL_PAGE = 1700; // Sayfa yükleme mesajı için interval
-const FETCH_DATA_MESSAGE_DELAY = 500; // fetchInitialData içindeki mesajlar için
+const LOADING_MESSAGE_INTERVAL_PAGE = 1800; // Biraz daha yavaş
+const FETCH_DATA_MESSAGE_DELAY = 600;
 
 const EXAM_CONFIG_ORDER = [
   { nameKey: "YDUS", tierName: 'DIAMOND', displayName: "YDUS" },
@@ -46,10 +47,8 @@ const findTopicByIdRecursive = (nodes, targetId) => {
 };
 
 function TopicBrowserPage() {
-  const [currentSelectionStep, setCurrentSelectionStep] = useState('exam'); // 'exam', 'branch', 'topic'
+  const [currentSelectionStep, setCurrentSelectionStep] = useState('exam');
   const [orderedExamsForUI, setOrderedExamsForUI] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
   const [allBranches, setAllBranches] = useState([]);
   const [selectedExam, setSelectedExam] = useState(null);
   const [filteredBranches, setFilteredBranches] = useState([]);
@@ -57,15 +56,16 @@ function TopicBrowserPage() {
   const [topics, setTopics] = useState([]);
   const [topicCountsForBranches, setTopicCountsForBranches] = useState({});
   const [currentPathIds, setCurrentPathIds] = useState([]);
-  
-  const [pageLoading, setPageLoading] = useState(true); // Ana sayfa yükleme durumu
-  const [dataFetchLoading, setDataFetchLoading] = useState(false); // Sadece API istekleri için yükleme
+
+  const [pageLoading, setPageLoading] = useState(true);
+  const [dataFetchLoading, setDataFetchLoading] = useState(false);
+  const loadingMessage = "Yükleniyor…"; // ya da istediğiniz başka bir mesaj
   
   const pageLoadingMessages = useMemo(() => [
-    "Konu evreni taranıyor...",
-    "Öğrenme yolları haritalanıyor...",
-    "İçerik ağacı oluşturuluyor...",
-    "Konu Tarayıcı hazırlanıyor!"
+    "Bilgi evreni taranıyor...",
+    "Öğrenme rotaları oluşturuluyor...",
+    "İçerik matrisi çözümleniyor...",
+    "Keşif arayüzü hazırlanıyor!"
   ], []);
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(pageLoadingMessages[0]);
   const [error, setError] = useState('');
@@ -73,22 +73,26 @@ function TopicBrowserPage() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
 
-  const { 
-    isOpen: isModeSelectionModalOpen, 
-    onOpen: onModeSelectionModalOpen, 
-    onClose: onModeSelectionModalClose 
+  const {
+    isOpen: isModeSelectionModalOpen,
+    onOpen: onModeSelectionModalOpen,
+    onClose: onModeSelectionModalClose
   } = useDisclosure();
   const [quizScopeForModal, setQuizScopeForModal] = useState({ examId: null, branchId: null, topicId: null, examName: '', branchName: '' });
 
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  // Layout ile tutarlı stil değişkenleri
+  const mainBg = useColorModeValue('gray.100', 'gray.900');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const headingColor = useColorModeValue('gray.700', 'gray.100');
+  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const textColor = useColorModeValue('gray.600', 'gray.300');
-  const textMutedColor = useColorModeValue("gray.500", "gray.400");
-  const stepIndicatorColor = useColorModeValue('brand.500', 'brand.300');
-  const branchButtonColorScheme = useColorModeValue('gray', 'gray');
-  
+  const textMutedColor = useColorModeValue('gray.500', 'gray.400');
+  const accentColor = useColorModeValue('brand.500', 'brand.300');
+  const stepIndicatorColor = accentColor; // Breadcrumb aktif öğe için
+  const branchButtonBg = useColorModeValue('white', 'gray.750');
+  const branchButtonHoverBg = useColorModeValue('gray.100', 'gray.600');
+  const modalContentBg = useColorModeValue('white', 'gray.800');
+
   useInterval(() => {
     if (pageLoading) {
         setCurrentLoadingMessage(prev => {
@@ -133,15 +137,17 @@ function TopicBrowserPage() {
       }
       return null;
     };
-    const newPathArray = findPath(topics, selectedTopicFromCard.id);
+    // topics state'i, seçili exam ve branch'e göre filtrelenmiş ağaç yapısını tutar
+    const currentTopicTreeForPath = topics; // Bu, o anki gösterilen konu ağacıdır
+    const newPathArray = findPath(currentTopicTreeForPath, selectedTopicFromCard.id);
     setCurrentPathIds(newPathArray || [selectedTopicFromCard.id]);
   }, [topics]);
 
-  useEffect(() => { 
+  useEffect(() => {
     const fetchInitialData = async () => {
-      setPageLoading(true); // Genel sayfa yüklemesini başlat
+      setPageLoading(true);
       setCurrentLoadingMessage(pageLoadingMessages[0]);
-      setDataFetchLoading(true); // API isteği için ayrı yükleme
+      setDataFetchLoading(true);
       setError('');
       try {
         const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -168,7 +174,7 @@ function TopicBrowserPage() {
         });
         setOrderedExamsForUI(finalExamsForDisplayProcessing);
         setAllBranches(Array.isArray(branchRes.data) ? branchRes.data : []);
-        setCurrentSelectionStep('exam'); 
+        setCurrentSelectionStep('exam');
       } catch (err) {
         console.error("Başlangıç verileri çekilirken hata:", err);
         setError(err.response?.data?.message || 'Veriler yüklenirken bir hata oluştu.');
@@ -177,18 +183,18 @@ function TopicBrowserPage() {
         setDataFetchLoading(false);
         await new Promise(resolve => setTimeout(resolve, FETCH_DATA_MESSAGE_DELAY));
         setCurrentLoadingMessage(pageLoadingMessages[pageLoadingMessages.length-1]);
-        setTimeout(() => setPageLoading(false), 700); // Son mesajın görünmesi için
+        setTimeout(() => setPageLoading(false), 700);
       }
     };
-    if (token) { fetchInitialData(); } 
+    if (token) { fetchInitialData(); }
     else { setError("İçeriklere erişmek için lütfen giriş yapın."); setPageLoading(false); }
-  }, [token, user, pageLoadingMessages]); // pageLoadingMessages eklendi
+  }, [token, user, pageLoadingMessages]); // user bağımlılığı eklendi
 
-  useEffect(() => { 
+  useEffect(() => {
       if (currentSelectionStep === 'branch' && selectedExam && token && allBranches.length > 0) {
       const fetchBranchesAndTopicCounts = async () => {
-        setDataFetchLoading(true); 
-        setLoadingMessage(`${selectedExam.displayName} için branşlar ve konu sayıları yükleniyor...`);
+        setDataFetchLoading(true);
+        setCurrentLoadingMessage(`${selectedExam.displayName} için branşlar hazırlanıyor...`);
         setError(''); setFilteredBranches([]); setTopicCountsForBranches({});
         try {
           const topicsForExamRes = await axios.get(`${API_BASE_URL}/api/topics?examClassificationId=${selectedExam.id}`, {
@@ -197,33 +203,38 @@ function TopicBrowserPage() {
           const topicsData = Array.isArray(topicsForExamRes.data) ? topicsForExamRes.data : [];
           const relevantBranchIds = new Set();
           const counts = {};
-          const processTopicsForCounts = (nodes) => {
+          const processTopicsForCounts = (nodes) => { // Bu fonksiyon ağaç yapısını gezer
             if (!Array.isArray(nodes)) return;
             nodes.forEach(topic => {
               if (topic.branchId) {
                 relevantBranchIds.add(topic.branchId);
-                if (!topic.parentId) { counts[topic.branchId] = (counts[topic.branchId] || 0) + 1; }
+                if (!topic.parentId) { // Sadece ana konuları say (parentId'si null olanlar)
+                    counts[topic.branchId] = (counts[topic.branchId] || 0) + 1;
+                }
+              }
+              if (topic.children && topic.children.length > 0) {
+                processTopicsForCounts(topic.children); // Alt konuları da işle (relevantBranchIds için)
               }
             });
           };
-          processTopicsForCounts(topicsData);
+          processTopicsForCounts(topicsData); // topicsData ağaç yapısında olmalı
           const branchesForSelectedExam = allBranches.filter(branch => relevantBranchIds.has(branch.id));
           setFilteredBranches(branchesForSelectedExam);
           setTopicCountsForBranches(counts);
         } catch (err) {
           console.error("Branşlar veya konu sayıları çekilirken hata:", err);
           setError(err.response?.data?.message || `Veriler yüklenirken bir hata oluştu.`);
-        } finally { setDataFetchLoading(false); }
+        } finally { setDataFetchLoading(false); setCurrentLoadingMessage(pageLoadingMessages[pageLoadingMessages.length-1]); }
       };
       fetchBranchesAndTopicCounts();
     }
-  }, [currentSelectionStep, selectedExam, token, allBranches]);
+  }, [currentSelectionStep, selectedExam, token, allBranches, pageLoadingMessages]);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (currentSelectionStep === 'topic' && selectedExam && selectedBranch && token) {
       const fetchTopicsForBranch = async () => {
-        setDataFetchLoading(true); 
-        setLoadingMessage(`${selectedExam.displayName} > ${selectedBranch.name} için konular yükleniyor...`);
+        setDataFetchLoading(true);
+        setCurrentLoadingMessage(`${selectedExam.displayName} > ${selectedBranch.name} için konular listeleniyor...`);
         setError(''); setTopics([]); setCurrentPathIds([]);
         try {
           const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -231,77 +242,91 @@ function TopicBrowserPage() {
             `${API_BASE_URL}/api/topics?examClassificationId=${selectedExam.id}&branchId=${selectedBranch.id}`,
             config
           );
+          // Backend'den gelen topics verisi zaten ağaç yapısında olmalı (Layout.jsx'teki TopicManagement'e benzer)
           setTopics(Array.isArray(response.data) ? response.data : []);
         } catch (err) {
           console.error("Konular çekilirken hata:", err);
           setError(err.response?.data?.message || 'Konular yüklenirken bir hata oluştu.');
-        } finally { setDataFetchLoading(false); }
+        } finally { setDataFetchLoading(false); setCurrentLoadingMessage(pageLoadingMessages[pageLoadingMessages.length-1]); }
       };
       fetchTopicsForBranch();
     }
-  }, [currentSelectionStep, selectedExam, selectedBranch, token]);
+  }, [currentSelectionStep, selectedExam, selectedBranch, token, pageLoadingMessages]);
 
-  const { activeTopicBrowse, currentDisplayTopics, breadcrumbItemsBrowsePath } = useMemo(() => { 
+  const { activeTopicBrowse, currentDisplayTopics, breadcrumbItemsBrowsePath } = useMemo(() => {
     if (currentSelectionStep !== 'topic' || !Array.isArray(topics) || topics.length === 0) {
         return { activeTopicBrowse: null, currentDisplayTopics: [], breadcrumbItemsBrowsePath: [] };
     }
-    let currentLevelData = topics; 
+    let currentLevelData = topics; // Bu, seçili sınav ve branşa göre filtrelenmiş ana konu ağacıdır.
     let activeTopicNode = null;
     const pathForBreadcrumb = [];
+
     if (currentPathIds.length > 0) {
-        let parentNodesForCurrentLevel = topics; 
+        let parentNodesForCurrentLevel = topics;
         for (const pathId of currentPathIds) {
             const foundNode = findTopicByIdRecursive(parentNodesForCurrentLevel, pathId);
             if (foundNode) {
-                pathForBreadcrumb.push({ id: foundNode.id, name: foundNode.name });
+                pathForBreadcrumb.push({ id: foundNode.id, name: foundNode.name, description: foundNode.description });
                 activeTopicNode = foundNode;
                 parentNodesForCurrentLevel = foundNode.children && Array.isArray(foundNode.children) ? foundNode.children : [];
             } else {
-                console.warn(`Breadcrumb path ID ${pathId} not found in topic tree.`);
-                currentLevelData = []; break;
+                console.warn("Path ID not found in current topic level:", pathId, parentNodesForCurrentLevel);
+                currentLevelData = []; // Hatalı path ise bir şey gösterme
+                break;
             }
         }
         currentLevelData = activeTopicNode?.children && Array.isArray(activeTopicNode.children) ? activeTopicNode.children : [];
     } else {
-        currentLevelData = topics; activeTopicNode = null;
+        // currentPathIds boş ise, en üst seviye konuları göster (topics state'i zaten bu olmalı)
+        currentLevelData = topics.filter(topic => !topic.parentId); // Sadece ana konuları filtrele (eğer backend tümünü düz yolluyorsa)
+                                                                  // Backend zaten filtrelenmiş ağaç yolluyorsa bu filter gereksiz
+        activeTopicNode = null;
     }
-    return { 
-        activeTopicBrowse: activeTopicNode, 
-        currentDisplayTopics: currentLevelData, 
-        breadcrumbItemsBrowsePath: pathForBreadcrumb 
+    return {
+        activeTopicBrowse: activeTopicNode,
+        currentDisplayTopics: currentLevelData,
+        breadcrumbItemsBrowsePath: pathForBreadcrumb
     };
   }, [topics, currentPathIds, currentSelectionStep]);
 
-  const pageBreadcrumbs = useMemo(() => { 
+  const pageBreadcrumbs = useMemo(() => {
     const items = [];
+    items.push({ name: "Anasayfa", onClick: () => navigate('/'), isCurrent: false, icon: FaHome });
+
     if (selectedExam) {
-      items.push({ 
-        name: selectedExam.displayName, 
+      items.push({
+        name: selectedExam.displayName,
         onClick: () => handleGoToStep('exam', true),
-        isCurrent: currentSelectionStep === 'exam'
+        isCurrent: currentSelectionStep === 'exam',
+        icon: FaUniversity
       });
     }
     if (selectedBranch && currentSelectionStep !== 'exam') {
-      items.push({ 
-        name: selectedBranch.name, 
+      items.push({
+        name: selectedBranch.name,
         onClick: () => handleGoToStep('branch', false, true),
-        isCurrent: currentSelectionStep === 'branch' && breadcrumbItemsBrowsePath.length === 0
+        isCurrent: currentSelectionStep === 'branch' && breadcrumbItemsBrowsePath.length === 0,
+        icon: FaTags
       });
     }
+
     if (currentSelectionStep === 'topic' && breadcrumbItemsBrowsePath.length > 0) {
         breadcrumbItemsBrowsePath.forEach((topicCrumb, index) => {
             const isLastTopicCrumb = index === breadcrumbItemsBrowsePath.length -1;
             items.push({
                 name: topicCrumb.name,
                 onClick: !isLastTopicCrumb ? () => setCurrentPathIds(currentPathIds.slice(0, index + 1)) : undefined,
-                isCurrent: isLastTopicCrumb
+                isCurrent: isLastTopicCrumb,
+                icon: isLastTopicCrumb && activeTopicBrowse?.children?.length > 0 ? FaFolderOpen : FaFolder
             });
         });
     } else if (currentSelectionStep === 'topic' && selectedBranch && breadcrumbItemsBrowsePath.length === 0 && topics.length > 0) {
-        items.push({name: "Konu Başlıkları", isCurrent: true});
+        // Bu durum, branş seçildikten sonraki ilk konu listesi görünümü
+        // items.push({name: "Konu Başlıkları", isCurrent: true, icon: FaListUl }); // Zaten branş adı var
     }
     return items;
-  }, [selectedExam, selectedBranch, currentSelectionStep, breadcrumbItemsBrowsePath, currentPathIds, topics.length, handleGoToStep]);
+  }, [selectedExam, selectedBranch, currentSelectionStep, breadcrumbItemsBrowsePath, currentPathIds.length, topics.length, handleGoToStep, navigate]); // currentPathIds.length eklendi
+
 
   const openModeSelector = (scope) => {
     setQuizScopeForModal(scope);
@@ -309,295 +334,326 @@ function TopicBrowserPage() {
   };
 
   const navigateToSolvePage = (mode) => {
-    const { examId, branchId, topicId, examName, branchName } = quizScopeForModal;
+    const { examId, branchId, topicId } = quizScopeForModal; // examName, branchName burada gereksiz
     const params = new URLSearchParams();
     if (examId) params.append('examClassificationId', examId);
-    if (examName && mode === 'deneme' && examId) params.append('examName', examName);
     if (branchId) params.append('branchId', branchId);
-    if (branchName && mode === 'deneme' && branchId) params.append('branchName', branchName);
     if (topicId) params.append('topicId', topicId);
     if (mode === 'deneme') params.append('mode', 'deneme');
+    
+    // Seçili sınav, branş ve konu isimlerini de SolvePage'e başlık için yollayalım
+    const exam = orderedExamsForUI.find(e => e.id === examId);
+    const branch = filteredBranches.find(b => b.id === branchId);
+    const topic = topicId ? findTopicByIdRecursive(topics, topicId) : null;
+
+    if(exam) params.append('examName', exam.displayName);
+    if(branch) params.append('branchName', branch.name);
+    if(topic) params.append('topicName', topic.name);
+
     navigate(`/solve?${params.toString()}`);
     onModeSelectionModalClose();
   };
-
-  if (pageLoading) { // Ana sayfa ilk yükleme animasyonu
+    // Yükleme, Hata ve İçerik Gösterim Mantığı
+    if (pageLoading) {
+      return (
+        <Container maxW="container.lg" py={8} centerContent minH="80vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center" bg={mainBg}>
+          <Icon as={FiLayers} boxSize="60px" color={accentColor} mb={6} sx={{ animation: "pulse 2s ease-in-out infinite" }}/>
+          <Heading size="lg" color={headingColor} mb={3} textAlign="center" fontWeight="semibold">
+            Konu Evreni Yükleniyor
+          </Heading>
+          <ScaleFade initialScale={0.95} in={true} key={currentLoadingMessage}>
+              <Text mt={1} color={textMutedColor} fontSize="md" textAlign="center" maxW="md">
+                  {currentLoadingMessage}
+              </Text>
+          </ScaleFade>
+          <Progress size="sm" isIndeterminate colorScheme="brand" w="250px" mt={8} borderRadius="full" bg={useColorModeValue("gray.200", "gray.600")}/>
+          <style>
+            {`
+              @keyframes pulse {
+                0% { transform: scale(1); opacity: 0.7; }
+                50% { transform: scale(1.1); opacity: 1; }
+                100% { transform: scale(1); opacity: 0.7; }
+              }
+            `}
+          </style>
+        </Container>
+      );
+    }
+  
+    if (error && orderedExamsForUI.length === 0) { // Sadece başlangıçta hiç veri çekilemediyse bu hata gösterilsin
+      return (
+        <Container maxW="container.lg" mt={{base: 6, md: 10}} py={10} bg={mainBg} centerContent>
+          <VStack spacing={6} p={{base:6, md:10}} bg={cardBg} borderRadius="xl" boxShadow="2xl" borderWidth="1px" borderColor={borderColor} textAlign="center" w="full" maxW="lg">
+            <Icon as={FaExclamationTriangle} boxSize={{ base: "48px", md: "60px" }} color={useColorModeValue("red.500", "red.300")} />
+            <Heading as="h2" size={{base:"lg", md:"xl"}} color={headingColor} fontWeight="bold">Bir Hata Oluştu!</Heading>
+            <Text fontSize={{base:"md", md:"lg"}} color={textColor} lineHeight="tall">{error}</Text>
+            <Button colorScheme="red" variant="outline" onClick={() => { if (token) { fetchInitialData(); } else { navigate('/login'); }}} leftIcon={<Icon as={FaSync} />}>
+              {token ? 'Tekrar Dene' : 'Giriş Yap'}
+            </Button>
+          </VStack>
+        </Container>
+      );
+    }
+    
     return (
-      <Container maxW="container.lg" py={8} centerContent minH="80vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center">
-        <Icon as={FaSitemap} boxSize="52px" color="brand.500" mb={6} sx={{ animation: "pulse 1.8s ease-in-out infinite" }}/>
-        <Heading size="md" color={headingColor} mb={2} textAlign="center">Konu Tarayıcı Hazırlanıyor</Heading>
-        <ScaleFade initialScale={0.9} in={true} key={currentLoadingMessage}>
-            <Text mt={2} color={textMutedColor} fontSize="sm" textAlign="center" maxW="sm">
-                {currentLoadingMessage}
-            </Text>
-        </ScaleFade>
-        <Progress size="xs" isIndeterminate colorScheme="brand" w="220px" mt={6} borderRadius="md"/>
-        <style>
-          {`
-            @keyframes pulse {
-              0% { transform: scale(1); opacity: 0.7; }
-              50% { transform: scale(1.12); opacity: 1; }
-              100% { transform: scale(1); opacity: 0.7; }
-            }
-          `}
-        </style>
-      </Container>
-    );
-  }
-
-  if (error && orderedExamsForUI.length === 0) { // Kritik bir hata varsa ve hiç sınav yüklenemediyse
-    return (
-      <Container maxW="container.lg" mt={{base: 6, md: 10}}>
-        <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" py={10} borderRadius="xl" bg={useColorModeValue("red.50", "red.900")} borderColor={useColorModeValue("red.200", "red.700")} borderWidth="1px">
-          <AlertIcon boxSize="48px" color="red.400" />
-          <AlertTitle mt={4} mb={2} fontSize="xl" fontWeight="bold" color={useColorModeValue("red.700", "red.100")}>Bir Hata Oluştu!</AlertTitle>
-          <AlertDescription maxWidth="md" mb={6} color={useColorModeValue("red.600", "red.200")}>{error}</AlertDescription>
-          <Button colorScheme="red" onClick={() => { 
-            if (token) { fetchInitialData(); } // fetchInitialData token'a bağlı, tekrar denemek için
-            else { navigate('/login'); }
-          }} leftIcon={<Icon as={FaRedo} />}>
-            {token ? 'Tekrar Dene' : 'Giriş Yap'}
-          </Button>
-        </Alert>
+      <Container maxW="container.xl" py={{base:4, md:8}} bg={mainBg} minH="calc(100vh - 100px)"> {/* Header yüksekliğini hesaba kat */}
+        <Flex 
+          direction={{base:"column", md:"row"}} 
+          wrap="wrap" 
+          align={{base:"stretch", md:"center"}} 
+          justify="space-between" 
+          gap={{base:3, md:4}} 
+          mb={{base:6, md:8}} 
+          px={{base:2, md:0}}
+          pb={4}
+          borderBottomWidth="1px"
+          borderColor={borderColor}
+        >
+          {pageBreadcrumbs.length > 0 && (
+            <Breadcrumb spacing="10px" separator={<Icon as={FaChevronRight} color={textMutedColor} boxSize={3}/>} fontSize="sm" flexGrow={1} mr={{base:0, md:4}} display="flex" alignItems="center" flexWrap="wrap">
+              {pageBreadcrumbs.map((crumb, index) => (
+                <BreadcrumbItem key={index} isCurrentPage={crumb.isCurrent} whiteSpace="nowrap" mb={{base:1, md:0}}>
+                  <BreadcrumbLink
+                    onClick={crumb.isCurrent ? undefined : crumb.onClick}
+                    color={crumb.isCurrent ? headingColor : textMutedColor}
+                    fontWeight={crumb.isCurrent ? "semibold" : "medium"}
+                    _hover={!crumb.isCurrent ? { color: accentColor, textDecoration: 'none' } : {}}
+                    cursor={!crumb.isCurrent ? 'pointer' : 'default'}
+                    display="flex" alignItems="center"
+                    p={1.5} borderRadius="md"
+                    bg={crumb.isCurrent ? useColorModeValue("blackAlpha.100", "whiteAlpha.100") : "transparent"}
+                  >
+                    {crumb.icon && <Icon as={crumb.icon} mr={1.5} color={crumb.isCurrent ? accentColor : textMutedColor} />}
+                    {crumb.name}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              ))}
+            </Breadcrumb>
+          )}
+          <HStack spacing={3} mt={{base:3, md:0}} w={{base:"full", md:"auto"}} justifyContent={{base:"center", md:"flex-end"}} flexWrap="wrap">
+              {currentSelectionStep === 'branch' && selectedExam && (
+                  <>
+                      <Button
+                          onClick={() => openModeSelector({ examId: selectedExam.id, examName: selectedExam.displayName })}
+                          colorScheme="brand" size="sm" leftIcon={<Icon as={FaPlayCircle} />}
+                          boxShadow="md" _hover={{boxShadow:"lg", transform:"translateY(-1px)"}} flexShrink={0} borderRadius="lg"
+                      >
+                          "{selectedExam.displayName}" Tüm Soruları
+                      </Button>
+                      <Button onClick={() => handleGoToStep('exam', true)} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0} borderRadius="lg">Sınav Seçimine Dön</Button>
+                  </>
+              )}
+              {currentSelectionStep === 'topic' && selectedExam && selectedBranch && (!activeTopicBrowse || (activeTopicBrowse.children && activeTopicBrowse.children.length === 0) || (!activeTopicBrowse.children)) && (
+                   <>
+                      <Button
+                          onClick={() => openModeSelector({ examId: selectedExam.id, branchId: selectedBranch.id, examName: selectedExam.displayName, branchName: selectedBranch.name })}
+                          colorScheme="brand" size="sm" leftIcon={<Icon as={FaPlayCircle} />}
+                          boxShadow="md" _hover={{boxShadow:"lg", transform:"translateY(-1px)"}} flexShrink={0} borderRadius="lg"
+                      >
+                          "{selectedBranch.name}" Tüm Soruları
+                      </Button>
+                      <Button onClick={() => handleGoToStep('branch', false, true)} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0} borderRadius="lg">Branş Seçimine Dön</Button>
+                   </>
+              )}
+               {currentSelectionStep === 'topic' && activeTopicBrowse && currentPathIds.length > 0 && (
+                   <Button onClick={() => {
+                       const parentPathIds = currentPathIds.slice(0, -1);
+                       setCurrentPathIds(parentPathIds);
+                   }} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />} flexShrink={0} borderRadius="lg">
+                      "{breadcrumbItemsBrowsePath[breadcrumbItemsBrowsePath.length - 2]?.name || selectedBranch?.name || 'Üst Seviye'}"
+                  </Button>
+              )}
+          </HStack>
+        </Flex>
+        
+        {dataFetchLoading && currentSelectionStep !== 'exam' && (
+          <Center py={10}><Spinner color={accentColor} size="xl" thickness="4px"/><Text ml={4} fontSize="lg" color={textMutedColor}>{loadingMessage || "Veriler yükleniyor..."}</Text></Center>
+        )}
+  
+        {!dataFetchLoading && currentSelectionStep === 'exam' && (
+          <Box>
+            <VStack spacing={2} mb={{base:8, md:12}} textAlign="center">
+              <Icon as={FiGrid} boxSize={{base:10, md:12}} color={accentColor} />
+              <Heading as="h1" size={{base:"lg", md:"xl"}} color={headingColor} fontWeight="bold">Konu Evrenini Keşfet</Heading>
+              <Text color={textColor} fontSize={{base:"md", md:"lg"}} maxW="xl" mx="auto">
+                  Sınav hedefinize yönelik konu anlatımlarına, özel olarak hazırlanmış sorulara ve dijital antrenörünüze buradan ulaşın.
+              </Text>
+            </VStack>
+            {orderedExamsForUI.length === 0 && !pageLoading ? (
+              <Alert status="info" variant="subtle" borderRadius="xl" bg={useColorModeValue("blue.50", "rgba(49,130,206,0.15)")} p={6} boxShadow="md">
+                <AlertIcon color={useColorModeValue("blue.500","blue.300")} boxSize={6}/>
+                <AlertDescription ml={3} color={textColor}>Kullanılabilir sınav türü bulunamadı. Lütfen daha sonra tekrar kontrol edin.</AlertDescription>
+              </Alert>
+            ) : (
+              <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{base:5, md:8}}>
+                {orderedExamsForUI.map((exam, index) => {
+                  const isTarget = user && user.defaultClassificationId === exam.id && user.role !== 'admin';
+                  return (
+                    <ExamCard
+                      key={exam.id}
+                      exam={{ id: exam.id, displayName: exam.displayName, name: exam.name }}
+                      tierName={exam.tierName}
+                      isTargetExam={isTarget}
+                      onClick={handleExamSelect}
+                      index={index}
+                    />
+                  );
+                })}
+              </SimpleGrid>
+            )}
+          </Box>
+        )}
+  
+        {!dataFetchLoading && currentSelectionStep === 'branch' && selectedExam && (
+          <Box>
+             <Heading as="h2" size={{base:"lg", md:"xl"}} color={headingColor} mb={{base:6, md:8}} display="flex" alignItems="center">
+               <Icon as={FaTags} mr={3} color={accentColor}/> "{selectedExam.displayName}" İçin Branşınızı Seçin
+            </Heading>
+            {error && !pageLoading && <Alert status="error" variant="subtle" mb={4} borderRadius="lg" boxShadow="md"><AlertIcon />{error}</Alert>}
+            {filteredBranches.length === 0 && !dataFetchLoading && !error && (
+               <Alert status="info" variant="subtle" borderRadius="xl" bg={useColorModeValue("orange.50", "rgba(221,107,32,0.15)")} p={6} boxShadow="md">
+                  <AlertIcon color={useColorModeValue("orange.500", "orange.300")} boxSize={6}/>
+                  <AlertDescription ml={3} color={textColor}>"{selectedExam.displayName}" sınav türü için uygun branş bulunamadı veya bu branşlarda henüz konu içeriği yok.</AlertDescription>
+               </Alert>
+            )}
+            {filteredBranches.length > 0 && (
+              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={{base:4, md:6}}>
+                {filteredBranches.map((branch, index) => (
+                  <ScaleFade initialScale={0.95} in={true} key={branch.id} transition={{ enter: { duration: 0.35, delay: index * 0.06 } }}>
+                      <Button
+                      onClick={() => handleBranchSelect(branch)}
+                      variant="outline" bg={branchButtonBg} borderColor={borderColor}
+                      p={6} h="auto" minH={{base:"120px", md:"140px"}} borderRadius="xl" boxShadow="lg"
+                      _hover={{ boxShadow: 'xl', borderColor: accentColor, bg: branchButtonHoverBg, transform: "translateY(-4px) scale(1.02)"}}
+                      _focusVisible={{ ring: '3px', ringColor: accentColor, borderColor: accentColor}}
+                      textAlign="left" w="full" display="flex" flexDirection="column" alignItems="flex-start" justifyContent="space-between"
+                      transition="all 0.2s ease-out"
+                      >
+                      <VStack align="flex-start" spacing={1.5} flex="1">
+                          <Icon as={FaListUl} color={accentColor} boxSize={7} mb={2}/>
+                          <Heading fontWeight="semibold" color={headingColor} fontSize="lg" noOfLines={2} lineHeight="shorter">{branch.name}</Heading>
+                      </VStack>
+                      <Text fontSize="sm" color={textMutedColor} mt={2} alignSelf="flex-end">
+                          {topicCountsForBranches[branch.id] || 0} Ana Konu
+                      </Text>
+                      </Button>
+                  </ScaleFade>
+                ))}
+              </SimpleGrid>
+            )}
+          </Box>
+        )}
+  
+        {!dataFetchLoading && currentSelectionStep === 'topic' && selectedExam && selectedBranch && (
+          <Box>
+            {/* Aktif Konu Bilgi Kutusu */}
+            {activeTopicBrowse && (
+              <Box 
+                  mb={{base:8, md:10}} 
+                  p={{base:5, md:6}} 
+                  borderRadius="xl" 
+                  bg={useColorModeValue('brand.50', 'rgba(49, 130, 206, 0.1)')} // Vurgulu arkaplan
+                  borderWidth="1px" 
+                  borderColor={useColorModeValue('brand.200', 'brand.700')} 
+                  boxShadow="xl"
+              >
+                <Flex wrap="wrap" justify="space-between" align={{base:"flex-start", md:"center"}} gap={4}>
+                  <HStack spacing={{base:3, md:4}} flex="1" minW={0}>
+                    <Icon as={FaFolderOpen} boxSize={{base:"28px", md:"32px"}} color={useColorModeValue('brand.600', 'brand.200')} />
+                    <Box>
+                      <Heading as="h2" size={{base:"md", md:"lg"}} color={useColorModeValue('brand.700', 'brand.100')} noOfLines={2} fontWeight="bold">{activeTopicBrowse.name}</Heading>
+                      {activeTopicBrowse.description && <Text display={{base:"none", sm:"block"}} color={useColorModeValue('brand.600', 'brand.200')} fontSize="sm" noOfLines={2} mt={1.5}>{activeTopicBrowse.description}</Text>}
+                    </Box>
+                  </HStack>
+                  <HStack spacing={3} flexShrink={0} mt={{ base: 4, md: 0 }} w={{base:"full", md:"auto"}} justifyContent={{base:"center", md:"flex-end"}}>
+                    <Button as={ChakraLink} onClick={(e) => {e.preventDefault(); navigate(`/lectures/topic/${activeTopicBrowse.id}`);}} variant="solid" colorScheme="blue" leftIcon={<Icon as={FaBookOpen} />} size={{base:"sm", md:"md"}} flexGrow={{base:1, md:0}} boxShadow="md" _hover={{boxShadow:"lg"}}>Konu Anlatımı</Button>
+                    <Button
+                      onClick={() => openModeSelector({ examId: selectedExam.id, branchId: selectedBranch.id, topicId: activeTopicBrowse.id })}
+                      colorScheme="brand"
+                      leftIcon={<Icon as={FaPencilAlt} />}
+                      size={{base:"sm", md:"md"}}
+                      flexGrow={{base:1, md:0}}
+                      boxShadow="md" _hover={{boxShadow:"lg"}}
+                    >
+                      Soruları Çöz
+                    </Button>
+                  </HStack>
+                </Flex>
+              </Box>
+            )}
+  
+            {/* Alt Konu Kartları */}
+            {(currentDisplayTopics && currentDisplayTopics.length > 0) ? (
+              <>
+                <Heading as="h3" size={{base:"md", md:"lg"}} mb={{base:4, md:6}} color={headingColor} fontWeight="semibold" display="flex" alignItems="center">
+                  <Icon as={activeTopicBrowse ? FiLayers : FaListUl} mr={3} color={textColor} />
+                  {activeTopicBrowse ? 'Alt Başlıklar' : `${selectedBranch.name} Konu Başlıkları`}
+                </Heading>
+                <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={{base:4, md:6}}>
+                  {currentDisplayTopics.map((topic, index) => (
+                      <TopicCard key={topic.id} topic={topic} index={index} onSelectTopic={handleTopicCardSelect} token={token} examClassificationId={selectedExam.id} />
+                  ))}
+                </SimpleGrid>
+              </>
+            ) : (!dataFetchLoading && !error && (
+              <Center py={10} flexDirection="column" bg={cardBg} borderRadius="xl" boxShadow="lg" p={8}>
+                <Icon as={FaInfoCircle} boxSize="48px" color={textMutedColor} mb={5}/>
+                <Text color={textColor} fontSize="lg" fontStyle="italic" textAlign="center" maxW="md">
+                  {currentPathIds.length > 0 ? 'Bu başlık altında gösterilecek başka alt konu bulunmuyor.' : `"${selectedBranch.name}" branşında henüz konu eklenmemiş veya bu filtreye uygun konu yok.`}
+                </Text>
+              </Center>
+            ))}
+          </Box>
+        )}
+  
+        {/* Çözme Modu Seçim Modalı */}
+        <Modal isOpen={isModeSelectionModalOpen} onClose={onModeSelectionModalClose} isCentered size="lg">
+          <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(8px)" />
+          <ModalContent bg={modalContentBg} borderRadius="xl" boxShadow="2xl" borderWidth="1px" borderColor={borderColor}>
+            <ModalHeader color={headingColor} fontWeight="bold" borderBottomWidth="1px" borderColor={borderColor} fontSize="xl" py={5} px={6}>
+              <Flex align="center"><Icon as={FaPlayCircle} color={accentColor} mr={3} boxSize={6}/>Çalışma Modunu Seçin</Flex>
+            </ModalHeader>
+            <ModalCloseButton _hover={{bg: useColorModeValue("gray.200", "gray.600")}} borderRadius="full"/>
+            <ModalBody py={8} px={6}>
+              <Text mb={6} color={textColor} textAlign="center" fontSize="md">
+                  Seçili kapsam için "{quizScopeForModal.topicId ? (findTopicByIdRecursive(topics, quizScopeForModal.topicId))?.name || 'Konu' : quizScopeForModal.branchName || quizScopeForModal.examName || 'Genel'}" hangi modda çalışmak istersiniz?
+              </Text>
+              <VStack spacing={5}>
+                <Button
+                  bg={useColorModeValue("purple.500", "purple.300")}
+                  color="white"
+                  _hover={{bg: useColorModeValue("purple.600", "purple.400"), boxShadow: "xl"}}
+                  onClick={() => navigateToSolvePage('deneme')}
+                  w="full" size="lg" py={7}
+                  leftIcon={<Icon as={FaStopwatch} boxSize={5}/>}
+                  boxShadow="lg" borderRadius="lg"
+                  fontWeight="bold" letterSpacing="wide"
+                >
+                  Deneme Modu
+                  <Text as="span" fontSize="xs" color={useColorModeValue("purple.100", "purple.100")} ml={1.5} fontWeight="normal">(Süreli, Açıklamasız)</Text>
+                </Button>
+                <Button
+                  bg={useColorModeValue("teal.500", "teal.300")}
+                  color="white"
+                  _hover={{bg: useColorModeValue("teal.600", "teal.400"), boxShadow: "xl"}}
+                  onClick={() => navigateToSolvePage('practice')}
+                  w="full" size="lg" py={7}
+                  leftIcon={<Icon as={FaPencilAlt} boxSize={5}/>}
+                  boxShadow="lg" borderRadius="lg"
+                  fontWeight="bold" letterSpacing="wide"
+                >
+                  Pratik Modu
+                  <Text as="span" fontSize="xs" color={useColorModeValue("teal.100", "teal.100")} ml={1.5} fontWeight="normal">(Süresiz, Açıklamalı)</Text>
+                </Button>
+              </VStack>
+            </ModalBody>
+            <ModalFooter borderTopWidth="1px" borderColor={borderColor} pt={4} pb={5} px={6}>
+              <Button variant="ghost" onClick={onModeSelectionModalClose} colorScheme="gray">Kapat</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </Container>
     );
   }
   
-  return (
-    <Container maxW="container.xl" py={{base:4, md:8}} bg={bgColor} minH="calc(100vh - 150px)">
-      <Flex direction={{base:"column", md:"row"}} wrap="wrap" align="flex-start" justify="space-between" gap={4} mb={{base:4, md:6}} px={{base:2, md:0}}>
-        {pageBreadcrumbs.length > 0 && (
-          <Breadcrumb spacing="8px" separator={<Icon as={FaAngleRight} color="gray.400" />} fontSize="sm" flexGrow={1} mr={{base:0, md:4}} display="flex" alignItems="center">
-            {pageBreadcrumbs.map((crumb, index) => (
-              <BreadcrumbItem key={index} isCurrentPage={crumb.isCurrent}>
-                <BreadcrumbLink 
-                  onClick={crumb.isCurrent ? undefined : crumb.onClick} 
-                  color={crumb.isCurrent ? headingColor : textMutedColor}
-                  fontWeight={crumb.isCurrent ? "semibold" : "normal"}
-                  _hover={!crumb.isCurrent ? { color: stepIndicatorColor, textDecoration: 'underline' } : {}}
-                  cursor={!crumb.isCurrent ? 'pointer' : 'default'}
-                  display="flex" alignItems="center"
-                >
-                  {index === 0 && currentSelectionStep !== 'exam' && <Icon as={FaSitemap} mr={1.5} />}
-                  {index === 1 && currentSelectionStep === 'topic' && <Icon as={FaListUl} mr={1.5} />}
-                  {index > 1 && <Icon as={FaFolderOpen} mr={1.5} />}
-                  {crumb.name}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            ))}
-          </Breadcrumb>
-        )}
-        <HStack spacing={3} mt={{base:3, md:0}} w={{base:"full", md:"auto"}} justifyContent={{base:"space-between", md:"flex-end"}} flexWrap="wrap">
-            {currentSelectionStep === 'branch' && selectedExam && (
-                <>
-                    <Button 
-                        onClick={() => openModeSelector({ examId: selectedExam.id, examName: selectedExam.displayName })} 
-                        colorScheme="green" 
-                        size="sm" 
-                        leftIcon={<Icon as={FaPlayCircle} />}
-                        boxShadow="sm" _hover={{boxShadow:"md"}}
-                    >
-                        "{selectedExam.displayName}" Soruları
-                    </Button>
-                    <Button onClick={() => handleGoToStep('exam', true)} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />}>Sınav Seçimi</Button>
-                </>
-            )}
-            {currentSelectionStep === 'topic' && selectedExam && selectedBranch && breadcrumbItemsBrowsePath.length === 0 && (
-                 <>
-                    <Button 
-                        onClick={() => openModeSelector({ examId: selectedExam.id, branchId: selectedBranch.id, examName: selectedExam.displayName, branchName: selectedBranch.name })} 
-                        colorScheme="green" 
-                        size="sm" 
-                        leftIcon={<Icon as={FaPlayCircle} />}
-                        boxShadow="sm" _hover={{boxShadow:"md"}}
-                    >
-                        "{selectedBranch.name}" Soruları
-                    </Button>
-                    <Button onClick={() => handleGoToStep('branch', false, true)} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />}>Branş Seçimi</Button>
-                 </>
-            )}
-             {currentSelectionStep === 'topic' && activeTopicBrowse && ( // Eğer bir alt konu seçiliyse, o alt konunun üst konusuna dön
-                 <Button onClick={() => { 
-                     const parentPathIds = currentPathIds.slice(0, -1);
-                     setCurrentPathIds(parentPathIds);
-                 }} variant="outline" size="sm" leftIcon={<Icon as={FaArrowLeft} />}>
-                    "{breadcrumbItemsBrowsePath[breadcrumbItemsBrowsePath.length - 2]?.name || selectedBranch?.name || 'Üst Konu'}" Listesine Dön
-                </Button>
-            )}
-        </HStack>
-      </Flex>
-      {currentSelectionStep !== 'exam' && <Divider mb={{base:4, md:8}} borderColor={borderColor}/>}
-
-      {/* Hata mesajı (veri yükleme sonrası oluşanlar için) */}
-      {error && !pageLoading && ( 
-            <Alert status="warning" variant="subtle" borderRadius="md" mb={6}>
-                <AlertIcon /> {error}
-            </Alert>
-        )}
-      
-      {/* --- SINAV SEÇİM EKRANI --- */}
-      {currentSelectionStep === 'exam' && (
-        <Box>
-          <Heading as="h1" size={{base:"lg", md:"xl"}} textAlign="center" mb={3} color={headingColor}>Konu Evrenini Keşfet</Heading>
-          <Text textAlign="center" color={textColor} fontSize={{base:"sm", md:"md"}} mb={{base:6, md:10}}>Lütfen çalışmak istediğiniz sınav türünü seçerek başlayın.</Text>
-          {orderedExamsForUI.length === 0 && !pageLoading ? ( // loading yerine pageLoading kontrolü daha doğru olabilir, veya ikisi de
-            <Alert status="info" variant="subtle" borderRadius="md" bg={useColorModeValue("blue.50", "blue.800")}>
-              <AlertIcon color="blue.400" /> 
-              Kullanılabilir sınav türü bulunamadı.
-            </Alert>
-          ) : (
-            <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{base:5, md:6}}>
-              {orderedExamsForUI.map((exam, index) => {
-                const isTarget = user && user.defaultClassificationId === exam.id && user.role !== 'admin';
-                return (
-                  <ExamCard 
-                    key={exam.id} 
-                    exam={{ id: exam.id, displayName: exam.displayName, name: exam.name }}
-                    tierName={exam.tierName}
-                    isTargetExam={isTarget}
-                    onClick={handleExamSelect}
-                    // index prop'u ScaleFade için TopicCard'da kullanılıyor, ExamCard'a da eklenebilir.
-                  />
-                );
-              })}
-            </SimpleGrid>
-          )}
-        </Box>
-      )}
-
-      {/* --- BRANŞ SEÇİM EKRANI --- */}
-      {currentSelectionStep === 'branch' && selectedExam && (
-        <Box>
-           <Heading as="h2" size={{base:"md", md:"lg"}} color={headingColor} mb={{base:4, md:6}}>
-             Branşınızı Seçin
-          </Heading>
-          {loading && filteredBranches.length === 0 && <Center py={10}><Spinner color="brand.500" size="lg"/><Text ml={3} color={textMutedColor}>{loadingMessage}</Text></Center>}
-          {filteredBranches.length === 0 && !loading && !error && (
-             <Alert status="info" variant="subtle" borderRadius="lg" bg={useColorModeValue("orange.50", "orange.800")} p={5}>
-                <AlertIcon color="orange.400" /> 
-                <Text color={textColor}>"{selectedExam.displayName}" sınav türü için tanımlanmış uygun branş bulunamadı veya bu branşlarda henüz konu yok.</Text>
-             </Alert>
-          )}
-          {filteredBranches.length > 0 && (
-            <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={{base:4, md:5}}>
-              {filteredBranches.map((branch, index) => (
-                // TODO: BranchCard component'i oluşturulabilir veya Button stilize edilebilir
-                <ScaleFade initialScale={0.95} in={true} key={branch.id} transition={{ enter: { duration: 0.3, delay: index * 0.07 } }}>
-                    <Button 
-                    onClick={() => handleBranchSelect(branch)}
-                    colorScheme={branchButtonColorScheme} variant="outline" bg={cardBg} borderColor={borderColor}
-                    p={6} h="auto" minH={{base:"100px", md:"130px"}} borderRadius="xl" boxShadow="lg"
-                    _hover={{ boxShadow: 'xl', borderColor: stepIndicatorColor, bg: useColorModeValue('gray.100', 'gray.700'), transform: "translateY(-3px)"}}
-                    _focusVisible={{ ring: '3px', ringColor: stepIndicatorColor}}
-                    textAlign="left" w="full" display="flex" flexDirection="column" alignItems="flex-start" justifyContent="space-between" 
-                    >
-                    <VStack align="flex-start" spacing={1} flex="1">
-                        <Icon as={FaListUl} color={stepIndicatorColor} boxSize={6} mb={2}/>
-                        <Heading fontWeight="semibold" color={headingColor} fontSize="md" noOfLines={2}>{branch.name}</Heading>
-                    </VStack>
-                    <Text fontSize="xs" color={textMutedColor} mt={2} alignSelf="flex-end">
-                        {topicCountsForBranches[branch.id] || 0} Ana Konu
-                    </Text>
-                    </Button>
-                </ScaleFade>
-              ))}
-            </SimpleGrid>
-          )}
-        </Box>
-      )}
-
-      {/* --- KONU TARAMA EKRANI --- */}
-      {currentSelectionStep === 'topic' && selectedExam && selectedBranch && (
-        <Box>
-          {loading && topics.length === 0 && <Center py={10}><Spinner color="brand.500" size="lg"/><Text ml={3} color={textMutedColor}>{loadingMessage}</Text></Center>}
-          {error && !loading && topics.length === 0 && <Alert status="error" variant="subtle" mb={4} borderRadius="md"><AlertIcon />{error}</Alert>}
-          
-          {activeTopicBrowse && ( 
-            <Box mb={{base:6, md:10}} p={{base:4, md:6}} borderRadius="xl" bg={useColorModeValue('brand.50', 'brand.800')} borderWidth="1px" borderColor={useColorModeValue('brand.200', 'brand.700')} boxShadow="lg">
-              <Flex wrap="wrap" justify="space-between" align="center" gap={4}>
-                <HStack spacing={{base:2, md:4}} flex="1" minW={0}>
-                  <Icon as={FaFolderOpen} boxSize={{base:"24px", md:"30px"}} color={useColorModeValue('brand.600', 'brand.200')} />
-                  <Box>
-                    <Heading as="h2" size={{base:"md", md:"lg"}} color={useColorModeValue('brand.700', 'brand.100')} noOfLines={2}>{activeTopicBrowse.name}</Heading>
-                    {activeTopicBrowse.description && <Text display={{base:"none", md:"block"}} color={useColorModeValue('brand.600', 'brand.200')} fontSize="sm" noOfLines={2} mt={1}>{activeTopicBrowse.description}</Text>}
-                  </Box>
-                </HStack>
-                <HStack spacing={3} flexShrink={0} mt={{ base: 3, md: 0 }} w={{base:"full", md:"auto"}} justifyContent={{base:"center", md:"flex-end"}}>
-                  <Button as={ChakraLink} onClick={(e) => {e.preventDefault(); navigate(`/lectures/topic/${activeTopicBrowse.id}`);}} variant="outline" colorScheme="brand" leftIcon={<Icon as={FaBookOpen} />} size={{base:"sm", md:"md"}} flexGrow={{base:1, md:0}}>Konu Anlatımı</Button>
-                  <Button 
-                    onClick={() => openModeSelector({ examId: selectedExam.id, branchId: selectedBranch.id, topicId: activeTopicBrowse.id, examName: selectedExam.displayName, branchName: selectedBranch.name })} 
-                    colorScheme="brand" 
-                    leftIcon={<Icon as={FaPencilAlt} />} 
-                    size={{base:"sm", md:"md"}} 
-                    flexGrow={{base:1, md:0}}
-                  >
-                    Soruları Çöz
-                  </Button>
-                </HStack>
-              </Flex>
-            </Box>
-          )}
-
-          {(currentDisplayTopics && currentDisplayTopics.length > 0) ? ( 
-            <>
-              <Heading as="h3" size={{base:"sm", md:"md"}} mb={5} color={textColor} fontWeight="semibold">
-                {activeTopicBrowse ? 'Alt Başlıklar' : `${selectedBranch.name} Konu Başlıkları`}
-              </Heading>
-              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={{base:4, md:5}}>
-                {currentDisplayTopics.map((topic, index) => ( <TopicCard key={topic.id} topic={topic} index={index} onSelectTopic={handleTopicCardSelect} /> ))}
-              </SimpleGrid>
-            </>
-          ) : (!loading && !error && ( 
-            <Center py={10} flexDirection="column">
-              <Icon as={FaInfoCircle} boxSize="40px" color={textMutedColor} mb={4}/>
-              <Text color={textMutedColor} fontStyle="italic" textAlign="center" maxW="md">
-                {currentPathIds.length > 0 ? 'Bu başlık altında gösterilecek başka alt konu bulunmuyor.' : `"${selectedBranch.name}" branşında henüz konu eklenmemiş veya bu filtreye uygun konu bulunamadı.`}
-              </Text>
-            </Center>
-          ))}
-        </Box>
-      )}
-
-      <Modal isOpen={isModeSelectionModalOpen} onClose={onModeSelectionModalClose} isCentered size="md">
-        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(5px)" />
-        <ModalContent bg={cardBg} borderRadius="xl" boxShadow="2xl">
-          <ModalHeader color={headingColor} fontWeight="bold" borderBottomWidth="1px" borderColor={borderColor}>
-            Çözme Modunu Seçin
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody py={6}>
-            <Text mb={4} color={textColor} textAlign="center">
-                "{quizScopeForModal.topicId ? topics.find(t=>t.id === quizScopeForModal.topicId)?.name || 'Seçili Konu' : quizScopeForModal.branchName || quizScopeForModal.examName || 'Seçili Kapsam'}" için:
-            </Text>
-            <VStack spacing={4}>
-              <Button
-                colorScheme="purple" 
-                onClick={() => navigateToSolvePage('deneme')}
-                w="full" size="lg" py={7}
-                leftIcon={<Icon as={FaStopwatch} />}
-                boxShadow="md" _hover={{boxShadow: "lg", transform:"translateY(-2px)"}} transition="all 0.2s"
-              >
-                Deneme Modu <Text as="span" fontSize="xs" color={useColorModeValue("purple.600", "purple.200")} ml={1} fontWeight="normal">(Süreli, Açıklamasız)</Text>
-              </Button>
-              <Button
-                colorScheme="teal" 
-                onClick={() => navigateToSolvePage('practice')}
-                w="full" size="lg" py={7}
-                leftIcon={<Icon as={FaPencilAlt} />}
-                boxShadow="md" _hover={{boxShadow: "lg", transform:"translateY(-2px)"}} transition="all 0.2s"
-              >
-                Pratik Modu <Text as="span" fontSize="xs" color={useColorModeValue("teal.600", "teal.200")} ml={1} fontWeight="normal">(Süresiz, Açıklamalı)</Text>
-              </Button>
-            </VStack>
-          </ModalBody>
-          <ModalFooter borderTopWidth="1px" borderColor={borderColor} pt={3} pb={4}>
-            <Button variant="ghost" onClick={onModeSelectionModalClose}>Kapat</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-    </Container>
-  );
-}
-
-export default TopicBrowserPage;
+  export default TopicBrowserPage;

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom'; // Outlet import edildi
-import { Spinner, Flex, Heading, Center, Text } from '@chakra-ui/react'; // Center ve Text importları eklendi (404 için)
+import { Routes, Route, Navigate, Outlet, Link as RouterLink } from 'react-router-dom';
+import { Spinner, Flex, Heading, Center, Text, Button, Icon, Link as ChakraLink, useColorModeValue, Box, VStack } from '@chakra-ui/react'; // useColorModeValue, Box, VStack eklendi
 
 // Sayfa importları
 import TopicBrowserPage from './pages/TopicBrowserPage';
@@ -8,34 +8,75 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminPage from './pages/AdminPage';
 import SolvePage from './pages/SolvePage';
-import DashboardPage from './pages/DashboardPage'; // Dijital Mentor / İstatistiklerim
+import DashboardPage from './pages/DashboardPage';
 import LectureViewPage from './pages/LectureViewPage';
 import WordPracticePage from './pages/WordPracticePage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import RequestPasswordResetPage from './pages/RequestPasswordResetPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import ProfilePage from './pages/ProfilePage'; // YENİ: ProfilePage import edildi
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
+import DigitalCoachPage from './pages/DigitalCoachPage';
+import SRSReviewSessionPage from './pages/SRSReviewSessionPage';
+import SRSQuestionReviewPage from './pages/SRSQuestionReviewPage';
 
 // Layout ve Auth importları
 import Layout from './components/Layout';
-import { useAuth, AuthProvider } from './context/AuthContext'; // AuthProvider da buradan export ediliyor olmalı
+import { useAuth, AuthProvider } from './context/AuthContext';
+import { FaHome, FaRobot } from 'react-icons/fa'; // FaRobot eklendi
+import { FiLoader, FiAlertTriangle } from 'react-icons/fi'; // Modern ikonlar
 
-// Yükleme Göstergesi Component'i
 function LoadingIndicator() {
+    const mainBg = useColorModeValue('gray.100', 'gray.900');
+    const cardBg = useColorModeValue('white', 'gray.800');
+    const borderColor = useColorModeValue('gray.200', 'gray.700');
+    const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+    const textMutedColor = useColorModeValue('gray.500', 'gray.400');
+    const accentColor = useColorModeValue('brand.500', 'brand.300');
+
     return (
-        <Flex minH="100vh" align="center" justify="center">
-            <Spinner
-                thickness="4px"
-                speed="0.65s"
-                emptyColor="gray.200"
-                color="brand.500"
-                size="xl"
-            />
+        <Flex 
+            minH="100vh" 
+            align="center" 
+            justify="center" 
+            direction="column" 
+            bg={mainBg} 
+            p={4}
+        >
+            <VStack
+              spacing={6}
+              p={{base: 8, md: 12}}
+              bg={cardBg}
+              borderRadius="xl"
+              boxShadow="xl"
+              borderWidth="1px"
+              borderColor={borderColor}
+              textAlign="center"
+              w="full"
+              maxW="sm"
+            >
+                <Box animation="spin 2s linear infinite">
+                    <Icon as={FiLoader} boxSize={{base:"48px", md:"60px"}} color={accentColor} />
+                </Box>
+                <Heading size="md" color={headingColor} fontWeight="semibold">
+                    Yükleniyor...
+                </Heading>
+                <Text color={textMutedColor} fontSize="md">
+                    Lütfen bekleyin, verileriniz hazırlanıyor.
+                </Text>
+            </VStack>
+            <style>
+                {`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}
+            </style>
         </Flex>
     );
 }
 
-// Korumalı Rota Component'i
 function ProtectedRoute({ children }) {
     const { isAuthenticated, authLoading } = useAuth();
     if (authLoading) return <LoadingIndicator />;
@@ -43,134 +84,115 @@ function ProtectedRoute({ children }) {
     return children;
 }
 
-// Admin Rotası Component'i
 function AdminRoute({ children }) {
     const { isAuthenticated, user, authLoading } = useAuth();
     if (authLoading) return <LoadingIndicator />;
-    // Giriş yapılmamışsa veya kullanıcı admin değilse yönlendir
     if (!isAuthenticated) { return <Navigate to="/login" replace />; }
-    if (user?.role !== 'admin') { return <Navigate to="/browse" replace />; } // Admin değilse browse'a
+    if (user?.role !== 'admin') { return <Navigate to="/dashboard" replace />; } // Admin değilse dashboard'a
     return children;
 }
 
-// Herkese Açık Rota Component'i (Giriş yapmış kullanıcıları yönlendirir)
 function PublicRoute({ children }) {
     const { isAuthenticated, authLoading } = useAuth();
     if (authLoading) return <LoadingIndicator />;
-    if (isAuthenticated) { return <Navigate to="/dashboard" replace />; } // Giriş yapmışsa dashboard'a
+    if (isAuthenticated) { return <Navigate to="/dashboard" replace />; }
     return children;
 }
 
-// 404 Sayfası Component'i
 function NotFoundPage() {
+    const mainBg = useColorModeValue('gray.100', 'gray.900');
+    const cardBg = useColorModeValue('white', 'gray.800');
+    const borderColor = useColorModeValue('gray.200', 'gray.700');
+    const headingColor = useColorModeValue('brand.500', 'brand.300'); // Vurgu rengi
+    const textColor = useColorModeValue('gray.700', 'gray.300');
+    const buttonTextColor = useColorModeValue("white", "gray.900");
+
     return (
-        <Center minH="60vh" flexDirection="column">
-            <Heading size="2xl" mb={4}>404</Heading>
-            <Text fontSize="xl">Sayfa Bulunamadı</Text>
-            <Button as={RouterLink} to="/" colorScheme="brand" mt={6}>
-                Ana Sayfaya Dön
-            </Button>
-        </Center>
+        <Flex minH="100vh" align="center" justify="center" direction="column" bg={mainBg} p={4}>
+            <VStack
+              spacing={8}
+              p={{base: 8, md: 12}}
+              bg={cardBg}
+              borderRadius="2xl" // Daha yuvarlak
+              boxShadow="2xl"
+              borderWidth="1px"
+              borderColor={borderColor}
+              textAlign="center"
+              w="full"
+              maxW="lg" // Biraz daha geniş
+            >
+                <Icon as={FiAlertTriangle} boxSize={{base:"60px", md:"80px"}} color={headingColor} />
+                <Heading as="h1" size={{base:"2xl", md:"3xl"}} color={headingColor} fontWeight="bold">
+                    404
+                </Heading>
+                <Heading as="h2" size={{base:"lg", md:"xl"}} color={textColor} fontWeight="semibold">
+                    Sayfa Bulunamadı
+                </Heading>
+                <Text fontSize={{base:"md", md:"lg"}} color={textColor} maxW="md">
+                    Aradığınız sayfa mevcut değil, taşınmış veya hiç var olmamış olabilir.
+                </Text>
+                <Button
+                  as={RouterLink}
+                  to="/"
+                  bg={headingColor} // Vurgu rengi
+                  color={useColorModeValue("white", "gray.900")} // Kontrast metin rengi
+                  _hover={{bg: useColorModeValue('brand.600', 'brand.400')}}
+                  size="lg"
+                  py={6} // Dikey padding
+                  px={10} // Yatay padding
+                  leftIcon={<Icon as={FaHome} />}
+                  borderRadius="lg"
+                  boxShadow="lg"
+                  fontWeight="bold"
+                  letterSpacing="wide"
+                >
+                    Ana Sayfaya Dön
+                </Button>
+            </VStack>
+        </Flex>
     );
 }
 
-
-function AppRoutes() { // App fonksiyonunu AppRoutes olarak değiştirdim, AuthProvider dışarıda kalabilir
+function AppRoutes() {
+  const { isAuthenticated } = useAuth();
   return (
       <Routes>
-        {/* Layout ile sarmalanmış rotalar (Navbar, Footer vb. içerir) */}
         <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/browse" replace />} /> {/* Ana yol /browse'a yönlendirsin */}
-            <Route
-                path="browse"
-                element={ <ProtectedRoute> <TopicBrowserPage /> </ProtectedRoute> }
-            />
-            <Route
-                path="admin"
-                element={ <AdminRoute> <AdminPage /> </AdminRoute> }
-            />
-            <Route
-                path="solve" // Genel soru çözme
-                element={ <ProtectedRoute> <SolvePage /> </ProtectedRoute> }
-            />
-            {/* URL'den topicId vs. ile gelindiğinde de SolvePage'i kullanıyorduk, bu genel /solve ile birleşebilir.
-                SolvePage içindeki query param okuma mantığı bunu zaten yönetir.
-            <Route
-                path="/solve/:topicId" 
-                element={ <ProtectedRoute> <SolvePage /> </ProtectedRoute> }
-            /> */}
-            <Route
-                path="lectures/topic/:topicId"
-                element={ <ProtectedRoute> <LectureViewPage /> </ProtectedRoute> }
-            />
-            <Route
-                path="dashboard" // Dijital Mentor için ana yol
-                element={ <ProtectedRoute> <DashboardPage /> </ProtectedRoute> }
-            />
-             {/* my-stats yolunu /dashboard'a yönlendirebiliriz veya kaldırabiliriz, çünkü aynı component */}
-            <Route path="my-stats" element={<Navigate to="/dashboard" replace />} />
-            
-            <Route
-               path="wordle-game"
-               element={ <ProtectedRoute> <WordPracticePage /> </ProtectedRoute> }
-             />
-            
-            {/* YENİ: Profil Sayfası Rotası */}
-            <Route
-              path="profile"
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              }
-            />
-             {/* Henüz oluşturulmamış Ayarlar sayfası için örnek */}
-            <Route path="settings" element={<ProtectedRoute><Center><Heading size="md">Ayarlar Sayfası (Yapım Aşamasında)</Heading></Center></ProtectedRoute>} />
-            <Route path="notifications" element={<ProtectedRoute><Center><Heading size="md">Tüm Bildirimler Sayfası (Yapım Aşamasında)</Heading></Center></ProtectedRoute>} />
-            <Route path="announcements-view/:announcementId" element={<ProtectedRoute><Center><Heading size="md">Duyuru Detay Sayfası (Yapım Aşamasında)</Heading></Center></ProtectedRoute>} />
-
-
-            {/* Layout içindeki diğer tüm yollar için 404 */}
+            <Route index element={<Navigate to={isAuthenticated ? "/dashboard" : "/browse"} replace />} />
+            <Route path="browse" element={ <ProtectedRoute> <TopicBrowserPage /> </ProtectedRoute> } />
+            <Route path="admin" element={ <AdminRoute> <AdminPage /> </AdminRoute> } />
+            <Route path="solve" element={ <ProtectedRoute> <SolvePage /> </ProtectedRoute> } />
+            <Route path="lectures/topic/:topicId" element={ <ProtectedRoute> <LectureViewPage /> </ProtectedRoute> } />
+            <Route path="dashboard" element={ <ProtectedRoute> <DashboardPage /> </ProtectedRoute> } />
+            <Route path="my-stats" element={<Navigate to="/dashboard" replace />} /> {/* my-stats dashboard'a yönlendiriyor */}
+            <Route path="wordle-game" element={ <ProtectedRoute> <WordPracticePage /> </ProtectedRoute> } />
+            <Route path="profile" element={ <ProtectedRoute> <ProfilePage /> </ProtectedRoute> } />
+            <Route path="settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="digital-coach" element={ <ProtectedRoute> <DigitalCoachPage /> </ProtectedRoute> } />
+            <Route path="srs-session" element={ <ProtectedRoute> <SRSReviewSessionPage /> </ProtectedRoute> } />
+            {/* SRS Soru Tekrar Sayfası Layout içinde olmalı mı? Şimdilik dışında bırakıyorum, odaklanmış arayüz için. */}
+            {/* Eğer Layout içinde olacaksa, aşağıdaki satırı yukarıdaki Route grubunun içine taşıyın. */}
+            {/* <Route path="srs-question-review" element={ <ProtectedRoute> <SRSQuestionReviewPage /> </ProtectedRoute> } /> */}
             <Route path="*" element={<NotFoundPage />} />
         </Route>
-
-        {/* Layout dışında kalan, tam sayfa rotalar */}
-        <Route
-            path="/login"
-            element={ <PublicRoute> <LoginPage /> </PublicRoute> }
-        />
-         <Route
-            path="/register"
-            element={ <PublicRoute> <RegisterPage /> </PublicRoute> }
-        />
-        <Route
-            path="/verify-email/:token"
-            element={<VerifyEmailPage />} // Bu public olabilir veya kullanıcıyı login'e yönlendirebilir
-        />
-        <Route
-            path="/request-password-reset"
-            element={ <PublicRoute> <RequestPasswordResetPage /> </PublicRoute> }
-        />
-        <Route
-            path="/reset-password/:token"
-            element={<ResetPasswordPage />} // Token kontrolü sayfa içinde olduğu için PublicRoute'a gerek yok
-        />
         
-        {/* Genel 404 (Layout dışı yakalanamayanlar için, ama genellikle Layout içindeki * yeterli olur) */}
-        {/* <Route path="*" element={<NotFoundPage />} /> */} 
+        {/* Layout dışında kalan rotalar */}
+        <Route path="srs-question-review" element={ <ProtectedRoute> <SRSQuestionReviewPage /> </ProtectedRoute> } />
+        <Route path="/login" element={ <PublicRoute> <LoginPage /> </PublicRoute> } />
+        <Route path="/register" element={ <PublicRoute> <RegisterPage /> </PublicRoute> } />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} /> {/* Bu public olmalı */}
+        <Route path="/request-password-reset" element={ <PublicRoute> <RequestPasswordResetPage /> </PublicRoute> } />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} /> {/* Bu public olmalı */}
       </Routes>
   );
 }
 
-// AuthProvider'ı en dışa sarmak daha doğru bir prattiktir.
-// Eğer BrowserRouter main.jsx'teyse, App direkt AppRoutes'u export edebilir.
-// Şimdilik App.jsx'in tamamını güncelliyoruz.
 function App(){
     return (
         <AuthProvider>
             <AppRoutes />
         </AuthProvider>
-    )
+    );
 }
 
 export default App;
