@@ -247,22 +247,19 @@ function TopicManagement({ token }) {
     }, [formState.branchId, formState.examClassificationId, topics, editingTopic, isDataReady, allTopicsFlat]);
 
 
-    const filteredBranchesForForm = useMemo(() => {
-        // Eğer Sınav Tipi seçildiyse ve branşların sınav tipiyle bir ilişkisi varsa (örn. topic'ler üzerinden)
-        // bu branşları filtreleyebiliriz. Şimdilik tüm branşları gösteriyoruz.
-        // Daha gelişmiş bir senaryo: Sadece seçili sınav tipine ait konuları olan branşları göster.
-        if (!formState.examClassificationId || !isDataReady) return branches; // EC seçilmemişse tümü veya hepsi
-        
-        const ecIdNum = parseInt(formState.examClassificationId);
-        const relevantBranchIds = new Set();
-        allTopicsFlat.forEach(topic => {
-            if (topic.examClassificationId === ecIdNum && topic.branchId) {
-                relevantBranchIds.add(topic.branchId);
-            }
-        });
-        return branches.filter(branch => relevantBranchIds.has(branch.id));
-
-    }, [branches, formState.examClassificationId, allTopicsFlat, isDataReady]);
+/* ======= 🔄 UPDATE : filteredBranchesForForm ======= */
+const filteredBranchesForForm = useMemo(() => {
+    // Sınav tipi seçilmediyse branş listesi gösterme
+    if (!formState.examClassificationId || !isDataReady) return [];
+  
+    // Branş kaydındaki examClassificationId alanı (camel-case veya lower-case) seçili EC ile eşleşmeli
+    return branches.filter(
+      b =>
+        Number(b.examClassificationId ?? b.examclassificationid) ===
+        Number(formState.examClassificationId)
+    );
+  }, [branches, formState.examClassificationId, isDataReady]);
+  /* ======= 🔄 END UPDATE ======= */
 
     const handleSaveEc = async () => { /* ... (Aynı kalır) ... */
         if (!currentEc.name.trim()) { setEcError("Sınav tipi adı boş olamaz."); return; }

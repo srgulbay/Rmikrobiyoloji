@@ -1,92 +1,145 @@
 'use strict';
-const { Model } = require('sequelize');
-
+const {
+  Model
+} = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Question extends Model {
     static associate(models) {
-      Question.belongsTo(models.Topic, { foreignKey: 'topicId', as: 'topic' });
-      Question.hasMany(models.QuestionAttempt, { foreignKey: 'questionId', as: 'attempts' });
-      // YENİ İLİŞKİ: Question -> ExamClassification
-      Question.belongsTo(models.ExamClassification, {
+      Question.belongsTo(models.Topic, {
+        foreignKey: 'topicId',
+        as: 'topic',
+        onDelete: 'CASCADE', // Konu silindiğinde bu soruyu da sil
+        allowNull: false
+      });
+      Question.belongsTo(models.User, { // Soruyu oluşturan (opsiyonel)
+        foreignKey: 'authorId',
+        as: 'author',
+        allowNull: true,
+        onDelete: 'SET NULL'
+      });
+      Question.belongsTo(models.ExamClassification, { // Sorunun ait olduğu sınav tipi (opsiyonel, genellikle Topic üzerinden gelir)
         foreignKey: 'examClassificationId',
-        as: 'examClassification' // İlişki için takma ad
+        as: 'examClassification',
+        onDelete: 'SET NULL', // Veya CASCADE, eğer sınav tipi silinince sorular da silinsin isteniyorsa
+        allowNull: true 
+      });
+      Question.belongsTo(models.Branch, { // Sorunun ait olduğu branş (opsiyonel, genellikle Topic üzerinden gelir)
+        foreignKey: 'branchId',
+        as: 'branch',
+        onDelete: 'SET NULL', // Veya CASCADE
+        allowNull: true
+      });
+      // Bir sorunun birden fazla deneme kaydı olabilir
+      Question.hasMany(models.QuestionAttempt, {
+        foreignKey: 'questionId',
+        as: 'attempts',
+        onDelete: 'CASCADE' // Soru silindiğinde tüm denemelerini de sil
+      });
+      // Bir soru, birçok kullanıcının Leitner kutusunda yer alabilir
+      Question.hasMany(models.UserFlashBox, {
+        foreignKey: 'questionId',
+        as: 'userFlashBoxEntries',
+        onDelete: 'CASCADE' // Soru silindiğinde SRS girişlerini de sil
       });
     }
   }
   Question.init({
-    text: {
+    id: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
+    text: { // Soru metni
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: false
     },
-    optionA: {
+    optionA: { type: DataTypes.TEXT, allowNull: true },
+    optionB: { type: DataTypes.TEXT, allowNull: true },
+    optionC: { type: DataTypes.TEXT, allowNull: true },
+    optionD: { type: DataTypes.TEXT, allowNull: true },
+    optionE: { type: DataTypes.TEXT, allowNull: true }, // Eğer 5. seçenek yoksa bu alan allowNull: true olmalı
+    correctAnswer: { // 'A', 'B', 'C', 'D', 'E'
       type: DataTypes.STRING,
-      allowNull: false,
-    },
-    optionB: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    optionC: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    optionD: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    optionE: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    correctAnswer: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    difficulty: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    imageUrl: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    classification: { // Bu alanın adı ExamClassification ile karışabilir. Belki "questionType" gibi bir isim daha iyi olabilirdi. Şimdilik bırakıyorum.
-      type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false
     },
     explanation: {
       type: DataTypes.TEXT,
-      allowNull: true,
+      allowNull: true
+    },
+    imageUrl: { // Soru için görsel (opsiyonel)
+      type: DataTypes.STRING,
+      allowNull: true
     },
     topicId: {
       type: DataTypes.INTEGER,
-      allowNull: false, // Bir konuyla ilişkili olmalı
+      allowNull: false,
       references: {
-        model: 'Topics',
-        key: 'id',
+        model: 'Topics', 
+        key: 'id'
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL', // Konu silinirse bu soruya ait topicId null olur.
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'
     },
-    // YENİ ALAN: examClassificationId
-    examClassificationId: {
+    examClassificationId: { // Doğrudan soruya sınav tipi bağlamak için (opsiyonel)
       type: DataTypes.INTEGER,
-      allowNull: false, // Her soru bir sınav sınıflandırmasına ait olmalı
+      allowNull: true, // Genellikle topic üzerinden gelir, bu yüzden null olabilir
       references: {
-        model: 'ExamClassifications', // ExamClassifications tablosuna referans
-        key: 'id',
+        model: 'ExamClassifications',
+        key: 'id'
       },
-      onUpdate: 'CASCADE',
-      // Sınıflandırma silinirse, o sınıflandırmaya ait sorular da silinsin mi?
-      // Genellikle bu tür bir durumda soruların da silinmesi mantıklı olabilir (CASCADE).
-      // Veya SET NULL (eğer allowNull: true yapılırsa) veya RESTRICT (silmeyi engeller).
-      // Şimdilik CASCADE varsayalım, projenizin mantığına göre değiştirebilirsiniz.
-      onDelete: 'CASCADE',
+      onDelete: 'SET NULL', // Veya CASCADE
+      onUpdate: 'CASCADE'
+    },
+    branchId: { // Doğrudan soruya branş bağlamak için (opsiyonel)
+      type: DataTypes.INTEGER,
+      allowNull: true, // Genellikle topic üzerinden gelir
+      references: {
+        model: 'Branches',
+        key: 'id'
+      },
+      onDelete: 'SET NULL', // Veya CASCADE
+      onUpdate: 'CASCADE'
+    },
+    authorId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Users',
+        key: 'id'
+      },
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE'
+    },
+    difficulty: { // 'easy', 'medium', 'hard'
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    classification: { // 'case_study', 'fact_based', 'image_based', 'tus_like' etc.
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    tags: { // JSONB veya TEXT olarak etiketler
+        type: DataTypes.JSONB, // PostgreSQL için JSONB daha iyidir
+        allowNull: true
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false
+    },
+    createdAt: {
+      allowNull: false,
+      type: DataTypes.DATE
+    },
+    updatedAt: {
+      allowNull: false,
+      type: DataTypes.DATE
     }
   }, {
     sequelize,
     modelName: 'Question',
-    // tableName: 'Questions' // İsterseniz tablo adını açıkça belirtebilirsiniz
+    tableName: 'Questions'
   });
   return Question;
 };

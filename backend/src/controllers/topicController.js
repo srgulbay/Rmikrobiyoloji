@@ -1,226 +1,222 @@
-'use strict';
-const { Topic, Branch, ExamClassification, Question, Lecture } = require('../../models');
-const { Op } = require("sequelize");
+const { Topic, Lecture, Question, FlashCard, UserFlashBox, ExamClassification, Branch, User } = require('../../models');
+const { Op } = require('sequelize');
 
-const buildTopicTree = (topics) => {
-    const topicMap = {};
-    const tree = [];
-    topics.forEach(topicInstance => {
-        const topic = topicInstance.get({ plain: true });
-        topicMap[topic.id] = { ...topic, children: [] };
-    });
-    Object.values(topicMap).forEach(node => {
-        if (node.parentId === null || !topicMap[node.parentId]) {
-            tree.push(node);
-        } else {
-             if(topicMap[node.parentId]) {
-                 topicMap[node.parentId].children.push(node);
-             } else {
-                  tree.push(node);
-             }
+// Yardımcı fonksiyon: Bir konunun ve tüm alt konularının ID'lerini toplar (önceki srsController'dan alınabilir)
+const getAllDescendantIdsRecursive = async (topicId, allTopicsArray) => {
+    const descendants = new Set();
+    const queue = [parseInt(topicId, 10)];
+    descendants.add(parseInt(topicId, 10)); // Kendisini de ekle (opsiyonel, silme için gerekli olabilir)
+
+    // Eğer tüm konuları her seferinde çekmek yerine önceden yüklenmiş bir liste varsa onu kullan
+    // Bu fonksiyonun çağrıldığı yerde tüm konuları çekip map olarak vermek daha performanslı olabilir.
+    // Şimdilik basit bir findAll ile gidiyoruz.
+    const allTopics = allTopicsArray || await Topic.findAll({ attributes: ['id', 'parentId'] });
+
+    const topicMap = new Map();
+    allTopics.forEach(t => {
+        if (!topicMap.has(t.parentId)) {
+            topicMap.set(t.parentId, []);
         }
+        topicMap.get(t.parentId).push(t.id);
     });
-     const sortChildren = (node) => {
-         if (node.children && node.children.length > 0) {
-             node.children.sort((a, b) => a.name.localeCompare(b.name));
-             node.children.forEach(sortChildren);
-         }
-     };
-     tree.sort((a, b) => a.name.localeCompare(b.name));
-     tree.forEach(sortChildren);
-    return tree;
-};
 
-const getAllTopics = async (req, res) => {
-  const { examClassificationId, branchId } = req.query;
-  try {
-    const whereClause = {};
-    if (examClassificationId) {
-        const parsedEcId = parseInt(examClassificationId, 10);
-        if (!isNaN(parsedEcId)) {
-            whereClause.examClassificationId = parsedEcId;
-        } else {
-            return res.status(400).json({ message: 'Geçersiz sınav sınıflandırma ID formatı.' });
+    let head = 0;
+    while(head < queue.length){
+        const currentId = queue[head++];
+        const children = topicMap.get(currentId) || [];
+        for(const childId of children){
+            if(!descendants.has(childId)){ // Döngüye girmemek için
+                descendants.add(childId);
+                queue.push(childId);
+            }
         }
     }
-    if (branchId) {
-        const parsedBId = parseInt(branchId, 10);
-        if (!isNaN(parsedBId)) {
-            whereClause.branchId = parsedBId;
-        } else {
-            return res.status(400).json({ message: 'Geçersiz branş ID formatı.' });
-        }
-    }
-
-    const allTopicsFlat = await Topic.findAll({
-       where: Object.keys(whereClause).length > 0 ? whereClause : undefined, // Filtreleri uygula (varsa)
-       include: [
-           { model: Branch, as: 'branch', attributes: ['id', 'name'], required: !!branchId }, // branchId filtresi varsa join'i zorunlu yap
-           { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'], required: !!examClassificationId } // examClassificationId filtresi varsa join'i zorunlu yap
-       ],
-       order: [['name', 'ASC']]
-    });
-    const topicTree = buildTopicTree(allTopicsFlat);
-    res.status(200).json(topicTree);
-  } catch (error) {
-    console.error('Konuları listelerken hata:', error);
-    res.status(500).json({ message: 'Sunucu hatası. Konular listelenemedi.' });
-  }
+    return Array.from(descendants);
 };
 
-const getTopicById = async (req, res) => {
-  try {
-    const topic = await Topic.findByPk(req.params.id, {
-        include: [
-            { model: Branch, as: 'branch', attributes: ['id', 'name'] },
-            { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] },
-            { model: Topic, as: 'parent', attributes: ['id', 'name'] },
-            { model: Topic, as: 'children', attributes: ['id', 'name'] },
-            { model: Question, as: 'questions', attributes: ['id', 'text'] },
-            { model: Lecture, as: 'lectures', attributes: ['id', 'title'] }
-        ]
-    });
-    if (!topic) {
-      return res.status(404).json({ message: 'Konu bulunamadı.' });
-    }
-    res.status(200).json(topic);
-  } catch (error) {
-    console.error('Konu getirilirken hata:', error);
-    res.status(500).json({ message: 'Sunucu hatası. Konu getirilemedi.' });
-  }
-};
 
+// Yeni konu oluştur
 const createTopic = async (req, res) => {
-  const { name, description, parentId, branchId, examClassificationId } = req.body;
-  if (!name) { return res.status(400).json({ message: 'Konu adı zorunludur.' }); }
+  const { name, description, parentId, examClassificationId, branchId } = req.body;
+  const authorId = req.user?.id; // Varsayılan olarak admin veya giriş yapmış kullanıcı
+
+  if (!name || !examClassificationId || !branchId) {
+    return res.status(400).json({ message: 'Konu adı, sınav tipi ve branş zorunludur.' });
+  }
 
   try {
+    // Gerekli ID'lerin varlığını kontrol et
+    const ec = await ExamClassification.findByPk(examClassificationId);
+    if (!ec) return res.status(400).json({ message: 'Geçersiz Sınav Tipi ID.' });
+    const branch = await Branch.findByPk(branchId);
+    if (!branch) return res.status(400).json({ message: 'Geçersiz Branş ID.' });
     if (parentId) {
-      const parsedParentId = parseInt(parentId, 10);
-      if(isNaN(parsedParentId)) return res.status(400).json({message: 'Geçersiz üst konu ID formatı.'});
-      const parentExists = await Topic.findByPk(parsedParentId);
-      if (!parentExists) { return res.status(400).json({ message: `Geçersiz üst konu ID'si: ${parsedParentId}` }); }
-    }
-    if (branchId) {
-        const parsedBranchId = parseInt(branchId, 10);
-        if(isNaN(parsedBranchId)) return res.status(400).json({message: 'Geçersiz branş ID formatı.'});
-        const branchExists = await Branch.findByPk(parsedBranchId);
-        if (!branchExists) { return res.status(400).json({ message: `Geçersiz branş ID'si: ${parsedBranchId}` }); }
-    }
-    if (examClassificationId) {
-        const parsedEcId = parseInt(examClassificationId, 10);
-        if(isNaN(parsedEcId)) return res.status(400).json({message: 'Geçersiz sınav sınıflandırma ID formatı.'});
-        const classificationExists = await ExamClassification.findByPk(parsedEcId);
-        if (!classificationExists) { return res.status(400).json({ message: `Geçersiz sınav sınıflandırma ID'si: ${parsedEcId}` }); }
+      const parent = await Topic.findByPk(parentId);
+      if (!parent) return res.status(400).json({ message: 'Geçersiz Üst Konu ID.' });
     }
 
     const newTopic = await Topic.create({
-        name,
-        description: description || null,
-        parentId: parentId ? parseInt(parentId, 10) : null,
-        branchId: branchId ? parseInt(branchId, 10) : null,
-        examClassificationId: examClassificationId ? parseInt(examClassificationId, 10) : null
+      name,
+      description,
+      parentId: parentId || null,
+      examClassificationId: parseInt(examClassificationId),
+      branchId: parseInt(branchId),
+      authorId // Eğer modelinizde authorId varsa
     });
     res.status(201).json(newTopic);
   } catch (error) {
-    console.error('Konu oluştururken hata:', error);
-    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
-        const messages = error.errors.map(e => e.message).join('. ');
-        return res.status(400).json({ message: `Doğrulama hatası: ${messages}`});
+    console.error('[TopicController] Konu oluşturulurken hata:', error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ message: error.errors.map(e => e.message).join(', ') });
     }
-    res.status(500).json({ message: 'Sunucu hatası. Konu oluşturulamadı.' });
+    res.status(500).json({ message: 'Sunucu hatası: Konu oluşturulamadı.' });
   }
 };
 
-const updateTopic = async (req, res) => {
-  const { name, description, parentId, branchId, examClassificationId } = req.body;
-  const { id } = req.params;
-
-  if (name === undefined && description === undefined && parentId === undefined && branchId === undefined && examClassificationId === undefined) {
-    return res.status(400).json({ message: 'Güncellenecek en az bir alan gereklidir.' });
-  }
+// Tüm konuları hiyerarşik olarak getir (veya filtreli)
+const getAllTopics = async (req, res) => {
+  const { examClassificationId, branchId, flat } = req.query;
+  let whereClause = {};
+  if (examClassificationId) whereClause.examClassificationId = examClassificationId;
+  if (branchId) whereClause.branchId = branchId;
 
   try {
-    const topic = await Topic.findByPk(id);
-    if (!topic) { return res.status(404).json({ message: 'Güncellenecek konu bulunamadı.' }); }
-
-    if (parentId !== undefined) {
-      const parsedParentId = parentId === null ? null : parseInt(parentId, 10);
-      if (parentId !== null && isNaN(parsedParentId)) return res.status(400).json({message: 'Geçersiz üst konu ID formatı.'});
-      if (parsedParentId !== null) {
-         if (parseInt(id, 10) === parsedParentId) { return res.status(400).json({ message: 'Bir konu kendisinin üst konusu olamaz.' }); }
-         const parentExists = await Topic.findByPk(parsedParentId);
-         if (!parentExists) { return res.status(400).json({ message: `Geçersiz üst konu ID'si: ${parsedParentId}` }); }
-      }
-      topic.parentId = parsedParentId;
+    if (flat === 'true') { // Düz liste istendiğinde
+        const topics = await Topic.findAll({
+            where: whereClause, // Filtreleri uygula
+            order: [['name', 'ASC']],
+            include: [ // İsimleri almak için
+                { model: ExamClassification, as: 'examClassification', attributes: ['name'] },
+                { model: Branch, as: 'branch', attributes: ['name'] }
+            ]
+        });
+        res.status(200).json(topics);
+    } else { // Hiyerarşik liste (varsayılan)
+        const topics = await Topic.findAll({
+            where: { ...whereClause, parentId: null }, // Sadece ana konuları çek
+            include: [
+                { model: ExamClassification, as: 'examClassification', attributes: ['name'] },
+                { model: Branch, as: 'branch', attributes: ['name'] },
+                {
+                    model: Topic,
+                    as: 'children',
+                    include: [ // İç içe include'lar ile tüm hiyerarşiyi çekebiliriz
+                        { model: ExamClassification, as: 'examClassification', attributes: ['name'] },
+                        { model: Branch, as: 'branch', attributes: ['name'] },
+                        { model: Topic, as: 'children', /* ... daha derin seviyeler ... */ }
+                    ]
+                }
+            ],
+            order: [['name', 'ASC']],
+        });
+        // Not: Çok derin hiyerarşiler için bu include yapısı yerine ayrı bir recursive fonksiyonla
+        // tüm ağacı oluşturmak daha performanslı olabilir. Şimdilik 2 seviye örneklenmiştir.
+        // Ya da tümünü çekip client'ta hiyerarşi oluşturmak (TopicManagement'taki gibi)
+        // Bu endpoint TopicManagement.jsx'in fetchAllData'sında kullanılıyor, o tümünü çekip client'ta işliyor.
+        // Bu yüzden burada basitçe tümünü dönelim, client tarafı halletsin.
+        const allTopicsForHierarchy = await Topic.findAll({
+             order: [['parentId', 'ASC NULLS FIRST'],['name', 'ASC']], // Düzgün sıralama için
+             include: [
+                { model: ExamClassification, as: 'examClassification', attributes: ['id','name'] },
+                { model: Branch, as: 'branch', attributes: ['id','name'] }
+             ]
+        });
+        // Client-side'da hiyerarşi oluşturmak için düz liste gönder
+        // Veya backend'de hiyerarşi oluşturup gönder. Şimdilik düz liste.
+        // TopicManagement.jsx zaten backend'den gelen düz listeyi client'ta hiyerarşiye çeviriyor.
+         const allTopicsRaw = await Topic.findAll({
+            order: [['name', 'ASC']],
+            // include: [ // TopicManagement bu bilgileri zaten EC ve Branch listelerinden alıyor
+            //     { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] },
+            //     { model: Branch, as: 'branch', attributes: ['id', 'name'] }
+            // ]
+        });
+        res.status(200).json(allTopicsRaw); // TopicManagement'in beklediği format
     }
-    if (branchId !== undefined) {
-        const parsedBranchId = branchId === null ? null : parseInt(branchId, 10);
-        if (branchId !== null && isNaN(parsedBranchId)) return res.status(400).json({message: 'Geçersiz branş ID formatı.'});
-        if (parsedBranchId !== null) {
-            const branchExists = await Branch.findByPk(parsedBranchId);
-            if (!branchExists) { return res.status(400).json({ message: `Geçersiz branş ID'si: ${parsedBranchId}` }); }
-        }
-        topic.branchId = parsedBranchId;
-    }
-    if (examClassificationId !== undefined) {
-        const parsedEcId = examClassificationId === null ? null : parseInt(examClassificationId, 10);
-        if (examClassificationId !== null && isNaN(parsedEcId)) return res.status(400).json({message: 'Geçersiz sınav sınıflandırma ID formatı.'});
-        if (parsedEcId !== null) {
-            const classificationExists = await ExamClassification.findByPk(parsedEcId);
-            if (!classificationExists) { return res.status(400).json({ message: `Geçersiz sınav sınıflandırma ID'si: ${parsedEcId}` }); }
-        }
-        topic.examClassificationId = parsedEcId;
-    }
-
-    if (name !== undefined) topic.name = name;
-    if (description !== undefined) topic.description = description === '' ? null : description;
-
-
-    await topic.save();
-    const updatedTopic = await Topic.findByPk(id, {
-        include: [
-            { model: Branch, as: 'branch', attributes: ['id', 'name'] },
-            { model: ExamClassification, as: 'examClassification', attributes: ['id', 'name'] }
-        ]
-    });
-    res.status(200).json(updatedTopic);
   } catch (error) {
-    console.error('Konu güncellenirken hata:', error);
-    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
-        const messages = error.errors.map(e => e.message).join('. ');
-        return res.status(400).json({ message: `Doğrulama hatası: ${messages}`});
-    }
-    res.status(500).json({ message: 'Sunucu hatası. Konu güncellenemedi.' });
+    console.error('[TopicController] Konular getirilirken hata:', error);
+    res.status(500).json({ message: 'Sunucu hatası: Konular getirilemedi.' });
   }
 };
 
+// ID ile konu getir
+const getTopicById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const topic = await Topic.findByPk(id, {
+            include: [
+                { model: ExamClassification, as: 'examClassification' },
+                { model: Branch, as: 'branch' },
+                { model: Topic, as: 'parentTopic' },
+                { model: Topic, as: 'children' } 
+            ]
+        });
+        if(!topic) return res.status(404).json({ message: "Konu bulunamadı."});
+        res.status(200).json(topic);
+    } catch (error) {
+        console.error(`[TopicController] Konu ID ${id} getirilirken hata:`, error);
+        res.status(500).json({ message: 'Sunucu hatası: Konu getirilemedi.' });
+    }
+};
+
+// Konu güncelle
+const updateTopic = async (req, res) => {
+    const { id } = req.params;
+    const { name, description, parentId, examClassificationId, branchId } = req.body;
+    try {
+        const topic = await Topic.findByPk(id);
+        if(!topic) return res.status(404).json({ message: "Güncellenecek konu bulunamadı."});
+
+        if (parentId === '') topic.parentId = null;
+        else if (parentId) topic.parentId = parseInt(parentId);
+
+        if (examClassificationId) topic.examClassificationId = parseInt(examClassificationId);
+        if (branchId) topic.branchId = parseInt(branchId);
+        if (name) topic.name = name;
+        if (description !== undefined) topic.description = description;
+
+        await topic.save();
+        res.status(200).json(topic);
+    } catch (error) {
+        console.error(`[TopicController] Konu ID ${id} güncellenirken hata:`, error);
+        if (error.name === 'SequelizeValidationError') {
+            return res.status(400).json({ message: error.errors.map(e => e.message).join(', ') });
+        }
+        res.status(500).json({ message: 'Sunucu hatası: Konu güncellenemedi.' });
+    }
+};
+
+// Konu sil
 const deleteTopic = async (req, res) => {
   const { id } = req.params;
+  console.log(`[TopicController] deleteTopic isteği, ID: ${id}`);
   try {
     const topic = await Topic.findByPk(id);
-    if (!topic) { return res.status(404).json({ message: 'Silinecek konu bulunamadı.' }); }
-
-    const relatedQuestions = await Question.count({ where: { topicId: id } });
-    const relatedLectures = await Lecture.count({ where: { topicId: id } });
-    const childTopics = await Topic.count({where: { parentId: id }});
-
-    if (relatedQuestions > 0 || relatedLectures > 0 || childTopics > 0) {
-      return res.status(400).json({ message: 'Bu konu başka kayıtlarla (alt konular, sorular, dersler) ilişkili olduğu için silinemez.' });
+    if (!topic) {
+      return res.status(404).json({ message: 'Silinecek konu bulunamadı.' });
     }
 
-    await topic.destroy();
-    res.status(204).send();
+    // Eğer model ve migration'larda ON DELETE CASCADE doğru ayarlandıysa,
+    // topic.destroy() çağrısı ilişkili tüm alt öğeleri (alt konular, sorular, dersler vb.)
+    // otomatik olarak silmelidir. Uygulama seviyesinde ek bir kontrol yapmaya gerek yoktur.
+    await topic.destroy(); 
+    console.log(`[TopicController] Konu (ID: ${id}) ve ilişkili öğeler (CASCADE ile) silindi.`);
+    res.status(204).send(); // Başarılı silme, içerik yok
   } catch (error) {
-    console.error('Konu silinirken hata:', error);
-    res.status(500).json({ message: 'Sunucu hatası. Konu silinemedi.' });
+    console.error(`[TopicController] Konu (ID: ${id}) silinirken hata:`, error);
+    // ForeignKeyConstraintError, genellikle ON DELETE CASCADE'in düzgün çalışmadığı
+    // veya bazı ilişkilerde ayarlanmadığı anlamına gelir.
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+        return res.status(400).json({ message: 'Bu konu başka kayıtlarla (alt konular, sorular, dersler vb.) ilişkili olduğu için silinemez. Lütfen veritabanı CASCADE ayarlarınızı kontrol edin veya önce ilişkili öğeleri silin/düzenleyin.' });
+    }
+    res.status(500).json({ message: 'Sunucu hatası: Konu silinemedi.' });
   }
 };
 
 module.exports = {
+  createTopic,
   getAllTopics,
   getTopicById,
-  createTopic,
   updateTopic,
   deleteTopic
 };

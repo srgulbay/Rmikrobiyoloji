@@ -1,7 +1,7 @@
 'use strict';
 const {
   Model,
-  Op // Op'u Sequelize'dan import ediyoruz
+  Op
 } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
@@ -17,19 +17,19 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'flashCardId',
         as: 'flashCard',
         allowNull: true,
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE' // FlashCard silindiğinde bu UserFlashBox kaydını da sil
       });
       UserFlashBox.belongsTo(models.Question, {
         foreignKey: 'questionId',
         as: 'question',
         allowNull: true,
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE' // Soru silindiğinde bu UserFlashBox kaydını da sil
       });
       UserFlashBox.belongsTo(models.Topic, {
         foreignKey: 'topicId',
-        as: 'topic',
+        as: 'topic', // SRS'te konu özeti/tekrarı için
         allowNull: true,
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE' // Konu silindiğinde bu UserFlashBox kaydını da sil
       });
     }
   }
@@ -43,16 +43,14 @@ module.exports = (sequelize, DataTypes) => {
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: { model: 'Users', key: 'id' }
+      references: { model: 'Users', key: 'id' },
+      onDelete: 'CASCADE' // Bu da eklenebilir, associate ile birlikte
     },
     boxNumber: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 1,
-      validate: {
-        min: 1,
-        max: 5 
-      }
+      validate: { min: 1, max: 5 }
     },
     lastReviewedAt: {
       type: DataTypes.DATE,
@@ -70,17 +68,23 @@ module.exports = (sequelize, DataTypes) => {
     flashCardId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: { model: 'FlashCards', key: 'id' }
+      references: { model: 'FlashCards', key: 'id' },
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'  // Önerilir
     },
     questionId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: { model: 'Questions', key: 'id' }
+      references: { model: 'Questions', key: 'id' },
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'
     },
     topicId: { 
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: { model: 'Topics', key: 'id' }
+      references: { model: 'Topics', key: 'id' },
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'
     },
     createdAt: {
       allowNull: false,
@@ -96,7 +100,7 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'UserFlashBoxes',
     validate: {
       onlyOneItemType() {
-        const itemTypesCount = [this.flashCardId, this.questionId, this.topicId].filter(id => id !== null).length;
+        const itemTypesCount = [this.flashCardId, this.questionId, this.topicId].filter(id => id !== null && id !== undefined).length;
         if (itemTypesCount === 0) {
           throw new Error('UserFlashBox kaydı en az bir öğrenme öğesine (flashCardId, questionId, veya topicId) bağlı olmalıdır.');
         }
@@ -107,9 +111,9 @@ module.exports = (sequelize, DataTypes) => {
     },
     indexes: [ 
         { fields: ['userId', 'boxNumber', 'nextReviewAt'] },
-        { fields: ['userId', 'flashCardId'], unique: true, name: 'user_flashcard_unique_idx', where: { flashCardId: {[Op.ne]: null} } }, 
-        { fields: ['userId', 'questionId'], unique: true, name: 'user_question_unique_idx', where: { questionId: {[Op.ne]: null} } },
-        { fields: ['userId', 'topicId'], unique: true, name: 'user_topic_unique_idx', where: { topicId: {[Op.ne]: null} } }
+        { fields: ['userId', 'flashCardId'], unique: true, name: 'user_flashcard_srs_unique_idx', where: { flashCardId: {[Op.ne]: null} } }, 
+        { fields: ['userId', 'questionId'], unique: true, name: 'user_question_srs_unique_idx', where: { questionId: {[Op.ne]: null} } },
+        { fields: ['userId', 'topicId'], unique: true, name: 'user_topic_srs_unique_idx', where: { topicId: {[Op.ne]: null} } }
     ]
   });
   return UserFlashBox;

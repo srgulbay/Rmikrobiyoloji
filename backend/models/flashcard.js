@@ -5,30 +5,27 @@ const {
 module.exports = (sequelize, DataTypes) => {
   class FlashCard extends Model {
     static associate(models) {
-      // Bir flash kart bir konuya ait olabilir (opsiyonel)
       FlashCard.belongsTo(models.Topic, {
         foreignKey: 'topicId',
         as: 'topic',
-        allowNull: true,
-        onDelete: 'SET NULL' 
+        onDelete: 'CASCADE', // Konu silindiğinde bu flash kartı da sil
+        allowNull: true 
       });
-      // Bir flash kart bir sınav sınıflandırmasına ait olabilir (opsiyonel)
       FlashCard.belongsTo(models.ExamClassification, {
         foreignKey: 'examClassificationId',
         as: 'examClassification',
-        allowNull: true,
-        onDelete: 'SET NULL'
+        onDelete: 'CASCADE', // Sınav tipi silindiğinde bu flash kartı da sil
+        allowNull: true
       });
-      // Bir flash kart, birçok kullanıcının Leitner kutusunda yer alabilir (UserFlashBox üzerinden)
       FlashCard.hasMany(models.UserFlashBox, {
         foreignKey: 'flashCardId',
-        as: 'userFlashBoxEntries'
+        as: 'userFlashBoxEntries',
+        onDelete: 'CASCADE' // Flash kart silindiğinde SRS girişlerini de sil
       });
-      // Oluşturan kullanıcı (admin veya ileride kullanıcılar da ekleyebilirse)
       FlashCard.belongsTo(models.User, {
         foreignKey: 'creatorId',
         as: 'creator',
-        allowNull: true, // Sistem tarafından veya anonim de eklenebilir
+        allowNull: true,
         onDelete: 'SET NULL'
       });
     }
@@ -40,52 +37,57 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       type: DataTypes.INTEGER
     },
-    frontText: { // Kartın ön yüzü
+    frontText: {
       type: DataTypes.TEXT,
       allowNull: false
     },
-    backText: { // Kartın arka yüzü
+    backText: {
       type: DataTypes.TEXT,
       allowNull: false
     },
-    topicId: { // Bağlı olduğu konu (opsiyonel)
+    topicId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'Topics', // Topics tablosuna referans
+        model: 'Topics', 
         key: 'id'
-      }
+      },
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'  // Önerilir
     },
-    examClassificationId: { // Bağlı olduğu sınav tipi (opsiyonel)
+    examClassificationId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
         model: 'ExamClassifications', 
         key: 'id'
-      }
+      },
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'
     },
-    difficulty: { // Zorluk seviyesi (opsiyonel: 'easy', 'medium', 'hard')
+    difficulty: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    source: { // Kaynağı (örn: 'admin_created', 'system_generated', 'user_suggested')
+    source: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    creatorId: { // Oluşturan kullanıcı ID'si (opsiyonel)
+    creatorId: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
           model: 'Users',
           key: 'id'
-        }
+        },
+        onDelete: 'SET NULL',
+        onUpdate: 'CASCADE'
     },
-    isActive: { // Flash kart aktif mi, değil mi?
+    isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
         allowNull: false
     },
-    // İleride eklenebilir: tags (etiketler), imageURL vb.
     createdAt: {
       allowNull: false,
       type: DataTypes.DATE

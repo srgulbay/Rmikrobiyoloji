@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 // Admin Komponentleri
 import AdminStatsOverview from '../components/AdminStatsOverview';
 import UserManagement from '../components/UserManagement';
-import TopicManagement from '../components/TopicManagement'; // İçerik Hiyerarşisi
+import TopicManagement from '../components/admin/TopicManagement'; // İçerik Hiyerarşisi
 import LectureManagement from '../components/LectureManagement';
 import QuestionManagement from '../components/QuestionManagement';
 import ExamSimulationManagement from '../components/ExamSimulationManagement';

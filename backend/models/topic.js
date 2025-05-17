@@ -5,34 +5,58 @@ const {
 module.exports = (sequelize, DataTypes) => {
   class Topic extends Model {
     static associate(models) {
-      Topic.hasMany(models.Question, {
-        foreignKey: 'topicId',
-        as: 'questions'
+      Topic.belongsTo(models.Branch, {
+        foreignKey: 'branchId',
+        as: 'branch',
+        onDelete: 'CASCADE', // Branş silindiğinde bu konuyu da sil
+        allowNull: false // Bir konu bir branşa ait olmalı
       });
-      Topic.hasMany(models.Lecture, {
-        foreignKey: 'topicId',
-        as: 'lectures'
+      Topic.belongsTo(models.ExamClassification, {
+        foreignKey: 'examClassificationId',
+        as: 'examClassification',
+        onDelete: 'CASCADE', // Sınav Tipi silindiğinde bu konuyu da sil
+        allowNull: false // Bir konu bir sınav tipine ait olmalı
       });
       Topic.belongsTo(models.Topic, {
         foreignKey: 'parentId',
-        as: 'parent'
+        as: 'parentTopic',
+        allowNull: true, // Ana konuların parentId'si null olabilir
+        onDelete: 'CASCADE' // Üst konu silinirse alt konuları da sil (hiyerarşik silme)
       });
       Topic.hasMany(models.Topic, {
         foreignKey: 'parentId',
-        as: 'children'
+        as: 'children',
+        onDelete: 'CASCADE' // Bu aslında gereksiz, üstteki yeterli olmalı
       });
-      Topic.belongsTo(models.Branch, { // Bu ilişki zaten vardı
-        foreignKey: 'branchId',
-        as: 'branch'
+      Topic.hasMany(models.Lecture, {
+        foreignKey: 'topicId',
+        as: 'lectures',
+        onDelete: 'CASCADE' // Konu silindiğinde ders anlatımlarını da sil
       });
-      // YENİ İLİŞKİ: Topic -> ExamClassification
-      Topic.belongsTo(models.ExamClassification, {
-        foreignKey: 'examClassificationId',
-        as: 'examClassification'
+      Topic.hasMany(models.Question, {
+        foreignKey: 'topicId',
+        as: 'questions',
+        onDelete: 'CASCADE' // Konu silindiğinde soruları da sil
+      });
+      Topic.hasMany(models.FlashCard, { // Bir konunun birden fazla flash kartı olabilir
+        foreignKey: 'topicId',
+        as: 'flashCards',
+        onDelete: 'CASCADE' // Konu silindiğinde flash kartlarını da sil
+      });
+      Topic.hasMany(models.UserFlashBox, { // Bir konu SRS'te birden fazla kullanıcı için olabilir
+        foreignKey: 'topicId',
+        as: 'userFlashBoxEntriesTopic', // Farklı bir alias, UserFlashBox'taki topic ilişkisiyle çakışmasın
+        onDelete: 'CASCADE' // Konu silindiğinde SRS girişlerini de sil
       });
     }
   }
   Topic.init({
+    id: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     name: {
       type: DataTypes.STRING,
       allowNull: false
@@ -45,37 +69,45 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'Topics',
+        model: 'Topics', // Kendi tablosuna referans
         key: 'id'
-      },
-      onDelete: 'SET NULL',
-      onUpdate: 'CASCADE'
+      }
+      // onDelete: 'CASCADE' burada da belirtilebilir, associate içinde de.
     },
-    branchId: { // Bu alan zaten vardı
+    branchId: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false,
       references: {
         model: 'Branches',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
+        key: 'id'
+      }
+      // onDelete: 'CASCADE' associate içinde tanımlandı
     },
-    // YENİ ALAN: examClassificationId
     examClassificationId: {
       type: DataTypes.INTEGER,
-      allowNull: true, // Bir konu genel olabilir veya sınıflandırması olmayabilir.
-                       // Zorunlu olması gerekiyorsa allowNull: false yapın.
+      allowNull: false,
       references: {
-        model: 'ExamClassifications', // ExamClassifications tablosuna referans
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL', // Sınıflandırma silinirse bu konunun alanı null olur.
+        model: 'ExamClassifications',
+        key: 'id'
+      }
+      // onDelete: 'CASCADE' associate içinde tanımlandı
+    },
+    // order: { // Konuların sıralaması için (opsiyonel)
+    //   type: DataTypes.INTEGER,
+    //   defaultValue: 0
+    // },
+    createdAt: {
+      allowNull: false,
+      type: DataTypes.DATE
+    },
+    updatedAt: {
+      allowNull: false,
+      type: DataTypes.DATE
     }
   }, {
     sequelize,
     modelName: 'Topic',
+    tableName: 'Topics'
   });
   return Topic;
 };

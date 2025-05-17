@@ -7,53 +7,90 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Lecture.belongsTo(models.Topic, {
         foreignKey: 'topicId',
-        as: 'topic'
+        as: 'topic',
+        onDelete: 'CASCADE', // Konu silindiğinde bu ders anlatımını da sil
+        allowNull: false
       });
-      // YENİ İLİŞKİ: Lecture -> ExamClassification
-      Lecture.belongsTo(models.ExamClassification, {
-        foreignKey: 'examClassificationId',
-        as: 'examClassification'
+      Lecture.belongsTo(models.User, { // Ders anlatımını oluşturan (opsiyonel)
+        foreignKey: 'authorId',
+        as: 'author',
+        allowNull: true, // Sistem veya genel içerik olabilir
+        onDelete: 'SET NULL'
+      });
+      // Bir ders anlatımı için birden fazla görüntüleme kaydı olabilir
+      Lecture.hasMany(models.LectureView, {
+        foreignKey: 'lectureId',
+        as: 'views',
+        onDelete: 'CASCADE' // Ders silindiğinde görüntüleme kayıtlarını da sil
       });
     }
   }
   Lecture.init({
+    id: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     title: {
       type: DataTypes.STRING,
-      allowNull: false // Başlık zorunlu olmalı
+      allowNull: false
     },
     content: {
-      type: DataTypes.TEXT,
-      allowNull: false // İçerik zorunlu olmalı
+      type: DataTypes.TEXT, // Zengin metin editörü için TEXT daha uygun
+      allowNull: false
     },
-    imageUrl: {
+    videoUrl: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    topicId: { // Topic ile ilişki için foreign key
+    imageUrl: { // Ders için ana görsel (opsiyonel)
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    order: { // Konu içindeki sıralaması
       type: DataTypes.INTEGER,
-      allowNull: false, // Her ders bir konuya ait olmalı
+      defaultValue: 0
+    },
+    topicId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
       references: {
         model: 'Topics', // Topics tablosuna referans
         key: 'id'
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE' // Konu silinirse dersler de silinsin (veya SET NULL)
+      onDelete: 'CASCADE', // EKLENDİ/Teyit Edildi
+      onUpdate: 'CASCADE'  // Önerilir
     },
-    // YENİ ALAN: examClassificationId
-    examClassificationId: {
+    authorId: {
       type: DataTypes.INTEGER,
-      allowNull: false, // Her ders bir sınav sınıflandırmasına ait olmalı
+      allowNull: true,
       references: {
-        model: 'ExamClassifications', // ExamClassifications tablosuna referans
-        key: 'id',
+        model: 'Users',
+        key: 'id'
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE', // Sınıflandırma silinirse dersler de silinsin
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE'
+    },
+    isActive: { // Ders anlatımı aktif mi?
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false
+    },
+    // examClassificationId ve branchId alanları lecture'da genellikle olmaz,
+    // bunlar topic üzerinden gelir. Eğer özel bir durumunuz varsa eklenebilir.
+    createdAt: {
+      allowNull: false,
+      type: DataTypes.DATE
+    },
+    updatedAt: {
+      allowNull: false,
+      type: DataTypes.DATE
     }
   }, {
     sequelize,
     modelName: 'Lecture',
-    // tableName: 'Lectures' // İsterseniz tablo adını açıkça belirtebilirsiniz
+    tableName: 'Lectures'
   });
   return Lecture;
 };
