@@ -18,7 +18,7 @@ module.exports = {
       console.log(`Sütun ${columnName} ${tableName} tablosunda bulunamadı, ekleniyor...`);
       await queryInterface.addColumn(tableName, columnName, {
         type: Sequelize.INTEGER,
-        allowNull: false, // Modelinize göre ayarlayın (Branch modeli false diyor)
+        allowNull: true, // Modelinize göre ayarlayın (Branch modeli false diyor)
         references: {
           model: 'ExamClassifications', // Referans verilen tablo adı
           key: 'id',
