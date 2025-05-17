@@ -341,6 +341,8 @@ function TopicBrowserPage() {
     if (topicId) params.append('topicId', topicId);
     if (mode === 'deneme') params.append('mode', 'deneme');
     
+      // Bu kısmı EKLE:
+    else params.append('mode', 'practice'); // eksikse default olarak eklenmeli
     // Seçili sınav, branş ve konu isimlerini de SolvePage'e başlık için yollayalım
     const exam = orderedExamsForUI.find(e => e.id === examId);
     const branch = filteredBranches.find(b => b.id === branchId);
